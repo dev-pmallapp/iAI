@@ -30,6 +30,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -186,6 +187,14 @@ table in this Story's ISA and may differ once the design is written.
 
 
 def task_body(s, t, tid, parent):
+    """Body for a task issue.
+
+    `/iai:task-verify` takes an ISSUE NUMBER, but the number does not exist
+    until the issue has been created, so the Story-relative code ({tid}) is
+    written here as a placeholder and repaired by `GH.ensure_verify_id` on the
+    very next call. Re-running repairs any task still carrying the placeholder,
+    which is how the 137 issues created before this was fixed get healed.
+    """
     parent_ref = f"#{parent}" if parent else f"the {s['sid']} Story"
     return f"""## Task
 
@@ -232,7 +241,7 @@ class GH:
     def __init__(self, repo, dry):
         self.repo, self.dry = repo, dry
         self.issues = {}
-        self.created = self.skipped = self.failed = 0
+        self.created = self.skipped = self.failed = self.repaired = 0
 
     def refresh(self):
         out = sh(["gh", "issue", "list", "--repo", self.repo, "--state", "all",
@@ -275,6 +284,44 @@ class GH:
     def node_id(self, num):
         return sh(["gh", "api", f"repos/{self.repo}/issues/{num}",
                    "--jq", ".node_id"])
+
+    def ensure_verify_id(self, num, tid):
+        """Replace a Story-relative code in `/iai:task-verify` with the issue number.
+
+        The verb takes an issue number; a body saying `/iai:task-verify S1.1.1`
+        names something that cannot be resolved. Idempotent: a body that already
+        carries the number, or that has been reconciled by hand, is left alone.
+        """
+        if not num:
+            return False
+        stale = f"/iai:task-verify {tid}"
+        try:
+            body = sh(["gh", "api", f"repos/{self.repo}/issues/{num}",
+                       "--jq", ".body"])
+        except SystemExit:
+            return False
+        if stale not in body:
+            return False
+        if self.dry:
+            print(f"{C['cyan']}  would repair{C['reset']} #{num}  "
+                  f"{C['dim']}{stale} -> /iai:task-verify {num}{C['reset']}",
+                  file=sys.stderr)
+            self.repaired += 1
+            return True
+        fixed = body.replace(stale, f"/iai:task-verify {num}")
+        with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as f:
+            f.write(fixed)
+            path = f.name
+        r = subprocess.run(["gh", "issue", "edit", str(num), "--repo", self.repo,
+                            "--body-file", path], capture_output=True, text=True)
+        os.unlink(path)
+        if r.returncode != 0:
+            warn(f"repair failed: #{num}\n     {r.stderr.strip()}")
+            return False
+        ok(f"repaired #{num}  task-verify {tid} -> {num}")
+        self.repaired += 1
+        time.sleep(0.4)
+        return True
 
     def link_subissue(self, parent, child):
         """Attach child to parent via the GraphQL sub-issue API.
@@ -354,6 +401,7 @@ def main():
             ttitle = f"{tid} — {t['title']}"
             tnum = gh.create_issue(
                 ttitle, task_body(s, t, tid, num), task_labels(s), ms)
+            gh.ensure_verify_id(tnum, tid)
             if gh.link_subissue(num, tnum):
                 linked += 1
 
@@ -362,6 +410,7 @@ def main():
     print(f"{C['green']}{gh.created} created{C['reset']} · "
           f"{C['dim']}{gh.skipped} skipped{C['reset']} · "
           f"{C['red']}{gh.failed} failed{C['reset']} · "
+          f"{gh.repaired} repaired · "
           f"{linked} sub-issue links", file=sys.stderr)
     if dry:
         print(f"\n{C['yellow']}{C['bold']}Nothing was changed. "
