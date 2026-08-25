@@ -1,0 +1,30 @@
+# Secrets — SECRET class, never committed. See docs/design/09-security.md
+.env
+.env.*
+!.env.example
+
+# Private data — USER/ is a symlink into the private repo.
+# The symlink itself is ignored; a REGULAR file here fails CI.
+USER/
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Installer backups — written by `iai install --apply`
+*.iai-backup-*
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Editor and OS
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
