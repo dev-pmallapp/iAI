@@ -18,6 +18,10 @@ build/
 # Installer backups — written by `iai install --apply`
 *.iai-backup-*
 
+# Python bytecode — scripts/ is Python
+__pycache__/
+*.py[cod]
+
 # Test / coverage
 coverage/
 .nyc_output/
