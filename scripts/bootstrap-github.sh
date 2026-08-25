@@ -520,8 +520,11 @@ The authoritative \`| Feature | Description |\` table lives in the **milestone
 description**, not in this issue. One Story is created per row:
 
 \`\`\`
-/iai:story-create ${ordinal}     # or /forge:story-create ${ordinal} until M2 lands
+scripts/bootstrap-stories.py --apply --milestone ${ordinal}
 \`\`\`
+
+Until the Tier-1 verbs ship at the end of M2 there is no \`/iai:story-create\`
+and forge is not used in its place; the script above is the bootstrap stand-in.
 
 ### Done when
 
@@ -622,14 +625,18 @@ summary() {
       "${C_YELLOW}${C_BOLD}" "${C_RESET}" >&2
   fi
   cat >&2 <<EOF
-  1. Create the Stories for milestone 1:
+  1. Create the Stories and Tasks:
 
-       /iai:story-create 1          # or /forge:story-create 1 until M2 lands
+       scripts/bootstrap-stories.py --apply
 
-     Stories are generated from the milestone DESCRIPTION feature table —
-     exactly one Story issue per table row. Edit the milestone description
-     first if a row is wrong; the table is the source of truth, not this
+     Stories are generated from the milestone feature tables in
+     docs/milestones/M*.md — exactly one Story per table row. Edit those
+     first if a row is wrong; they are the source of truth, not this
      script and not the epic issue.
+
+     There is no /iai:story-create until the Tier-1 verbs ship at the end
+     of M2, and forge is not used in its place — it is a design input,
+     not an installed plugin.
 
   2. Repeat per milestone as you reach it. Use the REAL milestone numbers
      from the mapping above, not the M1..M8 ordinals, in any raw gh command:

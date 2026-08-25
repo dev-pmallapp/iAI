@@ -147,22 +147,30 @@ See [`docs/design/02-roles.md`](docs/design/02-roles.md).
 
 ## How this plan is tracked
 
-This plan is **self-hosting**: it is written in forge's own format so that forge
-can execute it.
+This plan is **self-hosting**: iAI is built by running iAI's own process, and
+the plan is written in a machine-parseable format so that process can read it.
 
-- `ARCHITECTURE.md` carries a `## Build Targets` table — forge parses this to
-  create one task per target.
-- `CONTRIBUTING.md` carries a `## Commands` table — forge parses this to know how
-  to build, test and lint.
+- `ARCHITECTURE.md` carries a `## Build Targets` table — one task per target.
+- `CONTRIBUTING.md` carries a `## Commands` table — how to build, test and lint.
 - Each `docs/milestones/M*.md` carries a `| Feature | Description |` table —
-  forge's `story-create` turns each row into one Story issue.
+  one Story per row.
+
+The format is inherited from forge, but forge is **not** a runtime dependency.
+It is never installed and never invoked: it was consumed at design time in
+`docs/design/00-synthesis.md`, and `~/tmp/gh-workflow` is kept read-only as the
+reconciliation source for S1.1 and the parity target for S4.5.
+
+Until the Tier-1 verbs land at the end of M2, the loop in
+`docs/design/03-workflow.md` is executed **by hand** — the ISA, the `## iai-*`
+sentinels, the rungs and the three gates are all followed as written, just not
+yet automated. From M3 onward `/iai:` drives its own construction.
 
 Bootstrap:
 
 ```bash
 gh repo create iAI --private --source=. --remote=origin
-./scripts/bootstrap-github.sh          # labels + 8 milestones + 36 Stories
-/forge:story-design 1                  # then run the normal forge loop
+./scripts/bootstrap-github.sh          # labels + 8 milestones + 8 epics
+./scripts/bootstrap-stories.py --apply # 36 Stories + 142 Tasks
 ```
 
 ---

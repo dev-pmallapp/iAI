@@ -98,9 +98,14 @@ irreversible money-moving action in the system.
 | `story-test` | `story-verify` |
 | `enhance-debugger` | `learn` |
 
-The README bootstrap snippet still shows `/forge:story-design 1` because this
-plan is self-hosting: forge executes the plan that builds iAI, and only after
-M1 does `/iai:` exist to replace it.
+forge is a design input, not a dependency. Everything above is the record of it
+being **incorporated at design time** — it is never installed as a plugin and no
+`/forge:` command is ever invoked. `~/tmp/gh-workflow` stays on disk read-only,
+pinned, as the reconciliation source for S1.1 and the parity target for S4.5.
+
+This plan is self-hosting, so the bootstrap window is executed by hand: the
+Tier-1 verbs only exist once **M2** ships them, and until then the loop in
+`03-workflow.md` is followed manually rather than delegated to another tool.
 
 ---
 

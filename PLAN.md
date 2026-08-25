@@ -225,12 +225,16 @@ cd ~/tmp/iAI
 git init && git add -A && git commit -m "Initial plan"
 gh repo create iAI --private --source=. --remote=origin --push
 
-./scripts/bootstrap-github.sh          # labels + 8 milestones + 36 Stories
-
-/iai:status                            # or /forge:status until M2 lands
-/iai:story-design 1                    # begin M1 story 1
+./scripts/bootstrap-github.sh          # labels + 8 milestones + 8 epics
+./scripts/bootstrap-stories.py --apply # 36 Stories + 142 Tasks
 ```
 
-Until M2 ships the Tier-1 skills, bootstrap this repository with **forge itself** —
-`/forge:story-design`, `/forge:task-create`, `/forge:task-implement`. iAI is built
-by the system it generalises.
+Then begin M1 story 1 (#9).
+
+Until M2 ships the Tier-1 skills there is no `/iai:` command to run, and forge is
+**not** used to stand in for one — it is a design input, already incorporated in
+`docs/design/00-synthesis.md`, never an installed plugin. For that window the
+loop in `docs/design/03-workflow.md` is executed **by hand**: the ISA lands at
+`docs/design/{issue}-isa.md`, evidence is posted behind `## iai-*` sentinels,
+Stories carry a rung, and the three gates are honoured. From M3 onward `/iai:`
+drives its own construction. iAI is built by the system it generalises.
