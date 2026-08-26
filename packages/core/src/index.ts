@@ -8,3 +8,5 @@ export interface Decision {
 export function decide(action: Action, message: string): Decision {
   return { action, message };
 }
+
+export const deliberateBreak: number = "this is not a number";
