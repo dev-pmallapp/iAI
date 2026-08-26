@@ -291,7 +291,7 @@ export function lintSkillSource(filePath: string, source: string, directoryName:
         line: 1,
         rule: "field-required",
         severity: "error",
-        message: `${filePath} is missing required frontmatter field "${required}"`,
+        message: `missing required frontmatter field "${required}"`,
       });
     }
   }
