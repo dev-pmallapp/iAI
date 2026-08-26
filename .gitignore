@@ -32,3 +32,7 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+
+# opencode session state. `.opencode/opencode.json` is checked in as project
+# config; the runtime scratch files beside it are not.
+.opencode/todo.json
