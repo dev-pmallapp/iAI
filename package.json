@@ -4,8 +4,8 @@
   "type": "module",
   "workspaces": ["packages/*"],
   "scripts": {
-    "build": "tsc -b tsconfig.json",
-    "test": "bun test --pass-with-no-tests",
+    "build": "bun scripts/build.ts",
+    "test": "bun test",
     "lint": "bun scripts/lint.ts",
     "typecheck": "tsc -b tsconfig.json --force",
     "skill-lint": "bun scripts/skill-lint.ts"
