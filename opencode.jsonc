@@ -1,0 +1,87 @@
+{
+  // Project-scoped opencode config for working ON iAI. This is developer
+  // tooling for this repository; it is NOT the config iAI's installer emits.
+  // The installer writes .opencode/agents/, .opencode/plugins/ and merges
+  // opencode.json additively - see docs/design/08-dual-target.md. Keep the two
+  // separate: nothing here should be hand-copied into generated output.
+  //
+  // Project config is deep-merged over ~/.config/opencode/opencode.jsonc, and
+  // project wins. The global config already allows `git`, `npm` and `grep`;
+  // this file adds the toolchain CONTRIBUTING.md's ## Commands section
+  // actually calls, so a normal build/test/verify loop stops prompting.
+  //
+  // ORDER MATTERS. opencode evaluates the LAST matching rule, so the broad
+  // "*" sits first and the denials sit last, where nothing can re-enable them.
+  "$schema": "https://opencode.ai/config.json",
+
+  "permission": {
+    "bash": {
+      "*": "ask",
+
+      // Version control and the GitHub CLI. The whole workflow in
+      // docs/design/03-workflow.md is issues, labels, sentinels and PRs, all
+      // driven through `gh`.
+      "git *": "allow",
+      "gh *": "allow",
+
+      // Toolchain, per CONTRIBUTING.md prerequisites: bun >= 1.2, node >= 20.
+      "bun *": "allow",
+      "bunx *": "allow",
+      "node *": "allow",
+      "npm *": "allow",
+      "npx *": "allow",
+      "tsc *": "allow",
+
+      // Verification helpers. scripts/ holds this repo's own checked-in
+      // scripts (bootstrap-github.sh, bootstrap-stories.py, build.ts,
+      // verify-required-checks.sh, verify-workflow-hygiene.sh).
+      "python3 *": "allow",
+      "bash scripts/*": "allow",
+      "bash -n *": "allow",
+
+      // Read-only inspection.
+      "ls *": "allow",
+      "cat *": "allow",
+      "head *": "allow",
+      "tail *": "allow",
+      "wc *": "allow",
+      "find *": "allow",
+      "grep *": "allow",
+      "rg *": "allow",
+      "sed -n *": "allow",
+      "awk *": "allow",
+      "sort *": "allow",
+      "uniq *": "allow",
+      "tr *": "allow",
+      "jq *": "allow",
+      "diff *": "allow",
+      "stat *": "allow",
+      "file *": "allow",
+      "which *": "allow",
+      "date *": "allow",
+      "pwd": "allow",
+      "echo *": "allow",
+      "printf *": "allow",
+      "sleep *": "allow",
+
+      // Additive filesystem operations. These create; they do not destroy.
+      "mkdir *": "allow",
+      "touch *": "allow",
+      "cp *": "allow",
+
+      // Denials last. `rm` stays denied exactly as the global config has it,
+      // and the two chained forms are listed because a pattern only matches
+      // from the start of the command string: "rm *" alone does not catch
+      // `bun run build && rm -rf dist`.
+      //
+      // This is mitigation, not a sandbox. `find -delete`, `find -exec rm`,
+      // a script that removes files, and other indirections are not caught by
+      // string matching. Treat it as a guard against the obvious case.
+      "rm *": "deny",
+      "* && rm *": "deny",
+      "*; rm *": "deny",
+      "sudo *": "deny",
+      "* && sudo *": "deny"
+    }
+  }
+}
