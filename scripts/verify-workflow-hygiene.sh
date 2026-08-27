@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
-# verify-workflow-hygiene.sh — mechanically verify ISC-8 of docs/design/9-isa.md.
+# verify-workflow-hygiene.sh — mechanically verify ISC-8 of docs/design/stories/9.md.
 #
 # ISC-8 (anti-claim): "a CI check that is skipped or absent never causes the
 # PR to report as passing." Two GitHub behaviours cause this if left
@@ -335,7 +335,7 @@ main() {
     warn "workflow file not found: ${WORKFLOW_PATH}"
     cat >&2 <<EOF
 
-  ISC-8 (docs/design/9-isa.md) cannot be checked without a workflow file to
+  ISC-8 (docs/design/stories/9.md) cannot be checked without a workflow file to
   parse. Expected required jobs: ${REQUIRED_JOBS[*]}.
 
   If .github/workflows/ci.yml has not been written yet, this script has

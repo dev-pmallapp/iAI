@@ -171,7 +171,7 @@ everything still works — `/iai:status` is the text-mode equivalent.
 | Kind | Location | Format |
 |---|---|---|
 | Intent | `USER/TELOS/TELOS.md` | Markdown, `G0`/`P0`/`S0` IDs |
-| Story design (ISA) | `docs/design/{issue}-isa.md` | YAML frontmatter + 17 fixed sections |
+| Story design (ISA) | `docs/design/stories/{issue}.md` | YAML frontmatter + 17 fixed sections |
 | Test plan | `docs/test-plans/{issue}-plan.md` | Markdown tables, P0/P1/P2 |
 | Evidence | `docs/evidence/{issue}-{ts}.md` | Markdown + committed raw data |
 | Memory | `MEMORY/**` | Markdown + JSONL append-only |

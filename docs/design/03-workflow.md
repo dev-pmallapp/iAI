@@ -14,7 +14,7 @@ every code-specific assumption:
 | 0 | `/iai:init` | Bootstrap the repo. Once, ever. | Root docs, label set, `docs/` skeleton |
 | 1 | `/iai:goal-create` | TELOS goal → GitHub milestone | Milestone with a `\| Feature \| Description \|` table in its description |
 | 2 | `/iai:story-create 7` | One Story issue per feature-table row of milestone 7 | Stories `#57`, `#58`, `#59` … each labelled `type:story` + `domain:*` |
-| 3 | `/iai:story-design 57` | Write the ISA | `docs/design/57-isa.md`, `## iai-isa` sentinel, story branch |
+| 3 | `/iai:story-design 57` | Write the ISA | `docs/design/stories/57.md`, `## iai-isa` sentinel, story branch |
 | 4 | `/iai:story-test-plan 57` | ISA verifiable claims (`ISC-N`) → verification plan | `docs/test-plans/57-plan.md`, `## iai-test-plan` sentinel |
 | 5 | `/iai:task-create 57` | One task sub-issue per unit of work | `#61`, `#62`, `#63` … `type:task`, parented to `#57` |
 | 6 | `/iai:task-do 61` | Execute the unit | `task/61-*` branch, commits, **draft** PR → story branch |
@@ -52,7 +52,7 @@ Milestone 7 — "Q1 Metabolic + Portfolio Reset"
 │
 ├── #57  [type:story] [domain:health] [status:in-progress]
 │    │   "Drive ApoB under 60 by end of Q1"
-│    │   ISA:  docs/design/57-isa.md          (ISC-1 .. ISC-6)
+│    │   ISA:  docs/design/stories/57.md          (ISC-1 .. ISC-6)
 │    │   Plan: docs/test-plans/57-plan.md     (4 P0 / 6 P1 / 2 P2)
 │    │   Branch: story/57-apob-protocol
 │    │
@@ -62,7 +62,7 @@ Milestone 7 — "Q1 Metabolic + Portfolio Reset"
 │
 ├── #58  [type:story] [domain:trade] [status:blocked] [risk:vetoed]
 │    │   "Reset portfolio to mandate-compliant sector weights"
-│    │   ISA:  docs/design/58-isa.md
+│    │   ISA:  docs/design/stories/58.md
 │    │   Rung: rung:paper   (rung:live NOT authorised)
 │    │   Branch: story/58-portfolio-reset
 │    │
@@ -72,7 +72,7 @@ Milestone 7 — "Q1 Metabolic + Portfolio Reset"
 │
 └── #59  [type:story] [domain:dev] [status:resolved]
      │   "Ship acme/telemetry metric export"
-     │   ISA:  docs/design/59-isa.md
+     │   ISA:  docs/design/stories/59.md
      │   Branch: story/59-telemetry-export
      │
      ├── #67 [type:task] "OTLP exporter in packages/core/src/telemetry"  [resolved]
@@ -371,7 +371,7 @@ It is how the pipeline reads its own history without a database.
 
 | Sentinel | Producer | Artifact path |
 |----------|----------|---------------|
-| `## iai-isa` | `/iai:story-design` | `docs/design/{n}-isa.md` |
+| `## iai-isa` | `/iai:story-design` | `docs/design/stories/{n}.md` |
 | `## iai-test-plan` | `/iai:story-test-plan` | `docs/test-plans/{n}-plan.md` |
 | `## iai-evidence` | `/iai:task-verify`, `/iai:story-verify` | `docs/evidence/{n}-{ts}.md` |
 | `## iai-verdict` | `/iai:story-verify` | inline (comment only) |
@@ -549,7 +549,7 @@ and `gh issue view`.
 
 | Do not | Do |
 |--------|-----|
-| "I created the ISA earlier" | `test -f docs/design/57-isa.md && git log -1 -- docs/design/57-isa.md` |
+| "I created the ISA earlier" | `test -f docs/design/stories/57.md && git log -1 -- docs/design/stories/57.md` |
 | "The task is resolved" | `gh issue view 61 --json labels,state` |
 | "The PR is open" | `gh pr list --head task/61-baseline-lipid-panel --json number,isDraft` |
 | "Tests passed" | Re-run them and capture the output |

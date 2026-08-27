@@ -529,7 +529,7 @@ G0  "ApoB under 60 by Q4"                        USER/TELOS/TELOS.md
  └── Milestone 8  "Q3 Lipid protocol"            feature table in description
       └── #57  [type:story][domain:health][class:private][rung:observe]
            │   "Lower ApoB from 88 to under 60"
-           │   ISA:  docs/design/57-isa.md        (ISC-1 .. ISC-5)
+           │   ISA:  docs/design/stories/57.md        (ISC-1 .. ISC-5)
            │   Plan: docs/test-plans/57-plan.md   (3 P0 / 5 P1 / 1 P2)
            │   Branch: story/57-lower-apob-from-88-to-under-60
            │
@@ -555,7 +555,7 @@ G0  "ApoB under 60 by Q4"                        USER/TELOS/TELOS.md
 |------|---------|--------------|
 | 1 | `/iai:goal-create G0` | Milestone 8 "Q3 Lipid protocol" created with its feature table |
 | 2 | `/iai:story-create 8` | `#57` opened; `type:story`, `domain:health`, `class:private`, `rung:observe` |
-| 3 | `/iai:story-design 57` | `docs/design/57-isa.md` with ISC-1..ISC-5. **Windows and thresholds declared here, before any data** |
+| 3 | `/iai:story-design 57` | `docs/design/stories/57.md` with ISC-1..ISC-5. **Windows and thresholds declared here, before any data** |
 | 4 | `/iai:story-test-plan 57` | `docs/test-plans/57-plan.md`; ISC-5 lands as a P0 attested case |
 | 5 | `/iai:task-create 57` | `#64`, `#65`, `#66`, `#67` opened as sub-issues of `#57` |
 | 6 | `/iai:task-do 64` | Branch `task/64-ingest-monthly-lipid-panel`; `health/ingest` runs `function.ts`; `USER/HEALTH/LABS/2026-08-16-lipid-advanced.json` lands with `Biomarker{name:"ApoB", value:82, ref_low:0, ref_high:90}` |

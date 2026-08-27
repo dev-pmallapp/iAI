@@ -8,7 +8,7 @@ import { join } from "node:path";
 //
 // This is the interim install path for the commit-msg hook. The documented
 // destination (bun run packages/installer/src/cli.ts install-git-hooks
-// --apply, per CONTRIBUTING.md:225) does not exist yet — docs/design/9-isa.md
+// --apply, per CONTRIBUTING.md:225) does not exist yet — docs/design/stories/9.md
 // puts installer CLI behaviour explicitly out of scope for this story.
 
 export function hookScript(commitMsgScriptPath: string): string {

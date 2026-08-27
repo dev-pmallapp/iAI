@@ -235,6 +235,6 @@ Until M2 ships the Tier-1 skills there is no `/iai:` command to run, and forge i
 **not** used to stand in for one — it is a design input, already incorporated in
 `docs/design/00-synthesis.md`, never an installed plugin. For that window the
 loop in `docs/design/03-workflow.md` is executed **by hand**: the ISA lands at
-`docs/design/{issue}-isa.md`, evidence is posted behind `## iai-*` sentinels,
+`docs/design/stories/{issue}.md`, evidence is posted behind `## iai-*` sentinels,
 Stories carry a rung, and the three gates are honoured. From M3 onward `/iai:`
 drives its own construction. iAI is built by the system it generalises.

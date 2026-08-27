@@ -500,7 +500,7 @@ position opened in 2024. This is the ordinary case the pack is built for.
 negotiable at this stage.
 
 **Story → ISA, with pre-registration.** `/iai:story-design 58` writes
-`docs/design/58-isa.md`, cuts `story/58-rotate-20-from-single-name-tech-into`,
+`docs/design/stories/58.md`, cuts `story/58-rotate-20-from-single-name-tech-into`,
 and posts `## iai-isa`. The claims are written and **committed before any
 backtest runs**:
 
@@ -513,7 +513,7 @@ backtest runs**:
 | ISC-5 | Paper window: 30 consecutive sessions. Tracking error versus backtest ≤ 150bp annualised. Declared before the window opens |
 | ISC-6 | Post-rotation, `MSFT` ≤ `max_position_pct` and no GICS sector exceeds `max_sector_pct`, verified against `POSITIONS.yaml` |
 
-The commit SHA of `58-isa.md` is the pre-registration timestamp. Changing ISC-3
+The commit SHA of `stories/58.md` is the pre-registration timestamp. Changing ISC-3
 after seeing a backtest result closes `#58` and opens a new Story.
 
 **ISA → Tasks.** `/iai:task-create 58`:

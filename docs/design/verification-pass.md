@@ -13,7 +13,7 @@ repositories. This document is the record.
 | forge (`gh-workflow`) | `~/tmp/gh-workflow` | working tree, 2026-08-26 |
 | oh-my-opencode | `~/tmp/oh-my-opencode` | `code-yeongyu/oh-my-openagent`, cloned 2026-08-26 |
 
-**oh-my-opencode was not present when this task began.** `docs/design/9-isa.md:81-83`
+**oh-my-opencode was not present when this task began.** `docs/design/stories/9.md:81-83`
 names three source repositories and then gives two paths, so a third of ISC-6
 was unsatisfiable as written. The repository was renamed upstream —
 `oh-my-opencode` redirects to `code-yeongyu/oh-my-openagent` — which is why it
@@ -76,7 +76,7 @@ by line inflates the count without adding verification.
 | File | Lines | Rows | Status |
 |---|---|---|---|
 | `00-synthesis.md` | 173 | 1-14 | **passed** — factual claims about sources verified |
-| `9-isa.md` | 185 | 37-38 | **passed** |
+| `stories/9.md` | 185 | 37-38 | **passed** |
 | `01-skill-hierarchy.md` | 473 | 100-177 | **passed** |
 | `02-roles.md` | 695 | 200-249, 800-871 | **passed** |
 | `03-workflow.md` | 577 | 300-349 | **passed** |
@@ -141,11 +141,11 @@ is the only claim positioned to catch. Each was found while implementing #187,
 | 18 | Skill layout specified twice | `01-skill-hierarchy.md:370` (nested) vs `CONTRIBUTING.md:284` (flat) | The design's own example `skills/trade/backtest/` + `name: trade-backtest` **fails its own rule** at `:349`. Only the flat form is lintable; shipped that way |
 | 19 | skill-lint scope specified twice | `M1.md:62` ("three docs targets") vs ISA test strategy / `CONTRIBUTING.md:113` / `ci.yml:107` (`skills/` only) | Shipped `skills/`-only. `references/` is "contracts, not skills" (`08-dual-target.md:485`); `agents/` must omit `name` on opencode. One schema cannot span all three |
 | 20 | Core purity contradicted eleven lines apart | `08-dual-target.md:215` ("one small `readFileSync`" permitted) vs `:220` ("The core never does I/O") | Shipped **pure**, because `M1.md:95-97` commits S1.2 to stubbing `fs`/`net`/`process` to throw against `packages/core/src/guards` |
-| 21 | `process.cwd()` ban names `core` and `adapter-opencode`, silent on `adapter-claude` | `9-isa.md` Constraints | Implemented verbatim, asymmetry included, with a test pinning it. Either deliberate-and-unrecorded or an omission |
+| 21 | `process.cwd()` ban names `core` and `adapter-opencode`, silent on `adapter-claude` | `stories/9.md` Constraints | Implemented verbatim, asymmetry included, with a test pinning it. Either deliberate-and-unrecorded or an omission |
 | 22 | `no-exec-template` rule has no owning claim in story #9 | `CONTRIBUTING.md:309`, `09-security.md:189` | Shipped unclaimed rather than dropped — dropping would have silently lost a security rule |
 | 23 | `description` length: 1024 vs "under 300" hard check vs "roughly 300" | design tables vs `CONTRIBUTING.md:122` vs `08-dual-target.md:67` | Shipped 1024 error / 300 warning |
 | 24 | Body-section checks claimed but unclaimed by ISC-5 | `CONTRIBUTING.md:122` | Not implemented; ISC-5 and all four cases are frontmatter-only |
-| 25 | Install path names a file that does not exist | `CONTRIBUTING.md:225` → `packages/installer/src/cli.ts` | Installer CLI is out of scope per `9-isa.md:52-53`. `scripts/install-git-hooks.ts` is the interim path |
+| 25 | Install path names a file that does not exist | `CONTRIBUTING.md:225` → `packages/installer/src/cli.ts` | Installer CLI is out of scope per `stories/9.md:52-53`. `scripts/install-git-hooks.ts` is the interim path |
 | 26 | `category: "ultrabrain"` is not one of the seven routing categories | `01-skill-hierarchy.md:387,396` vs `02-roles.md:545-553` | The repo's only skill-frontmatter example uses an **invalid** category. `ultrabrain` is an inherited omo built-in (row 11); only `deep` and `quick` survive into iAI's seven |
 | 27 | `ultrawork` vs `deepwork` naming drift | `ARCHITECTURE.md:113` vs `00-synthesis.md:119` | The rename was decided (row 12); ARCHITECTURE still carries the old name |
 | 28 | Model chains unspecified | `M3.md:115` requires an ordered chain with ≥1 fallback per category; `02-roles.md:545-553` gives one model per category per host | 21 chain positions undefined |
@@ -157,8 +157,8 @@ is the only claim positioned to catch. Each was found while implementing #187,
 | 34 | `AgentSpec` referenced repeatedly, defined nowhere | `02-roles.md:590,692,694`, `08-dual-target.md:256,426`, `M3.md:58`, `M8.md:38` | No TypeScript shape exists in any repo |
 | 35 | `{target_dir}` defined twice | `CONTRIBUTING.md:63` vs `04-domain-dev.md:334` | ISA adopted the CONTRIBUTING form. See row 475 — the `04` form is the one forge actually uses |
 | 36 | `## Commands` shape specified twice | `CONTRIBUTING.md` block form vs the table form | Recorded in the ISA Decisions section. See row 473 — the table's header is `Kind`, forge parses `Action` |
-| 37 | Three-way `anchors_to` collision | `9-isa.md` Test Strategy, `9-plan.md`, LifeOS `ISAFormat.md:325` | LifeOS defines `literal` / `derived: <sub-claim>` / `cross: <slug>`; iAI uses the first two and adds its own |
-| 38 | ISA names three sources, gives two paths | `9-isa.md:81-83` | **Corrected by this task** — oh-my-opencode located upstream and checked out |
+| 37 | Three-way `anchors_to` collision | `stories/9.md` Test Strategy, `9-plan.md`, LifeOS `ISAFormat.md:325` | LifeOS defines `literal` / `derived: <sub-claim>` / `cross: <slug>`; iAI uses the first two and adds its own |
+| 38 | ISA names three sources, gives two paths | `stories/9.md:81-83` | **Corrected by this task** — oh-my-opencode located upstream and checked out |
 
 **Section 2:** 24 rows, all internal contradictions.
 
@@ -1080,7 +1080,7 @@ it. All twenty-four do.
 | 5 | hooks 56 → 55 | correct, stands | — |
 | 9 | Fabric 315 → 314 | **wrong** — the real figures are 235 patterns / 309 `.md` files | `d32dce6` |
 | 14 | ISA v2.21.0 → v2.20.0 | **wrong** — `ISAFormat.md:8` reads v2.21.0 | `d32dce6` |
-| 38 | `9-isa.md` dependency line | correct, stands | — |
+| 38 | `stories/9.md` dependency line | correct, stands | — |
 
 ### 4.3 What was corrected but not committed here
 

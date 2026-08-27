@@ -6,7 +6,7 @@ http_body=""
 trap '[[ -n "${http_body:-}" ]] && rm -f "${http_body}"' EXIT
 
 # ---------------------------------------------------------------------------
-# verify-required-checks.sh — mechanically verify ISC-2 of docs/design/9-isa.md.
+# verify-required-checks.sh — mechanically verify ISC-2 of docs/design/stories/9.md.
 #
 # ISC-2: "A pull request reports build, test, lint, typecheck and skill-lint
 # as five separately named required checks; failing any one leaves the PR
@@ -188,7 +188,7 @@ check_configuration() {
   GitHub's response: "Branch not protected" (404 from
   GET /repos/${REPO}/branches/${BRANCH}/protection).
 
-  ISC-2 (docs/design/9-isa.md) requires branch protection on '${BRANCH}' with
+  ISC-2 (docs/design/stories/9.md) requires branch protection on '${BRANCH}' with
   exactly these five required status check contexts:
     ${REQUIRED_CONTEXTS[*]}
 

@@ -291,7 +291,7 @@ invokes `dev/debug` when the failure is a defect rather than a plan error.
 
 | Kind | Path | Format |
 |------|------|--------|
-| Story design (ISA) | `docs/design/{issue}-isa.md` | YAML frontmatter + 17 fixed sections + `## Build Targets` |
+| Story design (ISA) | `docs/design/stories/{issue}.md` | YAML frontmatter + 17 fixed sections + `## Build Targets` |
 | Test plan | `docs/test-plans/{issue}-plan.md` | Markdown tables, P0/P1/P2 |
 | Evidence | `docs/evidence/{issue}-{ts}.md` | YAML frontmatter + build/test output |
 | Target inventory | `ARCHITECTURE.md` → `## Build Targets` | Markdown table, parsed mechanically |
@@ -420,7 +420,7 @@ and opens:
 End-to-end and multi-component, as required: it spans `libtelemetry` (C++),
 `exporter-svc` (Go) and the OTLP schema. It is **not** three Stories.
 
-**Story → ISA.** `/iai:story-design 57` writes `docs/design/57-isa.md`, cuts
+**Story → ISA.** `/iai:story-design 57` writes `docs/design/stories/57.md`, cuts
 `story/57-live-flow-export`, and posts `## iai-isa` with an SHA-pinned permalink.
 The claims:
 
