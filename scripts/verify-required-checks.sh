@@ -6,9 +6,9 @@ http_body=""
 trap '[[ -n "${http_body:-}" ]] && rm -f "${http_body}"' EXIT
 
 # ---------------------------------------------------------------------------
-# verify-required-checks.sh — mechanically verify ISC-2 of docs/design/stories/9.md.
+# verify-required-checks.sh — mechanically verify CLAIM-9.2 of docs/design/stories/9.md.
 #
-# ISC-2: "A pull request reports build, test, lint, typecheck and skill-lint
+# CLAIM-9.2: "A pull request reports build, test, lint, typecheck and skill-lint
 # as five separately named required checks; failing any one leaves the PR
 # unmergeable."
 #
@@ -63,7 +63,7 @@ fail_line() { printf '%s%s FAIL%s %s\n' "${C_RED}${C_BOLD}" "$(printf '\xe2\x9c\
 
 usage() {
   cat <<EOF
-${SCRIPT_NAME} — verify ISC-2: exactly five named required checks.
+${SCRIPT_NAME} — verify CLAIM-9.2: exactly five named required checks.
 
 Configuration mode (default, no --pr): reads branch protection for --branch
 and asserts its required status checks are EXACTLY:
@@ -188,11 +188,11 @@ check_configuration() {
   GitHub's response: "Branch not protected" (404 from
   GET /repos/${REPO}/branches/${BRANCH}/protection).
 
-  ISC-2 (docs/design/stories/9.md) requires branch protection on '${BRANCH}' with
+  CLAIM-9.2 (docs/design/stories/9.md) requires branch protection on '${BRANCH}' with
   exactly these five required status check contexts:
     ${REQUIRED_CONTEXTS[*]}
 
-  Until branch protection is configured with required status checks, ISC-2
+  Until branch protection is configured with required status checks, CLAIM-9.2
   cannot be satisfied: there is no rule forcing a PR to wait on build, test,
   lint, typecheck and skill-lint before it can merge.
 
@@ -209,7 +209,7 @@ check_configuration() {
       -f restrictions=null
 EOF
     printf '\n' >&2
-    fail_line "branch protection is not configured on '${BRANCH}'; ISC-2 is unmet"
+    fail_line "branch protection is not configured on '${BRANCH}'; CLAIM-9.2 is unmet"
     return 1
   fi
 
@@ -256,7 +256,7 @@ EOF
   missing="$(comm -23 <(printf '%s\n' "${expected_sorted}") <(printf '%s\n' "${actual_json}") 2>/dev/null || true)"
   extra="$(comm -13 <(printf '%s\n' "${expected_sorted}") <(printf '%s\n' "${actual_json}") 2>/dev/null || true)"
 
-  [[ -z "${missing}" ]] || printf '%sMissing (required by ISC-2, absent from config):%s\n  %s\n\n' "${C_RED}" "${C_RESET}" "$(printf '%s ' ${missing})" >&2
+  [[ -z "${missing}" ]] || printf '%sMissing (required by CLAIM-9.2, absent from config):%s\n  %s\n\n' "${C_RED}" "${C_RESET}" "$(printf '%s ' ${missing})" >&2
   [[ -z "${extra}" ]] || printf '%sUnexpected (present but not one of the five):%s\n  %s\n\n' "${C_RED}" "${C_RESET}" "$(printf '%s ' ${extra})" >&2
 
   fail_line "branch '${BRANCH}' does not require exactly the five named contexts"
