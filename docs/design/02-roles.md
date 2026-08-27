@@ -147,7 +147,7 @@ Descends from forge's `forge-planner`.
 
 - Implement anything. It writes design and plans, never units of work.
 - Create Task sub-issues. That is phase 5 (`task-create`), a separate skill run.
-- Skip the ISA. A Story with no `## iai-isa` sentinel cannot enter phase 5.
+- Skip the ISA. A Story with no `## iai-design` sentinel cannot enter phase 5.
 - Size a Story it has not read the surrounding code or domain data for.
 
 **Output contract** — first line, then one block per Story:

@@ -501,7 +501,7 @@ negotiable at this stage.
 
 **Story → ISA, with pre-registration.** `/iai:story-design 58` writes
 `docs/design/stories/58.md`, cuts `story/58-rotate-20-from-single-name-tech-into`,
-and posts `## iai-isa`. The claims are written and **committed before any
+and posts `## iai-design`. The claims are written and **committed before any
 backtest runs**:
 
 | Claim | Pre-registered statement |
