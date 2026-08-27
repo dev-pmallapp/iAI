@@ -79,7 +79,9 @@ story of the first milestone. It blocks every other story in M1: none of
 them has a workspace, a build target or a CI check to attach to until this
 story closes. ISC-6's reconciliation pass reads the three source
 repositories — LifeOS, forge and oh-my-opencode — checked out locally at
-`~/tmp/LifeOS` and `~/tmp/gh-workflow`.
+`~/tmp/LifeOS`, `~/tmp/gh-workflow` and `~/tmp/oh-my-opencode`. The third was
+missing when ISC-6 was first attempted: its upstream was renamed, so
+`oh-my-opencode` now redirects to `code-yeongyu/oh-my-openagent`.
 
 ## Goal
 
