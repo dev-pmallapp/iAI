@@ -83,7 +83,7 @@ describe("checkCommitPrefix", () => {
     // "owner/repo" prefix so a public-repo commit can reference an issue in
     // a private repo. The adopted regex (docs/design/03-workflow.md:462)
     // drops that form. This is a deliberate adjudication, not an oversight
-    // — reconciling the two documents is routed to #14 under ISC-6.
+    // — reconciling the two documents is routed to #14 under CLAIM-9.6.
     expect(checkCommitPrefix("owner/repo#9: x").action).toBe("block");
   });
 

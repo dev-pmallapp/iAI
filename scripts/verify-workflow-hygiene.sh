@@ -2,9 +2,9 @@
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
-# verify-workflow-hygiene.sh — mechanically verify ISC-8 of docs/design/stories/9.md.
+# verify-workflow-hygiene.sh — mechanically verify NEVER-9.8 of docs/design/stories/9.md.
 #
-# ISC-8 (anti-claim): "a CI check that is skipped or absent never causes the
+# NEVER-9.8 (anti-claim): "a CI check that is skipped or absent never causes the
 # PR to report as passing." Two GitHub behaviours cause this if left
 # unguarded:
 #
@@ -21,7 +21,7 @@ set -euo pipefail
 #     anywhere, or a `branches:` filter under `pull_request`,
 #   - any of the five required jobs carries `strategy:`/`matrix:` (a matrix
 #     renames the reported context to "job (dim1, dim2)" and silently
-#     breaks branch protection, which is required by ISC-2),
+#     breaks branch protection, which is required by CLAIM-9.2),
 #   - any of the five required job names is missing from the workflow.
 #
 # Prefers a real YAML parse via PyYAML. Falls back to a careful grep/awk
@@ -65,7 +65,7 @@ fail_line() { printf '%s%s FAIL%s %s\n' "${C_RED}${C_BOLD}" "$(printf '\xe2\x9c\
 
 usage() {
   cat <<EOF
-${SCRIPT_NAME} — verify ISC-8: a skipped or absent required check must never
+${SCRIPT_NAME} — verify NEVER-9.8: a skipped or absent required check must never
 report as passing.
 
 Parses a workflow file and FAILS if:
@@ -335,7 +335,7 @@ main() {
     warn "workflow file not found: ${WORKFLOW_PATH}"
     cat >&2 <<EOF
 
-  ISC-8 (docs/design/stories/9.md) cannot be checked without a workflow file to
+  NEVER-9.8 (docs/design/stories/9.md) cannot be checked without a workflow file to
   parse. Expected required jobs: ${REQUIRED_JOBS[*]}.
 
   If .github/workflows/ci.yml has not been written yet, this script has
@@ -383,10 +383,10 @@ EOF
   fi
 
   if ((overall_status == 0)); then
-    pass_line "workflow hygiene holds for ${WORKFLOW_PATH} (ISC-8)"
+    pass_line "workflow hygiene holds for ${WORKFLOW_PATH} (NEVER-9.8)"
     return 0
   else
-    fail_line "workflow hygiene violated for ${WORKFLOW_PATH} (ISC-8)"
+    fail_line "workflow hygiene violated for ${WORKFLOW_PATH} (NEVER-9.8)"
     return 1
   fi
 }
