@@ -50,7 +50,7 @@ a brokerage account:
 
 They **exchange data through a declared interface, not by sharing files.** The
 trade pack publishes an account-level valuation; the wealth pack consumes it as
-a single `investment_account.current_value`. The wealth pack never reads
+a single `investment_account.balance`. The wealth pack never reads
 `USER/TRADING/`, and the trade pack never reads `USER/FINANCES/`. This is
 ARCHITECTURE's *"Packs never import each other"* rule applied to the one pair of
 domains where the temptation is real.
@@ -229,8 +229,8 @@ proposes an outflow above the configured limit → human principal → blocking.
 |-------|---------------|-------------|-------|
 | `wealth/reconcile` | `[account] [--period 2026-Q3]` | Match imported statement lines against the ledger to the cent; explain every residual. The `unitOfWork.leafSkill` | No |
 | `wealth/cashflow` | `[--horizon 12m]` | Income and expense projection from reconciled history plus `obligations.yaml`. Refuses fewer than 3 reconciled periods | No |
-| `wealth/obligation-audit` | `[--category subscriptions]` | Recurring commitments, renewal dates, price creep since first observation, and cancellation windows | **Yes** — if a proposed cancellation exceeds the spend threshold |
-| `wealth/tax-prep` | `[year] [--filing married_joint]` | Gather documents, assemble categories, produce a CPA-ready packet. Assembles; never opines | No |
+| `wealth/obligation-audit` | `[--category subscription]` | Recurring commitments, renewal dates, price creep since first observation, and cancellation windows | **Yes** — if a proposed cancellation exceeds the spend threshold |
+| `wealth/tax-prep` | `[year] [--filing married_filing_jointly]` | Gather documents, assemble categories, produce a CPA-ready packet. Assembles; never opines | No |
 | `wealth/net-worth` | `[--as-of 2026-09-30]` | Consolidated assets minus liabilities across accounts, including the trade pack's published account valuation | No |
 | `wealth/goal-track` | `[goal-id]` | Progress against a FINANCES `goal` object; updates `progress_pct` and `status` | No |
 
@@ -254,33 +254,38 @@ USER/FINANCES/
 └── vendors.yaml       statement-matching rules
 ```
 
-The markdown files are **renderings**; `schema.yaml` is the authority. A skill
-edits the YAML and re-renders, never the reverse.
+**This is an iAI departure from LifeOS, not an inherited convention.** LifeOS's
+own `USER/FINANCES/README.md` instructs the human to edit the `.md` files
+directly, and `schema.yaml` there holds only type definitions and placeholder
+examples — there is no instance data in it to render from. iAI chooses to
+invert that: the markdown files are **renderings**, `schema.yaml` is the
+authority, and a skill edits the YAML and re-renders, never the reverse.
 
 ### The nine object types
 
 | Object | Key fields | Enums |
 |--------|-----------|-------|
 | `overview` | `as_of`, `net_worth{total_assets, total_liabilities, net}`, `monthly_cash_flow{income, fixed_expenses, variable_expenses, net, savings_rate_pct}` | — |
-| `income_source` | `name`, `type`, `frequency`, `gross`, `net`, `next_date` | `type`: `w2` `1099` `subscription` `dividend` `interest` `royalty` `rental` `other` · `frequency`: `weekly` `biweekly` `semi-monthly` `monthly` `quarterly` `annual` `project-based` `irregular` |
-| `expense` | `name`, `category`, `amount`, `frequency`, `account` | `category` (17): `housing` `utilities` `groceries` `dining` `transportation` `insurance` `healthcare` `debt_service` `subscriptions` `education` `childcare` `personal_care` `entertainment` `travel` `gifts_donations` `professional_services` `other` |
-| `investment_account` | `institution`, `account_type`, `last_4`, `current_value`, `contribution_ytd` | `account_type`: `taxable` `roth_ira` `traditional_ira` `401k` `403b` `sep_ira` `simple_ira` `hsa` `529` `crypto` `other` |
-| `account` | `institution`, `type`, `last_4`, `balance`, `rate_pct`, `limit` | `type`: `checking` `savings` `hysa` `credit_card` `mortgage` `auto_loan` `student_loan` `other` |
+| `income_source` | `name`, `type`, `payer`, `frequency`, `gross_per_period`, `net_per_period`, `annual_gross`, `deposit_account`, `started`, `ended`, `notes` | `type`: `w2` `1099` `subscription` `dividend` `interest` `royalty` `rental` `other` · `frequency`: `weekly` `biweekly` `semi-monthly` `monthly` `quarterly` `annual` `project-based` `irregular` |
+| `expense` | `category`, `vendor`, `amount`, `frequency`, `envelope`, `notes` | `category` (17): `housing` `utilities` `insurance` `subscription` `software` `grocery` `dining` `transportation` `travel` `entertainment` `health` `clothing` `gifts` `charitable` `tax` `loan` `other` |
+| `investment_account` | `custodian`, `account_type`, `last_4`, `balance`, `ytd_contributions` | `account_type`: `taxable` `roth_ira` `traditional_ira` `401k` `403b` `sep_ira` `simple_ira` `hsa` `529` `crypto` `other` |
+| `account` | `name`, `institution`, `type`, `last_4`, `balance`, `rate_pct`, `limit` | `type` (14): `checking` `savings` `hysa` `credit_card` `mortgage` `auto_loan` `student_loan` `personal_loan` `brokerage` `retirement` `hsa` `529` `crypto` `other` |
 | `goal` | `id`, `title`, `target_amount`, `target_date`, `progress_pct`, `status` | `status`: `not_started` `on_track` `behind` `ahead` `at_risk` `completed` `abandoned` |
-| `tax_profile` | `filing_status`, `state`, `quarterly_estimates[]`, `withholding` | `filing_status`: `single` `married_joint` `married_separate` `head_of_household` `qualifying_widow` |
-| `obligation` | `vendor`, `category`, `amount`, `frequency`, `due_day`, `account`, `autopay` | reuses `expense.category` and `income_source.frequency` |
-| `vendor` | `name`, `purpose`, `category`, `direction`, `match[]` | `direction`: `outbound` `inbound` `both` |
+| `tax_profile` | `filing_status`, `state`, `tax_year`, `preparer`, `quarterly_estimates[]`, `deductions_tracked[]` | `filing_status`: `single` `married_filing_jointly` `married_filing_separately` `head_of_household` `qualifying_widow` |
+| `obligation` | `vendor`, `category`, `amount`, `frequency`, `due_day`, `account`, `autopay` | `category` (7, its own enum): `housing` `utilities` `insurance` `subscription` `loan` `tax` `other` · `frequency` matches `expense.frequency` |
+| `vendor` | `name`, `purpose`, `category`, `direction`, `match[]` | `category`: `housing` `utilities` `insurance` `subscription` `software` `loan` `tax` `income` `grocery` `dining` `travel` `health` `other` · `direction`: `outbound` `inbound` `both` |
 
 ```yaml
 # USER/FINANCES/vendors.yaml
-- name: Adobe
-  purpose: Creative Cloud all-apps subscription
-  category: subscriptions
-  direction: outbound
-  match:
-    - "ADOBE  *CREATIVE CLOU"
-    - "ADOBE INC"
-    - "ADOBE SYSTEMS"
+vendors:
+  - name: Adobe
+    purpose: Creative Cloud all-apps subscription
+    category: subscription
+    direction: outbound
+    match:
+      - "ADOBE  *CREATIVE CLOU"
+      - "ADOBE INC"
+      - "ADOBE SYSTEMS"
 ```
 
 ### Validation rules
@@ -292,6 +297,7 @@ Kept verbatim in spirit from LifeOS:
 | **All monetary fields are STRINGS, never numbers** | So a template can carry `"$X,XXX"` as a placeholder without breaking the parser or silently coercing to `0` |
 | **`last_4` is exactly 4 characters** | Leading zeros survive. `"0042"` is not `42` |
 | **Dates are ISO 8601** | `2026-09-30`, never `9/30/26`. Sortable, unambiguous across locales |
+| **Category and enum fields must match an allowed value exactly** | An off-vocabulary `category` or `type` fails validation rather than being silently accepted or coerced |
 | **No full account numbers anywhere** | `references/data-classification.md`'s `last_4`-only rule. `autoDeny` refuses an artifact containing one |
 
 The string rule has a sharp edge: any arithmetic path must parse and reject
@@ -305,7 +311,7 @@ All of `USER/FINANCES/` is `class:private` and hard-gated from cloud egress.
 |-------------|-----------|----------|
 | Statement import | CSV or OFX dropped into the import directory | No reconciliation. Stories stall at `recorded` — correct, not a failure |
 | Vendor matching | `vendors.yaml` `match:` substrings against statement descriptors | Lines land as `uncategorised` and are listed individually. **Never guessed by a model** |
-| Trade pack valuation | Declared interface: an account-level `current_value` published by `domain:trade` | `net-worth` reports the investment line as stale with its `as_of` date, and does not extrapolate |
+| Trade pack valuation | Declared interface: an account-level `balance` published by `domain:trade` | `net-worth` reports the investment line as stale with its `as_of` date, and does not extrapolate |
 | Bank APIs | **None by default** | Deliberate. Direct bank connectivity means storing credentials or an aggregator token that can read every transaction and, in many cases, initiate transfers. The credential risk is not worth the convenience of avoiding a CSV download, and an absent credential cannot be stolen or misused |
 
 ## 9. Worked example
@@ -538,38 +544,53 @@ later reader sees that the corpus is not unanimous.
 
 ## 7. Data model
 
-**Cortex-lite** — LifeOS's Cortex, scoped down to what a citation backbone needs.
+**Cortex-lite** — `00-synthesis.md` already scoped LifeOS's Cortex down to
+`MEMORY/**` markdown plus append-only JSONL, read by `learn` and `resume`, and
+explicitly dropped the `KNOWLEDGE/{People,Companies}` CRM surface as having no
+consumer in the five domains. `know` inherits that same reduced Cortex-lite —
+it does not restore the CRM surface or claim any deeper inheritance than
+`00-synthesis.md` granted.
 
 ```
 MEMORY/KNOWLEDGE/
-├── People/{slug}.md
-├── Companies/{slug}.md
 ├── Ideas/{slug}.md
 └── Research/{slug}.md
 ```
 
 | Concept | Detail |
 |---------|--------|
-| Cross-linking | `related:` frontmatter carrying wikilinks. The filesystem is the index |
+| Cross-linking | LifeOS's `related:` frontmatter carries typed `{slug, type}` edges over a closed relation vocabulary; iAI deliberately narrows this to plain `[[wikilink]]` strings in `related:` — see the frontmatter schema below. The filesystem is the index |
 | Retrieval | **BM25, no vector database.** Deliberate: an embedding index is a second source of truth that silently drifts from disk, needs a rebuild step, and cannot be diffed in a PR. BM25 over markdown is inspectable, reproducible, and reviewable — matching ARCHITECTURE's *"treats the filesystem as its index instead of a vector store"* |
 | Typed items | `memory` · `idea` · `knowledge` · `proposal` |
 | Tiers | `A` · `B` · `C` |
 
 > **Type is data, tier is permission.** `entry_type` says what the thing is;
-> `tier` says what other domains may do with it. Only tier A may be cited as
-> settled. Tier B may be cited with its confidence attached. Tier C is
-> working material and may not be cited outside `domain:know` at all.
+> `tier` says what other domains may do with it. In LifeOS, tier gates
+> *writes* — which mutation tier a change to the underlying file requires.
+> `know` reuses the same A/B/C ladder to gate **citation** instead: only tier
+> A may be cited as settled. Tier B may be cited with its confidence attached.
+> Tier C is working material and may not be cited outside `domain:know` at
+> all.
 
 ### Frontmatter schema
 
+LifeOS's knowledge envelope calls this key `type` (a select over
+`memory`/`idea`/`knowledge`/`proposal`) and scores `confidence` as a number,
+not an ordinal. iAI renames `type` to `entry_type` here and re-types
+`confidence` as `high`/`medium`/`low` — both are deliberate iAI departures
+from the LifeOS envelope, not fields it ships natively.
+
 ```yaml
 ---
-entry_type: knowledge          # memory | idea | knowledge | proposal
+entry_type: knowledge          # memory | idea | knowledge | proposal — iAI rename of LifeOS's `type`
 subsystem: know
 title: ApoB is a better event predictor than LDL-C at discordant values
-confidence: high               # high | medium | low
+confidence: high               # high | medium | low — iAI ordinal; LifeOS's confidence is a 0–1 number
 category: Research             # People | Companies | Ideas | Research
-tier: A                        # A | B | C  — permission, not quality
+tier: A                        # A | B | C — iAI extension. LifeOS's knowledge envelope has no
+                                # `tier` key at all; MemoryTypes.ts pins every knowledge item's
+                                # write-tier to B. iAI adds a per-entry tier because the citation
+                                # ladder above depends on distinguishing canon from working material
 sources:
   - url: https://example.org/apob-discordance-2019
     author: Sniderman et al.
