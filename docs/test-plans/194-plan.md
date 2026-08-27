@@ -1,11 +1,11 @@
 ---
 issue: 194
 repo: dev-pmallapp/iAI
-story: "S1.3 — Retire the ISC/ISA acronym family"
+story: "S1.6 — Retire the ISC/ISA acronym family"
 milestone: "M1 — Kernel and foundation"
 ---
 
-# Test Plan: #194 — S1.3 Retire the ISC/ISA acronym family
+# Test Plan: #194 — S1.6 Retire the ISC/ISA acronym family
 
 ## Source
 
