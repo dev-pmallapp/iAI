@@ -32,3 +32,12 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+
+# opencode session state. `.opencode/opencode.json` is checked in as project
+# config; the runtime scratch files beside it are not.
+.opencode/todo.json
+
+# Session handoff notes. Agent scratch, rewritten every session and never a
+# source of truth — issues, the ISA and docs/evidence/ are. Keep it local so a
+# stale copy can never be mistaken for the record.
+.opencode/HANDOFF.md

@@ -1,0 +1,185 @@
+---
+task: "Bun workspace, 13 build targets, five CI checks"
+slug: 20260825-171028_monorepo-scaffold-and-build-targets
+project: iAI
+phase: scoping
+progress: 0/9
+started: 2026-08-25T17:10:28Z
+updated: 2026-08-25T17:10:28Z
+---
+
+## Problem
+
+Nothing else in M1 has anywhere to land. S1.2's guard kernel needs
+`packages/core` to exist and resolve as a workspace member before a single
+predicate can be written; every later story assumes a build target it can
+attach source to, a CI check that will fail loudly if it regresses, and a
+commit-msg hook that enforces the same regex the design documents claim to
+enforce. Right now the design documents disagree with each other in at least
+two places (the commit-subject regex, the meaning of `{target_dir}`), which
+means the foundation itself is unverified. Until a clean checkout can run
+`bun install && bun run build` and produce all ten compilable artifacts, and
+until the design's own claims have been checked against their three source
+repositories, every subsequent story is building on an assumption rather than
+a fact.
+
+## Vision
+
+A clean clone of iAI is a Bun workspace with thirteen package entries under
+`packages/`, `skills/`, `agents/` and `references/`, wired by TypeScript
+project references so `bun run typecheck` resolves the whole tree in one
+pass. `bun install && bun run build` produces an artifact for each of the ten
+`library` and `binary` targets; the three `docs` targets have a directory and
+no build file, exactly as ARCHITECTURE.md's table declares. A GitHub Actions
+workflow reports build, test, lint, typecheck and skill-lint as five
+independently named required checks on every pull request. A commit-msg hook
+in `.git/hooks/`, backed by `guards/checkCommitPrefix` in `packages/core`,
+rejects a malformed commit subject before it is written. `skill-lint` rejects
+a docs-target frontmatter that omits `name` or `description`, or whose `name`
+disagrees with its directory. `docs/design/verification-pass.md` exists with
+one row per assertion in `docs/design/`, each carrying a verdict against
+LifeOS, forge and oh-my-opencode.
+
+## Out of Scope
+
+- Writing any domain pack (`domain-dev`, `domain-trade`, `domain-health`,
+  `domain-wealth`, `domain-know`) beyond an empty package skeleton — pack
+  content is M2+.
+- Implementing any Tier-1 skill — skill authorship is M2+.
+- Implementing adapter logic for `iai-adapter-opencode` or
+  `iai-adapter-claude` beyond a package skeleton — adapter behaviour is a
+  later M1 story.
+- Implementing the installer's install/apply logic — the installer's
+  package skeleton is in scope, its CLI behaviour is not.
+- Implementing the guard kernel's classifier or `checkEgress` predicates —
+  that is S1.2. This story wires the commit-msg guard only.
+
+## Constraints
+
+- Prerequisites per `CONTRIBUTING.md`: Bun `>= 1.2`, node `>= 20`, an
+  authenticated `gh`, git `>= 2.38`.
+- `Type` in the Build Targets table is one of `library`, `binary`, `docs`
+  only; `docs` targets carry no build file and are validated by
+  `skill-lint` instead of compiled.
+- Lint forbids `process.cwd()` in `packages/core` and
+  `packages/adapter-opencode`, forbids `exec` with a template literal, and
+  forbids any host import in `packages/core`.
+- `skill-lint` validates every `SKILL.md` against the both-hosts
+  intersection schema: `name` and `description` required, `name` matching
+  `^[a-z0-9]+(-[a-z0-9]+)*$` and identical to its containing directory name,
+  any frontmatter key outside the documented set is an error.
+- The commit-msg guard enforces the regex adopted in this ISA's Decisions
+  section, not the CONTRIBUTING.md variant, pending the reconciliation this
+  story performs.
+
+## Dependencies
+
+S1.1 has no upstream dependency inside this repository — it is the first
+story of the first milestone. It blocks every other story in M1: none of
+them has a workspace, a build target or a CI check to attach to until this
+story closes. ISC-6's reconciliation pass reads the three source
+repositories — LifeOS, forge and oh-my-opencode — checked out locally at
+`~/tmp/LifeOS`, `~/tmp/gh-workflow` and `~/tmp/oh-my-opencode`. The third was
+missing when ISC-6 was first attempted: its upstream was renamed, so
+`oh-my-opencode` now redirects to `code-yeongyu/oh-my-openagent`.
+
+## Goal
+
+A clean checkout of iAI installs, builds all ten `library` and `binary`
+targets, and passes build, test, lint, typecheck and skill-lint as five
+separately reported required PR checks; a malformed commit subject and a
+malformed skill frontmatter are each rejected at the point of authorship; and
+`docs/design/verification-pass.md` carries a verdict for every assertion in
+`docs/design/` against its three source repositories, with every `invented`
+verdict closed by a corrective commit before this story is considered done.
+
+## Claims
+
+- [ ] ISC-1: `bun install && bun run build` on a clean checkout exits 0 and
+      produces an artifact for each of the ten `library` and `binary`
+      targets named in ARCHITECTURE.md's Build Targets table.
+- [ ] ISC-2: A pull request reports build, test, lint, typecheck and
+      skill-lint as five separately named required checks; failing any one
+      leaves the PR unmergeable (after: ISC-1).
+- [ ] ISC-3: A commit subject failing
+      `^(#[0-9]+: .+|Merge .+|fixup! .+|squash! .+|Revert ".+")` is rejected
+      by the commit-msg hook with a non-zero exit and the offending subject
+      echoed.
+- [ ] ISC-4: The lint rule set fails a `packages/core` file that imports
+      from either adapter package or calls `process.cwd()` (after: ISC-1).
+- [ ] ISC-5: `skill-lint` fails a docs target whose frontmatter omits `name`
+      or `description`, or whose `name` differs from its directory name
+      (after: ISC-1).
+- [ ] ISC-6: `docs/design/verification-pass.md` carries one row per
+      assertion in `docs/design/` with a verdict of `confirmed`,
+      `corrected` or `invented` against LifeOS, forge and oh-my-opencode,
+      and every `invented` row names the commit that removed or corrected
+      it.
+- [ ] ISC-7: Anti: a `docs`-type target (`iai-skills`, `iai-agents`,
+      `iai-references`) never acquires a build file.
+- [ ] ISC-8: Anti: a CI check that is skipped or absent never causes the PR
+      to report as passing.
+- [ ] ISC-9: Anti: `packages/core` never gains a host import or a
+      `process.cwd()` call.
+
+## Build Targets
+
+| Target | Type | Build file | Source dirs |
+|--------|------|------------|-------------|
+| iai-core | library | packages/core/package.json | packages/core/src |
+| iai-adapter-opencode | library | packages/adapter-opencode/package.json | packages/adapter-opencode/src |
+| iai-adapter-claude | library | packages/adapter-claude/package.json | packages/adapter-claude/src |
+| iai-installer | binary | packages/installer/package.json | packages/installer/src |
+| iai-domain-dev | library | packages/domain-dev/package.json | packages/domain-dev/src |
+| iai-domain-trade | library | packages/domain-trade/package.json | packages/domain-trade/src |
+| iai-domain-health | library | packages/domain-health/package.json | packages/domain-health/src |
+| iai-domain-wealth | library | packages/domain-wealth/package.json | packages/domain-wealth/src |
+| iai-domain-know | library | packages/domain-know/package.json | packages/domain-know/src |
+| iai-pulse | binary | packages/pulse/package.json | packages/pulse/src |
+| iai-skills | docs | — | skills |
+| iai-agents | docs | — | agents |
+| iai-references | docs | — | references |
+
+8 library, 2 binary, 3 docs, 13 total.
+
+## Test Strategy
+
+| isc | type | check | threshold | tool | anchors_to | severity |
+|-----|------|-------|-----------|------|------------|----------|
+| ISC-1 | bash | clean install and build produce all library/binary artifacts | exit 0 | `bun install && bun run build` | literal | critical |
+| ISC-2 | bash | branch protection requires exactly the five named check contexts | 5 contexts | `bash scripts/verify-required-checks.sh` | literal | critical |
+| ISC-3 | bun-test | malformed commit subject rejected by commit-msg hook | non-zero exit | `bun test packages/core -t "checkCommitPrefix"` | literal | critical |
+| ISC-4 | bash | lint fails a `packages/core` file with an adapter import or `process.cwd()` | non-zero exit | `bun run lint` | literal | critical |
+| ISC-5 | bash | skill-lint fails a docs target with missing/mismatched frontmatter | non-zero exit | `bun run skill-lint skills/` | literal | critical |
+| ISC-6 | manual | reconciliation table has one verdict row per design assertion | 100% rows verdicted | review of `docs/design/verification-pass.md` against the three source repos | literal | |
+| ISC-7 | bash | `docs` target build is a no-op, no build file invoked | exit 0, no-op | `bun run build --filter iai-skills` | derived: docs-target-immutability | |
+| ISC-8 | manual | skipped/absent check never marks PR green | 0 skip-as-pass incidents | GitHub required-checks config review (recognize-on-encounter) | literal | |
+| ISC-9 | bash | `packages/core` has zero host imports and zero `process.cwd()` calls | 0 violations | `bun run lint` | literal | |
+
+## Decisions
+
+- 2026-08-25: Two conflicting commit-subject regexes were found in the repo.
+  `CONTRIBUTING.md:201-207` gives
+  `^([A-Za-z0-9._-]+/[A-Za-z0-9._-]+)?#[0-9]+: .+` (allows an
+  `owner/repo#N` prefix, exemptions in a separate table).
+  `docs/design/03-workflow.md:459-463` gives
+  `^(#[0-9]+: .+|Merge .+|fixup! .+|squash! .+|Revert ".+")` (exemptions
+  encoded inline). Issue #9's ISC-3 quotes the 03-workflow form, so this ISA
+  adopts the **03-workflow** form and flags the CONTRIBUTING variant for
+  reconciliation under ISC-6.
+- 2026-08-25: `{target_dir}` is defined twice, differently. `CONTRIBUTING.md:63`
+  says "the target's source directory, less `/src`" (example `core`);
+  `docs/design/04-domain-dev.md:334` says "the target's first source dir"
+  (example `src/telemetry`). This ISA adopts the CONTRIBUTING form, since it
+  is what the `## Commands` block in the same file uses.
+- 2026-08-25: The `## Commands` shape is specified twice, differently.
+  `CONTRIBUTING.md` uses block form — one `### <action>` heading, a fenced
+  command, and a `Passes when:` line per action, because its commands
+  contain pipes. `docs/design/04-domain-dev.md:316-329` specifies a
+  `| Kind | Command |` table with a single `Passes when:` line. The root
+  doc is the one that exists and is parsed, so block form wins.
+- 2026-08-25: `## Features` is deliberately omitted. LifeOS's ISA spec makes
+  `## Claims` and `## Features` mutually exclusive. iAI adopts forge's
+  `## Build Targets` table as the decomposition surface instead, per
+  `docs/design/00-synthesis.md:168` and `docs/design/04-domain-dev.md:294`.
+  This ISA carries Claims and Build Targets, and no Features section.

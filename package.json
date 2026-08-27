@@ -1,0 +1,18 @@
+{
+  "name": "iai",
+  "private": true,
+  "type": "module",
+  "engines": { "bun": ">=1.2", "node": ">=20" },
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "build": "bun scripts/build.ts",
+    "test": "bun test",
+    "lint": "bun scripts/lint.ts",
+    "typecheck": "tsc -b tsconfig.json --force",
+    "skill-lint": "bun scripts/skill-lint.ts"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "@types/bun": "^1.4.0"
+  }
+}

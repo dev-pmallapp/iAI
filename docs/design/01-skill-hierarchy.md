@@ -113,7 +113,7 @@ any point.
 | `learn` | `enhance-debugger` | Generalised from debugging code to learning from any failed verification in any domain |
 | `story-design` | `story-design` | Same name; output format is now the LifeOS ISA rather than a freeform design doc |
 | `goal-create` | — | Net-new. forge has no intent layer above the Milestone; this is where TELOS attaches |
-| `checkpoint` / `resume` | — | Net-new as a first-class pair, replacing Cortex as the primary continuity mechanism |
+| `checkpoint` / `resume` | `checkpoint` / `resume` | Sentinel renamed from `## forge-checkpoint` to `## iai-checkpoint`; the pair is promoted to the primary continuity mechanism, replacing Cortex |
 
 ---
 
@@ -351,15 +351,17 @@ the two hosts accept.
 | `license` | No | SPDX identifier string | Read | Read |
 | `compatibility` | No | Host/version constraint string | Read | Read |
 | `metadata` | No | Map of string → string, values must be strings | Read | Read |
-| `argument-hint` | No | Claude-Code-only | Read | **Ignored** |
-| `allowed-tools` | No | Claude-Code-only | Read | **Ignored** |
+| `argument-hint` | No | Read by both hosts | Read | Read |
+| `allowed-tools` | No | Parsed by both, enforced Claude-Code-only | Read | **Parsed, not enforced** |
 | `disable-model-invocation` | No | Claude-Code-only | Read | **Ignored** |
 
 Two behaviours to hold in mind at once:
 
-1. **opencode silently ignores unknown fields.** It will not warn you that
-   `allowed-tools` did nothing. A skill that relies on `allowed-tools` for safety
-   is unguarded on the opencode target and you will get no signal.
+1. **opencode silently ignores genuinely unknown fields**, with no warning.
+   `allowed-tools` is a subtler trap: it *is* parsed and surfaced on opencode, so
+   it looks supported, but nothing enforces it. A skill that relies on
+   `allowed-tools` for safety is unguarded on the opencode target either way, and
+   you get no signal.
 2. **`metadata` is a string→string map on both hosts.** Numbers and booleans must
    be quoted. Nested objects are not portable.
 

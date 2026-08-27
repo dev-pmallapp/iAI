@@ -1,0 +1,15 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/adapter-opencode" },
+    { "path": "packages/adapter-claude" },
+    { "path": "packages/installer" },
+    { "path": "packages/domain-dev" },
+    { "path": "packages/domain-trade" },
+    { "path": "packages/domain-health" },
+    { "path": "packages/domain-wealth" },
+    { "path": "packages/domain-know" },
+    { "path": "packages/pulse" }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "bash": {
+      "*": "ask",
+
+      "git *": "allow",
+      "gh *": "allow",
+
+      "bun *": "allow",
+      "bunx *": "allow",
+      "node *": "allow",
+      "npm *": "allow",
+      "npx *": "allow",
+      "tsc *": "allow",
+
+      "python3 *": "allow",
+      "bash scripts/*": "allow",
+      "bash -n *": "allow",
+
+      "ls *": "allow",
+      "cat *": "allow",
+      "head *": "allow",
+      "tail *": "allow",
+      "wc *": "allow",
+      "find *": "allow",
+      "grep *": "allow",
+      "rg *": "allow",
+      "sed -n *": "allow",
+      "awk *": "allow",
+      "sort *": "allow",
+      "uniq *": "allow",
+      "tr *": "allow",
+      "jq *": "allow",
+      "diff *": "allow",
+      "stat *": "allow",
+      "file *": "allow",
+      "which *": "allow",
+      "date *": "allow",
+      "pwd": "allow",
+      "echo *": "allow",
+      "printf *": "allow",
+      "sleep *": "allow",
+
+      "mkdir *": "allow",
+      "touch *": "allow",
+      "cp *": "allow",
+
+      "for *": "allow",
+
+      "rm *": "deny",
+      "* && rm *": "deny",
+      "*; rm *": "deny",
+      "* rm *": "deny",
+      "sudo *": "deny",
+      "* && sudo *": "deny",
+      "* sudo *": "deny"
+    }
+  }
+}

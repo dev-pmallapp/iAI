@@ -1,0 +1,137 @@
+# This workflow implements ISC-2 and ISC-8 from docs/design/9-isa.md.
+#
+# ISC-2: build, test, lint, typecheck and skill-lint must report as five
+# separately named required checks. Each is its own job below; do not merge
+# them into one job or add a matrix (a matrix renames the context to
+# "job (dim1, dim2)" and breaks branch protection).
+#
+# ISC-8 (anti-claim): a check that is skipped or absent must never cause the
+# PR to report as passing. Two GitHub behaviours would violate this if
+# reintroduced here, so they are deliberately absent:
+#
+#   1. A job skipped by an `if:` condition reports status "success" (GitHub's
+#      required-status-check docs list success, skipped and neutral as all
+#      counting as passing). Therefore none of the five required jobs below
+#      may ever carry an `if:` key, for any reason.
+#   2. A workflow skipped entirely by `paths:`, `paths-ignore:` or a
+#      `branches:` filter on `pull_request` leaves its required checks stuck
+#      at "pending" forever, which blocks the PR just as permanently as a
+#      failure would. Therefore this file has no `paths`/`paths-ignore`
+#      filter anywhere, and `pull_request` is bare (no `branches:`) so it
+#      fires against every base branch, including the story branches that
+#      CONTRIBUTING.md's Branching section says task PRs target.
+#
+# If someone adds a summary/gate job later, it must carry `if: always()` and
+# check each dependency's result with `== 'success'`, never `!= 'failure'`
+# (skipped is neither success nor failure, and would slip through).
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  merge_group:
+
+env:
+  BUN_VERSION: "1.4.0"
+  NODE_VERSION: "20"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: bun install
+      - run: bun run build
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: bun install
+      - run: bun test
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: bun install
+      - run: bun run lint
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      # tsc is a node shebang script resolved from node_modules/.bin; bun
+      # install must run before it, per CONTRIBUTING.md's node prerequisite.
+      - run: bun install
+      - run: bun run typecheck
+
+  skill-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: bun install
+      - run: bun run skill-lint skills/
+
+  # This job is intentionally NOT added to branch protection and must never
+  # be made required. docs/milestones/M1.md and PLAN.md's risk table both
+  # describe a both-host install smoke test, but packages/installer has no
+  # cli.ts yet (only a 10-line src/index.ts exporting describeInstall()) and
+  # docs/design/9-isa.md puts installer CLI behaviour out of scope for this
+  # story. Making this required while it cannot fail would itself be an
+  # ISC-8 violation: a check that cannot meaningfully fail is equivalent to
+  # one that is always skipped. Until packages/installer/src/cli.ts exists
+  # (M8), this job only builds the installer package and runs the workspace
+  # tests, then says so explicitly.
+  smoke-install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: bun install
+      - run: bun run build --filter iai-installer
+      - run: bun test
+      - run: |
+          echo "NOTE: a real both-host install smoke test is not yet possible."
+          echo "packages/installer/src/cli.ts does not exist yet; installer"
+          echo "CLI behaviour is out of scope for this story per"
+          echo "docs/design/9-isa.md. The both-host install smoke test is"
+          echo "delivered by milestone M8."

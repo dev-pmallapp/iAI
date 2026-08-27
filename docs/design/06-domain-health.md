@@ -308,7 +308,7 @@ directly by the user.
 
 | Skill | Argument hint | Description | Gate? |
 |-------|---------------|-------------|-------|
-| `health/ingest` | `[source?] [--since 2026-07-01]` | Run the healthsync adapters (`oura`, `eightsleep`, `apple`, `function`, `hae`), write day files to `USER/HEALTH/DATA/`, update `sources` in `current.json`. Reports per-source `SourceStatus` | No |
+| `health/ingest` | `[source?] [--since 2026-07-01]` | Run the four healthsync adapters (`oura`, `eightsleep`, `apple`, `function`), write day files to `USER/HEALTH/DATA/`, update `sources` in `current.json`. Reports per-source `SourceStatus` | No |
 | `health/trend` | `[marker] [--window 90d] [--min-points 4]` | Longitudinal movement of one marker over a pre-declared window. Refuses if the window was declared after the first point. Computes locally on structured data | No |
 | `health/anomaly` | `[marker?] [--window 30d]` | Out-of-band flagging against per-result `ref_low`/`ref_high` and pre-declared thresholds. Runs the emergency predicate first and halts on a hit. Never a diagnosis | **Yes** — emergency short-circuit; `flag` output is held pending gate |
 | `health/protocol` | `[story#] [--duration 90d]` | Define or revise an intervention with a measurable target and a stated duration; open the adherence log. The `unitOfWork.leafSkill` for this pack | **Yes** — if the revision alters a dose or training load |
@@ -356,15 +356,15 @@ USER/HEALTH/BRIEFS/2026-11-04-reyes.md
 ### Ingestion layer — LifeOS healthsync, kept as-is
 
 The healthsync subsystem already exists in LifeOS and is **kept**, not rewritten.
-Five adapters, five files, one contract:
+Four pullable adapters, one shared normaliser, and shared types/store modules
+underneath:
 
 | Adapter | File | Supplies |
 |---------|------|----------|
-| Oura | `oura.ts` | Sleep stages, readiness, HRV, RHR, temperature deviation |
-| Eight Sleep | `eightsleep.ts` | Sleep score, bed temperature, toss-and-turn, HR/HRV during sleep |
-| Apple Health | `apple.ts` | Steps, workouts, VO2max estimate, ECG events, BP entries |
+| Oura | `oura.ts` | `oura_sleep_score`, `oura_readiness_score`, `oura_activity_score`, `steps`, `sleep_duration_h`, `sleep_efficiency`, `avg_sleep_hr`, `avg_sleep_hrv`, `spo2_avg` |
+| Eight Sleep | `eightsleep.ts` | `eightsleep_score`, `sleep_duration_h`, `bed_temp_c` |
+| Apple Health | `apple.ts` | `steps`, `active_energy_kcal`, `exercise_minutes`, `resting_hr`, `hrv_ms`, `weight_kg`, `sleep_hours` — pulled via REST drain or, absent that, an iCloud Shortcut file export, and normalised through `hae.ts` |
 | Function Health | `function.ts` | Lab panels as structured biomarkers with per-result ranges |
-| Health Auto Export | `hae.ts` | Bulk Apple Health export bridge; the `awaiting-first-export` case |
 
 The real TypeScript types, reused verbatim:
 
@@ -432,11 +432,22 @@ order, first hit wins:
 LIFEOS_HEALTH_TZ  →  TZ  →  host system timezone  →  fallback
 ```
 
-The fallback is recorded in the day file's `metrics` so a later reader can tell
-that the boundary was guessed. Data lands in `USER/HEALTH/DATA/` as day files
-keyed by the resolved local date.
+LifeOS's `resolveTimeZone()` does not record which candidate won — the day
+file carries only `schema`, `source`, `fetched_at` and `metrics`, and none of
+the summarisers write a tz key. That is a gap iAI cannot inherit silently: a
+day boundary that was explicitly configured and one that was guessed off the
+host clock are not the same evidence, so `health/ingest` must record which
+resolution step won alongside the day file itself. Data lands in
+`USER/HEALTH/DATA/` as day files keyed by the resolved local date.
 
 ### Biomarker row schema — `METRICS.md`
+
+This seven-column shape is **iAI's own rendering**, not an inherited one.
+LifeOS's `USER/HEALTH/METRICS.md` uses a narrower pair of tables — `| Metric |
+Value | Status | Target |` for the current panel and `| Metric | Prior Panel |
+Latest Panel | Direction |` for the delta — with no per-row reference range or
+source column. iAI's table is richer because `ref_low`/`ref_high` live on the
+`Biomarker` itself and the domain wants the source connector visible per row.
 
 | Marker | Value | Unit | Ref range | Date | Source | Trend |
 |--------|-------|------|-----------|------|--------|-------|
@@ -451,13 +462,11 @@ keyed by the resolved local date.
 | ALT | 21 | U/L | 0–44 | 2026-07-19 | function | flat |
 | TSH | 1.8 | µIU/mL | 0.45–4.50 | 2026-07-19 | function | flat |
 | Omega-3 index | 7.1 | % | > 8.0 | 2026-07-19 | function | ↑ from 5.4 |
-| VO2max | 48 | mL/kg/min | — | 2026-08-19 | apple | ↑ from 45 |
 | HRV | 62 | ms | — | 2026-08-19 | oura | ↓ from 71 |
-| RHR | 54 | bpm | — | 2026-08-19 | oura | ↑ from 51 |
-| BP | 122/78 | mmHg | < 120/80 | 2026-08-18 | apple | flat |
+| RHR | 54 | bpm | — | 2026-08-19 | apple | ↑ from 51 |
 
 `Ref range` renders the row's own `ref_low`/`ref_high`. Where a marker has no
-population range — VO2max, HRV, RHR — the column is `—` and only the personal
+population range — HRV, RHR — the column is `—` and only the personal
 trend carries information. A trend arrow is never a verdict; `↑ from 0.7` on
 hs-CRP is a fact, and the question it raises belongs in the brief.
 
@@ -466,6 +475,14 @@ hs-CRP is a fact, and the question it raises belongs in the brief.
 **All health data is `class:private`.** Every Story and Task in this domain
 carries the `class:private` label at creation, and the label is not removable by
 a skill.
+
+This is one level below where LifeOS puts it. LifeOS classifies
+`LIFEOS/USER/HEALTH/**` as `RESTRICTED`, its top class and the fail-closed
+default — which under iAI's renamed levels (`00-synthesis.md:52`) is `SECRET`,
+not `PRIVATE`. iAI places health data at `PRIVATE` deliberately: `SECRET`
+admits no opt-in at all, under any circumstance, and a pack that can never
+send a de-identified summary to a model even with explicit per-session consent
+would be unusable for trend and flag review.
 
 | Rule | Mechanism |
 |------|-----------|
@@ -487,9 +504,9 @@ A derived summary that survives de-identification looks like
 |-------------|-----------|----------|
 | Oura | `oura.ts`, vendor API token in `.env` | `SourceStatus: "unconfigured"`. Sleep and HRV series unavailable; `sleep-review` refuses rather than estimating |
 | Eight Sleep | `eightsleep.ts`, account credentials in `.env` | `unconfigured`. `bed_temp_c` and `eightsleep_score` drop out of `LastNight`; Oura still supplies sleep |
-| Apple Health | `apple.ts`, local export bridge | `awaiting-first-export` until the first bulk export lands. VO2max and BP series are empty, not zero |
+| Apple Health | `apple.ts`; REST drain of the Health Auto Export ingest buffer (primary), falling back to the iCloud Shortcut file export when `HEALTH_INGEST_URL`/`HEALTH_DRAIN_TOKEN` are unset | `awaiting-first-export` until the first export lands. `resting_hr`, `hrv_ms`, `weight_kg` and `sleep_hours` are empty, not zero |
 | Function Health | `function.ts`, portal export | `unconfigured`. **All lab rungs are unavailable** — no `LabsFile`, so `trend` on any panel marker cannot reach its minimum point count |
-| Health Auto Export | `hae.ts`, file drop directory | `awaiting-first-export`. This is the fallback path when the Apple bridge is unavailable |
+| Health Auto Export | `hae.ts`, envelope normaliser inside `apple.ts` | Not independently absent — it has no transport of its own. It parses whatever the REST drain returns; if the drain is empty the Apple row's `awaiting-first-export` applies |
 | Lab PDF | Manual drop into `USER/HEALTH/LABS/` | Human transcription into a `LabsFile`. `lab-review` requires `ref_low`/`ref_high` per result and refuses a transcription missing them |
 | Clinician | Human, out of band | The pack cannot reach `clinician-review`. Stories stall at `flag` with `gate:pending`, which is the correct behaviour, not a failure |
 

@@ -209,3 +209,4 @@ exactly as LifeOS does it. The public repo holds code, skills and *templates onl
 | Trading defaults to `research` rung | The irreversible action must be opt-in, explicit and gated | Paper-trading default |
 | Health is advisory-only, by construction | No medical authority; avoids the entire liability surface | Diagnostic scoring |
 | References hold contracts, skills hold workflows | forge's lesson: 20 copies of a contract drift within a month | Self-contained skills |
+| TypeScript on Bun | opencode loads plugins as in-process ES modules exporting async hooks, with no external-process escape hatch; the sub-50 ms guard budget has no out-of-process equivalent | A Python core behind a thin TS shim — splits the hottest and most safety-critical path across two languages, loses `tsc` drift detection between core and adapters, and forfeits the five inherited healthsync connectors |
