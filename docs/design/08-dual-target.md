@@ -105,7 +105,6 @@ on the other.
 | *(no equivalent)* | `chat.params` |
 | *(no equivalent)* | `chat.headers` |
 | *(no equivalent)* | `tool.definition` |
-| *(no equivalent)* | `shell.env` |
 | *(no equivalent)* | `experimental.chat.system.transform` |
 | *(no equivalent)* | `permission.ask` |
 
@@ -113,7 +112,7 @@ Note the shape difference in rows 4 and 6: Claude Code has *named events*, while
 opencode routes lifecycle signals through a single `event` hook that switches on
 `input.event.type`. The adapter, not the core, owns that switch.
 
-The last six rows are opencode-only. `chat.params`,
+The last five rows are opencode-only. `chat.params`,
 `experimental.chat.system.transform` and `tool.definition` let opencode rewrite
 model parameters, the system prompt and tool schemas **per request** — Claude
 Code hooks cannot do any of this, because they run beside the request rather
@@ -171,8 +170,7 @@ the tool call. Returning a new object does nothing.
 
 ```ts
 export type Plugin = (
-  input: PluginInput,
-  options?: PluginOptions
+  input: PluginInput
 ) => Promise<Hooks>
 
 interface PluginInput {
@@ -188,12 +186,14 @@ interface PluginInput {
 
 Three rules that follow:
 
-1. **The export must be named, not default.** `export const iAI: Plugin = ...`.
-   A default export is not discovered.
-2. **Plugins live in `.opencode/plugins/*.ts`** (project) or
-   `~/.config/opencode/plugins/*.ts` (user). Plural is canonical; the singular
-   `plugin/` is supported for backwards compatibility. The installer writes the
-   plural form.
+1. **The module default-exports the plugin.** `export default plugin`. omo ships
+   exactly this shape; a named export alongside it is harmless but is not what
+   the loader reads.
+2. **A TypeScript plugin is registered through the `plugin` array** in
+   `opencode.json`, not by being dropped in a directory. `.opencode/plugins/`
+   (project) and `~/.opencode/plugins/` (user) are the Claude-Code-style plugin
+   *bundle* directories — folders carrying a `plugin.json` — which is a
+   different mechanism. The installer writes the config entry.
 3. **Never call `process.cwd()`.** Use `context.directory` or
    `context.worktree` from `PluginInput`. opencode's cwd is not guaranteed to be
    the project root — it follows the invoking shell, and skill discovery walks
@@ -283,16 +283,16 @@ Write it the other way round and every deny is overwritten by the wildcard.
 This is the single most common misconfiguration in opencode agents, and
 `skill-lint`'s agent pass checks for it.
 
-`permission.task` gates **which subagents this agent may spawn**, and it is
-stronger than it looks: a subagent set to `deny` is **removed from the Task
-tool's description entirely** — the model never learns it exists, so it cannot
-be talked into trying. iAI uses this directly for separation of duties:
-`quant-analyst` has `task: { "risk-officer": deny }`, which is what makes
+`permission.task` is a single `allow` / `ask` / `deny` for the Task tool as a
+whole — it does not take a per-subagent map, and nothing removes an individual
+subagent from the tool's description. Separation of duties therefore has **no
+declarative form on either host**. What makes
 [`05-domain-trading.md`](05-domain-trading.md)'s *"`quant-analyst` cannot spawn
-it, skip it, summarise for it, or filter its inputs"* a runtime fact rather than
-an instruction the model may ignore.
+it, skip it, summarise for it, or filter its inputs"* a runtime fact is
+structural rather than declarative: Ring 2 specialists are issued no Task tool
+at all, so `quant-analyst` has no spawn capability to misuse.
 
-Claude Code has no equivalent. There, the same separation is enforced by the
+Claude Code is no different. There, the same separation is enforced by the
 `PreToolUse` guard inspecting `Task` invocations and exiting 2. Same policy, two
 enforcement points, one core predicate.
 
@@ -346,22 +346,20 @@ caches it in `~/.cache/opencode/node_modules/`.
 ```jsonc
 {
   "plugin": [
-    "iai",                        // string form
-    ["iai", { "host": "amd" }]    // tuple form, with options
+    "iai"
   ]
 }
 ```
 
-The type is `plugin?: Array<string | [string, PluginOptions]>`, and the tuple's
-second element arrives as the `options` argument of the `Plugin` function. iAI
-uses it for deployment-specific configuration — provider naming, telemetry
-endpoints — that must not be baked into the published package.
+The type is `plugin?: string[]`, each entry a package specifier or path.
+Deployment-specific configuration — provider naming, telemetry endpoints —
+must come from `opencode.json` itself, not from the plugin array.
 
 ### Claude Code
 
 A git repository containing `.claude-plugin/plugin.json`, installed with
 `/plugin`, or dropped into `~/.claude/plugins/`. No registry, no version
-resolution, no options channel — configuration comes from settings files.
+resolution — configuration comes from settings files.
 
 ### Config precedence in opencode
 
@@ -382,38 +380,46 @@ owning the file, and why it must never rewrite the whole document. It reads,
 adds its own entry if absent, and writes back — idempotently, and behind
 `--apply`.
 
-### The undocumented v2 plugin API
+### A hypothetical v2 plugin API
 
-opencode carries a second, **unstable and undocumented** plugin API at
-`@opencode-ai/plugin/v2/promise`:
+No such API has been observed. Searches for `@opencode-ai/plugin/v2` across the
+source tree return nothing, and omo pins the package at `1.18.22`. This section
+is therefore a contingency, not a description: *if* a registration API of this
+shape ever lands, it would delete most of `iai-installer`'s opencode path, which
+is a reason to keep that path thin and replaceable.
+
+A speculative sketch of the shape such an API *might* take, purely to reason
+about the contingency — this is not a real import and must not be written
+against:
 
 ```ts
+// SPECULATIVE — no such module exists today.
 import { define } from "@opencode-ai/plugin/v2/promise"
 
 export default define({
   id: "iai",
   setup: async (ctx) => {
-    // ctx exposes agent / command / skill / catalog drafts,
+    // ctx would expose agent / command / skill / catalog drafts,
     // each with a `transform` hook
   },
 })
 ```
 
-This is materially better for iAI's shape: it registers **many agents, commands
-and skills from one npm package**, with a `transform` hook per draft, instead of
-requiring the installer to write files into the user's project. It would delete
-most of `iai-installer`'s opencode path.
+If something like this ever ships, it would be materially better for iAI's
+shape: it would register **many agents, commands and skills from one npm
+package**, with a `transform` hook per draft, instead of requiring the
+installer to write files into the user's project.
 
-**Do not depend on it yet.** It is undocumented, which means unversioned in
-practice and free to change between opencode releases. The plan:
+**Do not plan against it.** It does not exist today, so there is nothing to
+depend on and nothing to version. The stance:
 
-| Now | Later |
+| Now | If a registration API ever lands |
 |---|---|
-| v1 `Hooks` API for guards and routing | Evaluate v2 once it is documented |
-| `iai-installer` for agents, commands and skills | v2 `define({ id, setup })` for registration |
-| — | If adopted, **pin `@opencode-ai/plugin` to an exact version** |
+| v1 `Hooks` API for guards and routing | Re-evaluate once something is actually documented |
+| `iai-installer` for agents, commands and skills | Migrate registration only after confirming the API is real and stable |
+| — | **Pin `@opencode-ai/plugin` to an exact version** before adopting anything unstable |
 
-Treat v2 as an optimisation with a known payoff and an unknown cost, not as a
+Treat this as a contingency worth designing around, not as a
 milestone dependency.
 
 ---
@@ -455,7 +461,7 @@ iAI/
 │   │
 │   ├── adapter-opencode/         iai-adapter-opencode  (library)
 │   │   └── src/
-│   │       ├── plugin.ts         export const iAI: Plugin  ← NAMED export
+│   │       ├── plugin.ts         export default plugin  ← default export
 │   │       ├── hooks/            one file per Hooks key
 │   │       └── decision.ts       Decision → throw | mutate output
 │   │
@@ -513,13 +519,17 @@ Three non-negotiables:
    *"can this host rewrite the system prompt?"*, not *"is this opencode?"* — so
    a third host, or a new Claude Code release, needs no core change.
 
-### The three opencode-only capabilities
+### The two opencode-only capabilities
 
 | opencode capability | What it buys | Claude Code fallback | Behaviour lost |
 |---|---|---|---|
 | `chat.params` — per-request model parameters | Category-based routing rewrites `temperature`, `topP`, `maxOutputTokens` per turn: deterministic (`temperature: 0`) for `risk-check` and reconciliation, exploratory for research | Static per-agent `model` in agent frontmatter, plus a skill-body instruction stating the intended reasoning level | **Per-turn** parameter tuning. A CC agent runs one parameter set for its whole life, so `risk-officer` is authored deterministic and never varies. Routing correctness is unaffected; only adaptivity is |
 | `experimental.chat.system.transform` — rewrite `system: string[]` | TELOS goals, active rung and mandate SHA injected into the system prompt for every turn, unskippable and not consuming conversation turns | `SessionStart` hook stdout injects the same context **once** at session start, and Tier-0 skill bodies restate the invariants | **Freshness.** CC's injected context is a snapshot from session start; if `MANDATE.md` changes mid-session it is stale. Mitigation: the mandate SHA is re-read from disk by the guard at gate time, so the *enforced* value is always current even when the *prompted* value is not |
-| `permission.task: deny` — subagent erased from the Task tool description | Structural separation of duties: `quant-analyst` cannot see `risk-officer` in its tool schema, so it cannot attempt the spawn | `PreToolUse` guard inspects `Task` calls and exits 2 on a forbidden pairing | **Prevention becomes interception.** The CC model can *try* the forbidden spawn and gets blocked with a message; opencode's model never knows the option exists. Same outcome, one wasted turn, and a blocked attempt appears in the audit trail — arguably useful signal |
+
+Separation of duties — `quant-analyst` cannot spawn `risk-officer` — is not in
+this table because it is not one-sided: Ring 2 specialists are issued no Task
+tool at all on either host, so the enforcement is structural and identical,
+not an opencode-only capability with a Claude Code fallback.
 
 Read the table as the priority order for any future one-sided capability: it may
 improve efficiency, freshness or ergonomics. It may not be the only thing
