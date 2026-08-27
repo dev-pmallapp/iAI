@@ -421,7 +421,7 @@ End-to-end and multi-component, as required: it spans `libtelemetry` (C++),
 `exporter-svc` (Go) and the OTLP schema. It is **not** three Stories.
 
 **Story → ISA.** `/iai:story-design 57` writes `docs/design/stories/57.md`, cuts
-`story/57-live-flow-export`, and posts `## iai-isa` with an SHA-pinned permalink.
+`story/57-live-flow-export`, and posts `## iai-design` with an SHA-pinned permalink.
 The claims:
 
 | Claim | Statement | anchors_to | Tier |

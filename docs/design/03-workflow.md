@@ -14,7 +14,7 @@ every code-specific assumption:
 | 0 | `/iai:init` | Bootstrap the repo. Once, ever. | Root docs, label set, `docs/` skeleton |
 | 1 | `/iai:goal-create` | TELOS goal → GitHub milestone | Milestone with a `\| Feature \| Description \|` table in its description |
 | 2 | `/iai:story-create 7` | One Story issue per feature-table row of milestone 7 | Stories `#57`, `#58`, `#59` … each labelled `type:story` + `domain:*` |
-| 3 | `/iai:story-design 57` | Write the ISA | `docs/design/stories/57.md`, `## iai-isa` sentinel, story branch |
+| 3 | `/iai:story-design 57` | Write the ISA | `docs/design/stories/57.md`, `## iai-design` sentinel, story branch |
 | 4 | `/iai:story-test-plan 57` | ISA verifiable claims (`ISC-N`) → verification plan | `docs/test-plans/57-plan.md`, `## iai-test-plan` sentinel |
 | 5 | `/iai:task-create 57` | One task sub-issue per unit of work | `#61`, `#62`, `#63` … `type:task`, parented to `#57` |
 | 6 | `/iai:task-do 61` | Execute the unit | `task/61-*` branch, commits, **draft** PR → story branch |
@@ -371,7 +371,7 @@ It is how the pipeline reads its own history without a database.
 
 | Sentinel | Producer | Artifact path |
 |----------|----------|---------------|
-| `## iai-isa` | `/iai:story-design` | `docs/design/stories/{n}.md` |
+| `## iai-design` | `/iai:story-design` | `docs/design/stories/{n}.md` |
 | `## iai-test-plan` | `/iai:story-test-plan` | `docs/test-plans/{n}-plan.md` |
 | `## iai-evidence` | `/iai:task-verify`, `/iai:story-verify` | `docs/evidence/{n}-{ts}.md` |
 | `## iai-verdict` | `/iai:story-verify` | inline (comment only) |
@@ -387,8 +387,8 @@ It is how the pipeline reads its own history without a database.
 |-------------|--------|
 | First line | The sentinel is the **first line of the comment body**. Nothing precedes it — no greeting, no blank-line-prefixed preamble |
 | Not indented | Column zero. A leading space breaks the match |
-| Not fenced | Never inside a code fence. A fenced `## iai-isa` is documentation, not a sentinel |
-| Exact | Lowercase, hyphenated, `##` heading level. `### iai-isa` does not match |
+| Not fenced | Never inside a code fence. A fenced `## iai-design` is documentation, not a sentinel |
+| Exact | Lowercase, hyphenated, `##` heading level. `### iai-design` does not match |
 | One per comment | A comment carries exactly one sentinel |
 
 ### Consumer rule
