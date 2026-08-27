@@ -128,7 +128,7 @@ in `docs/design/` against LifeOS, forge and oh-my-opencode, with every
    throughout. Flag for the ISC-6 reconciliation pass.
 2. **Priority is not carried on the ISA.** `docs/design/01-skill-hierarchy.md:63`
    says the Test Strategy table has a `tier` column, but the actual ISA at
-   `docs/design/9-isa.md` has no such column. Priorities in this plan are
+   `docs/design/stories/9.md` has no such column. Priorities in this plan are
    assigned by this plan, using the ISA's `severity` column as the signal:
    `critical` (ISC-1..ISC-5) forms the P0 spine, the blank-severity anti-claims
    and the manual reconciliation/recognize-on-encounter checks (ISC-6..ISC-9)

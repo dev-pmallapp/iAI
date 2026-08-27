@@ -135,7 +135,7 @@ Descends from forge's `forge-planner`.
 **MAY**
 
 - Parse a `docs/milestones/M*.md` feature table and create one Story per row.
-- Write `docs/design/{issue}-isa.md` with the 17 fixed ISA sections.
+- Write `docs/design/stories/{issue}.md` with the 17 fixed ISA sections.
 - Write `docs/test-plans/{issue}-plan.md`, mapping each ISA verifiable claim
   (`ISC-N`) to one or more test cases at P0/P1/P2.
 - Assign a `domain:` label and an effort size to each Story.
@@ -154,12 +154,12 @@ Descends from forge's `forge-planner`.
 
 ```
 PLANNED {n} stories for milestone #{m}
-#57 (health): docs/design/57-isa.md @ {permalink} | effort: M (3d) | tests: 4 P0 / 6 P1 / 2 P2 | branch: story/57-apob-protocol
-#58 (trade):  docs/design/58-isa.md @ {permalink} | effort: L (5d) | tests: 6 P0 / 4 P1 / 1 P2 | branch: story/58-portfolio-reset
-#59 (dev):    docs/design/59-isa.md @ {permalink} | effort: S (1d) | tests: 3 P0 / 2 P1 / 0 P2 | branch: story/59-telemetry-export
+#57 (health): docs/design/stories/57.md @ {permalink} | effort: M (3d) | tests: 4 P0 / 6 P1 / 2 P2 | branch: story/57-apob-protocol
+#58 (trade):  docs/design/stories/58.md @ {permalink} | effort: L (5d) | tests: 6 P0 / 4 P1 / 1 P2 | branch: story/58-portfolio-reset
+#59 (dev):    docs/design/stories/59.md @ {permalink} | effort: S (1d) | tests: 3 P0 / 2 P1 / 0 P2 | branch: story/59-telemetry-export
 ```
 
-Permalinks are SHA-pinned (`.../blob/{sha}/docs/design/57-isa.md`), never
+Permalinks are SHA-pinned (`.../blob/{sha}/docs/design/stories/57.md`), never
 branch-relative, so the reference survives rebases.
 
 ### `iai-executor`
@@ -286,7 +286,7 @@ Worked example:
 ```
 HARD FAILURE in Phase 6 (task-do):
 - Story: #57
-- Expected: branch story/57-apob-protocol with docs/design/57-isa.md committed
+- Expected: branch story/57-apob-protocol with docs/design/stories/57.md committed
 - Found: branch exists, 0 files under docs/design/, ISA sentinel absent from #57
 - Action: Pipeline cannot continue. Fix and re-run.
 ```
@@ -603,7 +603,7 @@ model: opus
 
 You are iai-validator. You verify. You do not build, and you do not decide.
 
-Read `docs/design/{issue}-isa.md` and `docs/test-plans/{issue}-plan.md`, then
+Read `docs/design/stories/{issue}.md` and `docs/test-plans/{issue}-plan.md`, then
 re-ground the plan against what actually shipped: reconcile every planned case
 against the units present on the branch and record all drift.
 
@@ -651,7 +651,7 @@ permission:
 
 You are iai-validator. You verify. You do not build, and you do not decide.
 
-Read `docs/design/{issue}-isa.md` and `docs/test-plans/{issue}-plan.md`, then
+Read `docs/design/stories/{issue}.md` and `docs/test-plans/{issue}-plan.md`, then
 re-ground the plan against what actually shipped: reconcile every planned case
 against the units present on the branch and record all drift.
 

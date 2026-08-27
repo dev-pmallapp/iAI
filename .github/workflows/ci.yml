@@ -1,4 +1,4 @@
-# This workflow implements ISC-2 and ISC-8 from docs/design/9-isa.md.
+# This workflow implements ISC-2 and ISC-8 from docs/design/stories/9.md.
 #
 # ISC-2: build, test, lint, typecheck and skill-lint must report as five
 # separately named required checks. Each is its own job below; do not merge
@@ -110,7 +110,7 @@ jobs:
   # be made required. docs/milestones/M1.md and PLAN.md's risk table both
   # describe a both-host install smoke test, but packages/installer has no
   # cli.ts yet (only a 10-line src/index.ts exporting describeInstall()) and
-  # docs/design/9-isa.md puts installer CLI behaviour out of scope for this
+  # docs/design/stories/9.md puts installer CLI behaviour out of scope for this
   # story. Making this required while it cannot fail would itself be an
   # ISC-8 violation: a check that cannot meaningfully fail is equivalent to
   # one that is always skipped. Until packages/installer/src/cli.ts exists
@@ -133,5 +133,5 @@ jobs:
           echo "NOTE: a real both-host install smoke test is not yet possible."
           echo "packages/installer/src/cli.ts does not exist yet; installer"
           echo "CLI behaviour is out of scope for this story per"
-          echo "docs/design/9-isa.md. The both-host install smoke test is"
+          echo "docs/design/stories/9.md. The both-host install smoke test is"
           echo "delivered by milestone M8."

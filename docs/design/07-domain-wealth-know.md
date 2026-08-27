@@ -320,7 +320,7 @@ All of `USER/FINANCES/` is `class:private` and hard-gated from cloud egress.
 Milestone 9  "Q4 Fixed-cost reduction"
  └── #59  [type:story][domain:wealth][class:private][rung:recorded]
       │   "Cut fixed monthly outflow by $400"
-      │   ISA: docs/design/59-isa.md   (ISC-1 .. ISC-4)
+      │   ISA: docs/design/stories/59.md   (ISC-1 .. ISC-4)
       │   Branch: story/59-cut-fixed-monthly-outflow-by-400
       │
       ├── #75 [type:task] "Obligation audit"          → ISC-1
