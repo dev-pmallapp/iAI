@@ -22,7 +22,7 @@ renamed verifier classes.
 A vocabulary migration, not a behaviour change. Nothing about what a claim
 *means* or how it is verified changes. Three properties must survive it:
 
-1. **Totality** — no `ISC-` token survives outside three allow-listed paths.
+1. **Totality** — no `ISC-` token survives outside four allow-listed paths.
 2. **Uniqueness** — every identifier is Story-qualified and globally unique.
 3. **Immutability** — the evidence record and posted gate comments are untouched.
 
@@ -47,8 +47,8 @@ carries two anti-claim cases and the highest severity.
 
 | # | Case | anchors_to | Target | Priority | Verifier | Command | Passes when |
 |---|------|------------|--------|----------|----------|---------|-------------|
-| 1 | No `ISC-` token survives outside the three allow-listed paths | CLAIM-194.1 | iai-references | P0 | tool-checked | `git grep -n 'ISC-' -- docs scripts .github '*.md'` | Every hit is under `docs/evidence/` or is `docs/design/stories/194.md` |
-| 2 | The thematic design series is migrated | CLAIM-194.1 | iai-references | P1 | tool-checked | `git grep -c 'ISC-' -- docs/design` | 0 hits outside `stories/194.md` |
+| 1 | No `ISC-` token survives outside the four allow-listed paths | CLAIM-194.1 | iai-references | P0 | tool-checked | `git grep -n 'ISC-' -- docs scripts .github '*.md'` | Every hit is under `docs/evidence/`, or is `docs/design/stories/194.md`, `docs/test-plans/194-plan.md` or `docs/design/verification-pass.md` |
+| 2 | The thematic design series is migrated | CLAIM-194.1 | iai-references | P1 | tool-checked | `git grep -c 'ISC-' -- docs/design` | 0 hits outside `stories/194.md` and `verification-pass.md` |
 | 3 | Every claim identifier is Story-qualified | CLAIM-194.2 | iai-core | P0 | tool-checked | `bun run claim-lint` | Exit 0; every identifier matches `^(CLAIM\|NEVER)-\d+\.\d+$` |
 | 4 | Story 9's nine identifiers map one-to-one with `n` preserved | CLAIM-194.2 | iai-references | P0 | tool-checked | `bun run claim-lint --map 9` | `ISC-1..6`→`CLAIM-9.1..6`, `ISC-7..9`→`NEVER-9.7..9` |
 | 5 | Every anti-claim in a Story design document carries the `NEVER-` prefix | CLAIM-194.3 | iai-core | P0 | tool-checked | `bun run claim-lint` | 0 anti-claim rows carrying `CLAIM-` |
@@ -78,7 +78,7 @@ carries two anti-claim cases and the highest severity.
 
 | # | Case | anchors_to | Target | Priority | Verifier | Command | Passes when |
 |---|------|------------|--------|----------|----------|---------|-------------|
-| 16 | The allow-list is closed at exactly three paths | CLAIM-194.1 | iai-core | P1 | tool-checked | add a second file containing `ISC-` | Non-zero exit; the allow-list is closed, not a prefix match |
+| 16 | The allow-list is closed at exactly four paths | CLAIM-194.1 | iai-core | P1 | tool-checked | add a second file containing `ISC-` | Non-zero exit; the allow-list is closed, not a prefix match |
 | 17 | Two-digit Story and claim numbers parse | CLAIM-194.2 | iai-core | P1 | tool-checked | `CLAIM-194.10` | Parsed as Story 194, claim 10 — not 194.1 followed by 0 |
 
 ### Integration
