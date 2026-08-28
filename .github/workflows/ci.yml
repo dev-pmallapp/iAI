@@ -127,7 +127,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
       - run: bun install
-      - run: bun run claim-lint docs/
+      - run: bun run claim-lint
 
   # This job is intentionally NOT added to branch protection and must never
   # be made required. docs/milestones/M1.md and PLAN.md's risk table both
