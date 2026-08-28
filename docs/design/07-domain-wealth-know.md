@@ -208,7 +208,7 @@ What iAI may do instead: **draft a transfer instruction for a human to execute.*
 ## iai-gate
 
 **Gate:** spend-threshold
-**Story:** #903
+**Story:** #960
 **Request:** cancel Adobe CC annual ($659.88/yr, obligation obl-adobe-cc)
 **Proposed by:** wealth-steward
 **Preconditions:**
@@ -318,26 +318,26 @@ All of `USER/FINANCES/` is `class:private` and hard-gated from cloud egress.
 
 ```
 Milestone 9  "Q4 Fixed-cost reduction"
- └── #903  [type:story][domain:wealth][class:private][rung:recorded]
+ └── #960  [type:story][domain:wealth][class:private][rung:recorded]
       │   "Cut fixed monthly outflow by $400"
-      │   Design: docs/design/stories/903.md   (ISC-1 .. ISC-4)
-      │   Branch: story/903-cut-fixed-monthly-outflow-by-400
+      │   Design: docs/design/stories/960.md   (ISC-1 .. ISC-4)
+      │   Branch: story/960-cut-fixed-monthly-outflow-by-400
       │
-      ├── #919 [type:task] "Obligation audit"          → ISC-1
-      ├── #920 [type:task] "Vendor renegotiation list"  → ISC-3
-      └── #921 [type:task] "Reconcile Q3"               → ISC-2
+      ├── #961 [type:task] "Obligation audit"          → ISC-1
+      ├── #962 [type:task] "Vendor renegotiation list"  → ISC-3
+      └── #963 [type:task] "Reconcile Q3"               → ISC-2
 ```
 
 | Step | Command | Result |
 |------|---------|--------|
-| 1 | `/iai:task-do 921` | `wealth/reconcile` imports 3 statements. Chase `1847` closes at difference `0.00`; Amex `3009` leaves one $84.20 residual, explained as a pending authorisation → `rung:reconciled` |
-| 2 | `/iai:task-do 919` | `obligation-audit` reads `obligations.yaml`: 23 recurring obligations, $2,914/mo fixed. Six show price creep since first observation |
+| 1 | `/iai:task-do 963` | `wealth/reconcile` imports 3 statements. Chase `1847` closes at difference `0.00`; Amex `3009` leaves one $84.20 residual, explained as a pending authorisation → `rung:reconciled` |
+| 2 | `/iai:task-do 961` | `obligation-audit` reads `obligations.yaml`: 23 recurring obligations, $2,914/mo fixed. Six show price creep since first observation |
 | 3 | *(finding)* | Adobe CC $54.99 → $59.99/mo; storage tier $9.99 → $19.99/mo; two duplicate streaming obligations on different cards, both matched by `vendors.yaml` |
-| 4 | `/iai:task-do 920` | Renegotiation list: 4 cancellations ($188/mo), 2 downgrades ($97/mo), 1 rate renegotiation on the auto loan ($131/mo) = **$416/mo** → ISC-3 |
-| 5 | *(gate)* | `gate:pending` on `#903`. Each cancellation over the spend threshold gets a line in the `## iai-gate` comment with its cancellation window |
+| 4 | `/iai:task-do 962` | Renegotiation list: 4 cancellations ($188/mo), 2 downgrades ($97/mo), 1 rate renegotiation on the auto loan ($131/mo) = **$416/mo** → ISC-3 |
+| 5 | *(gate)* | `gate:pending` on `#960`. Each cancellation over the spend threshold gets a line in the `## iai-gate` comment with its cancellation window |
 | 6 | *(human)* | Human executes all seven changes. iAI touched nothing |
-| 7 | `/iai:task-verify 921` | Q4 reconciliation shows fixed outflow $2,914 → $2,498. Delta **$416**. `docs/evidence/77-20270115T1102Z.md` |
-| 8 | `/iai:story-verify 903` | Verdict `PASS`; `rung:optimised` attested. Integration PR opened against the private data repo, marked ready. **A human merges** |
+| 7 | `/iai:task-verify 963` | Q4 reconciliation shows fixed outflow $2,914 → $2,498. Delta **$416**. `docs/evidence/963-20270115T1102Z.md` |
+| 8 | `/iai:story-verify 960` | Verdict `PASS`; `rung:optimised` attested. Integration PR opened against the private data repo, marked ready. **A human merges** |
 
 ## 10. Failure modes and mitigations
 
@@ -539,7 +539,7 @@ later reader sees that the corpus is not unanimous.
 | `know/capture` | `[url\|path] [--category Research]` | Snapshot a source with provenance (`url`, `author`, `retrieved_at`, `sha256`), wrap it in the external-content fence, write to `MEMORY/KNOWLEDGE/{Category}/{slug}.md` | No |
 | `know/distill` | `[entry] [--confidence medium]` | Extract falsifiable claims from a captured source, each with a locator into the snapshot. The `unitOfWork.leafSkill` | No |
 | `know/contradict` | `[claim\|entry]` | BM25 conflict detection across held claims. Emits `CLEAR`, `CONFLICT(tier-A)` or `TENSION`. Opens a resolution Story on conflict | **Yes** — a `CONFLICT(tier-A)` blocks promotion |
-| `know/cite` | `[claim] [--for 57]` | Resolve a claim to a citable reference for another domain's Design; pin the snapshot by SHA permalink | **Yes** — promotion to tier A requires human authorisation |
+| `know/cite` | `[claim] [--for 950]` | Resolve a claim to a citable reference for another domain's Design; pin the snapshot by SHA permalink | **Yes** — promotion to tier A requires human authorisation |
 | `know/digest` | `[--since 2026-08-01]` | Periodic synthesis across recent captures; surfaces orphans, stale sources and uncited entries | No |
 
 ## 7. Data model
@@ -638,30 +638,30 @@ a prompt injection that escaped its wrapper.
 
 ## 9. Worked example
 
-Story `#904` exists to serve Story `#901` from
+Story `#970` exists to serve Story `#950` from
 [`06-domain-health.md`](06-domain-health.md).
 
 ```
 Milestone 8  "Q3 Lipid protocol"
- ├── #901  [domain:health] "Lower ApoB from 88 to under 60"
+ ├── #950  [domain:health] "Lower ApoB from 88 to under 60"
  │        ISC-2 cites → know entries below
- └── #904  [domain:know] "Establish the ApoB-vs-LDL-C evidence base"
-      ├── #922 [type:task] "Capture 4 primary sources"
-      ├── #923 [type:task] "Distill discordance claim"
-      └── #80 [type:task] "Contradiction check + promote"
+ └── #970  [domain:know] "Establish the ApoB-vs-LDL-C evidence base"
+      ├── #971 [type:task] "Capture 4 primary sources"
+      ├── #972 [type:task] "Distill discordance claim"
+      └── #973 [type:task] "Contradiction check + promote"
 ```
 
 | Step | Command | Result |
 |------|---------|--------|
-| 1 | `/iai:task-do 922` | `know/capture` snapshots 4 sources into `MEMORY/KNOWLEDGE/Research/`, each fenced, each with `sha256`. `rung:captured` |
-| 2 | `/iai:task-do 923` | `know/distill` extracts: *"At discordant ApoB/LDL-C values, ApoB predicts cardiovascular events better than LDL-C"*, `confidence: high`, locator `Table 3` → `rung:distilled` |
+| 1 | `/iai:task-do 971` | `know/capture` snapshots 4 sources into `MEMORY/KNOWLEDGE/Research/`, each fenced, each with `sha256`. `rung:captured` |
+| 2 | `/iai:task-do 972` | `know/distill` extracts: *"At discordant ApoB/LDL-C values, ApoB predicts cardiovascular events better than LDL-C"*, `confidence: high`, locator `Table 3` → `rung:distilled` |
 | 3 | *(cross-link)* | `related:` links to `[[ldl-c-measurement-error]]` and `[[lipoprotein-a-independent-risk]]`; both resolve → `rung:cross-linked` |
-| 4 | `/iai:task-do 80` | `know/contradict` returns `TENSION` against a tier-C 2016 entry asserting LDL-C sufficiency. Tier C does not block; the tension is recorded on both entries |
+| 4 | `/iai:task-do 973` | `know/contradict` returns `TENSION` against a tier-C 2016 entry asserting LDL-C sufficiency. Tier C does not block; the tension is recorded on both entries |
 | 5 | *(gate)* | `## iai-gate` posted: promotion to tier A. Human reviews the tension, comments `**Decision:** APPROVED` → `gate:approved`, `promoted: 2026-09-03` |
-| 6 | `/iai:cite --for 57` | The health Design's ISC-2 gains a SHA-pinned citation to the snapshot. `#901` may now assert the ApoB-over-LDL-C premise as settled |
-| 7 | `/iai:story-verify 904` | Verdict `PASS`. The 2016 tier-C entry is demoted in the same PR with a note pointing at the new canon |
+| 6 | `/iai:cite --for 950` | The health Design's ISC-2 gains a SHA-pinned citation to the snapshot. `#950` may now assert the ApoB-over-LDL-C premise as settled |
+| 7 | `/iai:story-verify 970` | Verdict `PASS`. The 2016 tier-C entry is demoted in the same PR with a note pointing at the new canon |
 
-Without step 6, ISC-2 in `#901` is an unsourced assertion, and `story-design`
+Without step 6, ISC-2 in `#950` is an unsourced assertion, and `story-design`
 would have flagged it. That dependency is the whole reason `know` exists.
 
 ## 10. Failure modes and mitigations

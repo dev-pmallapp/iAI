@@ -156,16 +156,16 @@ touches `main`.
 | Kind | Pattern | Branches from | Merges to | Example |
 |---|---|---|---|---|
 | **Story** | `story/{n}-{slug}` | `main` | `main`, via the **integration PR** | `story/901-apob-protocol` |
-| **Task** | `task/{n}-{slug}` | the **story branch** | the **story branch** | `task/61-baseline-lipid-panel` |
-| **Bug** | `bug/{n}-{slug}` | `main` | `main` | `bug/72-exporter-drops-labels` |
+| **Task** | `task/{n}-{slug}` | the **story branch** | the **story branch** | `task/905-baseline-lipid-panel` |
+| **Bug** | `bug/{n}-{slug}` | `main` | `main` | `bug/913-exporter-drops-labels` |
 
 ```
 main
  ├─◀── integration PR   (story/901-apob-protocol → main)   ← the ONLY auto-closing PR
  │
  └── story/901-apob-protocol
-      ├─◀── draft PR    (task/61-baseline-panel → story/901-apob-protocol)
-      └─◀── draft PR    (task/62-protocol-v2   → story/901-apob-protocol)
+      ├─◀── draft PR    (task/905-baseline-panel → story/901-apob-protocol)
+      └─◀── draft PR    (task/906-protocol-v2   → story/901-apob-protocol)
 ```
 
 `{slug}` is the issue title, lowercased, non-alphanumerics collapsed to `-`,

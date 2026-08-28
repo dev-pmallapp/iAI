@@ -215,7 +215,7 @@ The refusal, verbatim from `03-workflow.md`:
 
 ```
 HARD FAILURE in Phase 6 (task-do):
-- Story: #902
+- Story: #940
 - Expected: rung:research or rung:paper for an /iai:auto run
 - Found: rung:live
 - Action: Pipeline cannot continue. Fix and re-run.
@@ -392,7 +392,7 @@ positions:
     qty: 120
     avg_cost: "402.15"
     market_value: "51834.00"
-    weight_pct: "28.1"         # exceeds max_position_pct: this is why #902 exists
+    weight_pct: "28.1"         # exceeds max_position_pct: this is why #940 exists
     sector: "information_technology"
     opened: "2024-11-12"
     stop: "365.00"
@@ -492,15 +492,15 @@ position opened in 2024. This is the ordinary case the pack is built for.
 **Milestone → Story.** `/iai:story-create 9` opens:
 
 ```
-#902  [type:story] [domain:trade] [class:private] [rung:research] [iai]
+#940  [type:story] [domain:trade] [class:private] [rung:research] [iai]
      "Rotate 20% from single-name tech into a factor ETF sleeve"
 ```
 
 `rung:research` is applied at creation. It is the default and it is not
 negotiable at this stage.
 
-**Story → Design, with pre-registration.** `/iai:story-design 902` writes
-`docs/design/stories/902.md`, cuts `story/902-rotate-20-from-single-name-tech-into`,
+**Story → Design, with pre-registration.** `/iai:story-design 940` writes
+`docs/design/stories/940.md`, cuts `story/940-rotate-20-from-single-name-tech-into`,
 and posts `## iai-design`. The claims are written and **committed before any
 backtest runs**:
 
@@ -513,50 +513,50 @@ backtest runs**:
 | ISC-5 | Paper window: 30 consecutive sessions. Tracking error versus backtest ≤ 150bp annualised. Declared before the window opens |
 | ISC-6 | Post-rotation, `MSFT` ≤ `max_position_pct` and no GICS sector exceeds `max_sector_pct`, verified against `POSITIONS.yaml` |
 
-The commit SHA of `stories/902.md` is the pre-registration timestamp. Changing ISC-3
-after seeing a backtest result closes `#902` and opens a new Story.
+The commit SHA of `stories/940.md` is the pre-registration timestamp. Changing ISC-3
+after seeing a backtest result closes `#940` and opens a new Story.
 
-**Design → Tasks.** `/iai:task-create 902`:
+**Design → Tasks.** `/iai:task-create 940`:
 
 ```
-#915 [type:task] Backtest the factor ETF sleeve         anchors ISC-1, ISC-2, ISC-3
-#916 [type:task] Risk-check the rotation against MANDATE anchors ISC-4, ISC-6
-#917 [type:task] Paper-trade the sleeve for 30 sessions anchors ISC-5
-    Blocked by: #915, #916
-#918 [type:task] Execute the live rotation              anchors ISC-4, ISC-6
-    Blocked by: #917   [gate:pending]
+#941 [type:task] Backtest the factor ETF sleeve          anchors ISC-1, ISC-2, ISC-3
+#942 [type:task] Risk-check the rotation against MANDATE anchors ISC-4, ISC-6
+#943 [type:task] Paper-trade the sleeve for 30 sessions  anchors ISC-5
+    Blocked by: #941, #942
+#944 [type:task] Execute the live rotation               anchors ISC-4, ISC-6
+    Blocked by: #943   [gate:pending]
 ```
 
-`#918` carries `gate:pending` from the moment it is created. It is never eligible
+`#944` carries `gate:pending` from the moment it is created. It is never eligible
 for `/iai:auto`, and the rotation's twelve legs are **one** Task, not twelve.
 
 **Tasks → evidence.**
 
 | Step | Command | Effect |
 |------|---------|--------|
-| 1 | `/iai:task-do 915` | `trade/backtest 58 --window 10y --oos 20%`. Writes `USER/TRADING/BACKTESTS/factor-etf-sleeve/{results.json,equity.csv,trades.csv}`. Design `backtests_run: 1` |
-| 2 | `/iai:task-verify 915` | Results against ISC-3: CAGR 7.4%, max DD 15.2%, Sharpe 0.71, hit rate 48%, turnover 86%. Look-ahead audit passes — every signal uses only data available at the bar it trades. Worst 5 trades listed. `docs/evidence/71-20260901T104412Z.md`, `## iai-evidence`, close `#915`. Story → `rung:backtest` |
-| 3 | `/iai:task-do 916` | `iai-conductor` spawns `risk-officer` **independently**. It reads `MANDATE.md` at SHA `a91c4f2`, `POSITIONS.yaml`, and the proposal from disk — not from `quant-analyst` |
-| 4 | verdict | `RISK #902: PASS_WITH_CONDITIONS` — sleeve capped at 20.0%, no single ETF above 6.5% (tighter than ISC-4's 8.0%), hard stop −8% per leg, execution over three sessions to limit market impact. Conditions applied verbatim, written to `USER/TRADING/JOURNAL/2026-09-02.md` under `## iai-risk` |
-| 5 | `/iai:task-verify 916` | Conditions recorded in the Design. `#916` closed |
-| 6 | `#917` unblocks | `trade/paper-trade 58 --sessions 30` against `PaperBroker`. Each simulated order appends to `ORDERS/2026/orders.jsonl` with `rung: "paper"` |
-| 7 | `/iai:task-verify 917` | 30 sessions complete. Tracking error 112bp, inside ISC-5's 150bp. `docs/evidence/73-20260913T210300Z.md` carries the paper equity curve overlaid on the backtest curve. `#917` closed. Story → `rung:paper` |
+| 1 | `/iai:task-do 941` | `trade/backtest 58 --window 10y --oos 20%`. Writes `USER/TRADING/BACKTESTS/factor-etf-sleeve/{results.json,equity.csv,trades.csv}`. Design `backtests_run: 1` |
+| 2 | `/iai:task-verify 941` | Results against ISC-3: CAGR 7.4%, max DD 15.2%, Sharpe 0.71, hit rate 48%, turnover 86%. Look-ahead audit passes — every signal uses only data available at the bar it trades. Worst 5 trades listed. `docs/evidence/941-20260901T104412Z.md`, `## iai-evidence`, close `#941`. Story → `rung:backtest` |
+| 3 | `/iai:task-do 942` | `iai-conductor` spawns `risk-officer` **independently**. It reads `MANDATE.md` at SHA `a91c4f2`, `POSITIONS.yaml`, and the proposal from disk — not from `quant-analyst` |
+| 4 | verdict | `RISK #940: PASS_WITH_CONDITIONS` — sleeve capped at 20.0%, no single ETF above 6.5% (tighter than ISC-4's 8.0%), hard stop −8% per leg, execution over three sessions to limit market impact. Conditions applied verbatim, written to `USER/TRADING/JOURNAL/2026-09-02.md` under `## iai-risk` |
+| 5 | `/iai:task-verify 942` | Conditions recorded in the Design. `#942` closed |
+| 6 | `#943` unblocks | `trade/paper-trade 58 --sessions 30` against `PaperBroker`. Each simulated order appends to `ORDERS/2026/orders.jsonl` with `rung: "paper"` |
+| 7 | `/iai:task-verify 943` | 30 sessions complete. Tracking error 112bp, inside ISC-5's 150bp. `docs/evidence/943-20260913T210300Z.md` carries the paper equity curve overlaid on the backtest curve. `#943` closed. Story → `rung:paper` |
 
-**The gate.** `#917` closing does **not** promote the Story. Promotion to
+**The gate.** `#943` closing does **not** promote the Story. Promotion to
 `rung:live` is a human gate plus a `risk-officer` `PASS`:
 
 ```markdown
 ## iai-gate
 
 **Gate:** rung-promotion
-**Story:** #902
+**Story:** #940
 **Request:** promote domain:trade from rung:paper to rung:live
 **Proposed by:** quant-analyst
-**Risk assessment:** RISK #902: PASS_WITH_CONDITIONS (sleeve 20.0% cap, 6.5%
+**Risk assessment:** RISK #940: PASS_WITH_CONDITIONS (sleeve 20.0% cap, 6.5%
   per-ETF cap, hard stop -8%, execution across 3 sessions)
 **Preconditions:**
 - [x] Written mandate at USER/TRADING/MANDATE.md, signed 2026-01-04, expires 2026-07-04 — RENEWED 2026-07-01, sha a91c4f2
-- [x] Paper-rung results over the full 30-session window in docs/evidence/73-*.md
+- [x] Paper-rung results over the full 30-session window in docs/evidence/943-*.md
 - [x] Kill switch armed and verified this session
 **Decision:** PENDING
 ```
@@ -564,7 +564,7 @@ for `/iai:auto`, and the rotation's twelve legs are **one** Task, not twelve.
 The human comments the approval. `gate:approved` is applied only after that
 comment exists — an agent may never write `**Decision:** APPROVED`.
 
-**Live execution.** `/iai:task-do 918` runs `trade/live-order` **once per leg**.
+**Live execution.** `/iai:task-do 944` runs `trade/live-order` **once per leg**.
 Twelve legs, twelve authorisations, over three sessions per the risk conditions.
 Each submission appends one line to `ORDERS/2026/orders.jsonl` carrying
 `mandate_sha: "a91c4f2"`, `risk_verdict: "PASS_WITH_CONDITIONS"` and
@@ -576,10 +576,10 @@ at entry, before any outcome is known.
 
 | Step | Effect |
 |------|--------|
-| `/iai:task-verify 918` | `POSITIONS.yaml` re-read from the broker and reconciled. `MSFT` now 3.6% (≤ 4.0), no sector above 25.0 — ISC-6 satisfied. Evidence written, `#918` closed explicitly |
-| *(automatic)* | All Tasks resolved → `#902` gains `status:resolved` |
-| `/iai:story-verify 902` | Full plan: 6/6 claims. `## iai-verdict PASS`. Integration PR `story/902-* → main` **of the private data repo**, carrying the thesis, the backtest outputs, the journal entries and the `POSITIONS.yaml` diff |
-| **human merges** | One `Closes #N` per line for `#902`, `#915`, `#916`, `#917`, `#918` |
+| `/iai:task-verify 944` | `POSITIONS.yaml` re-read from the broker and reconciled. `MSFT` now 3.6% (≤ 4.0), no sector above 25.0 — ISC-6 satisfied. Evidence written, `#944` closed explicitly |
+| *(automatic)* | All Tasks resolved → `#940` gains `status:resolved` |
+| `/iai:story-verify 940` | Full plan: 6/6 claims. `## iai-verdict PASS`. Integration PR `story/940-* → main` **of the private data repo**, carrying the thesis, the backtest outputs, the journal entries and the `POSITIONS.yaml` diff |
+| **human merges** | One `Closes #N` per line for `#940`, `#941`, `#942`, `#943`, `#944` |
 | `trade/post-mortem 58` | Ninety days later: thesis versus outcome, whether the invalidation trigger fired, whether it was honoured. Feeds `/iai:learn 9` and a `MEMORY/` entry |
 
 Nothing in this trace let an agent place an order on its own, and the mandate
