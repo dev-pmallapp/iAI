@@ -486,7 +486,7 @@ The book has drifted: `MSFT` is 28.1% of portfolio value against a
 `max_position_pct` of 4.0. The mandate is being violated *right now*, by a
 position opened in 2024. This is the ordinary case the pack is built for.
 
-**Goal → Milestone.** TELOS goal `G2: "Portfolio reset"` → `/iai:goal-create G2`
+**Goal → Milestone.** Goals entry `G2: "Portfolio reset"` → `/iai:goal-create G2`
 → **Milestone 9 "Portfolio reset"**, feature table in the description.
 
 **Milestone → Story.** `/iai:story-create 9` opens:

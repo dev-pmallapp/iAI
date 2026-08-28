@@ -7,7 +7,7 @@ existing systems into a single operating model:
 
 | Source | Layer it contributes | Question it answers |
 |--------|----------------------|---------------------|
-| **LifeOS** (`~/tmp/LifeOS`) | **Intent** — TELOS, Current→Ideal State, Design, Cortex memory | *Why am I doing this, and what does "done" look like?* |
+| **LifeOS** (`~/tmp/LifeOS`) | **Intent** — Goals, Current→Ideal State, Design, Cortex memory | *Why am I doing this, and what does "done" look like?* |
 | **forge / gh-workflow** (`~/tmp/gh-workflow`) | **Execution** — Milestone→Story→Task on GitHub, gates, traceability | *How is work tracked, and how do I prove it happened?* |
 | **oh-my-opencode** (`oh-my-openagent`) | **Runtime** — category-based model routing, agent roster, hook composer | *Who runs it, on which model, with what guardrails?* |
 
@@ -26,7 +26,7 @@ loop. forge runs a rigorous loop — but only for code.
 iAI is the join: **forge's loop, driven by LifeOS's intent, across every domain.**
 
 ```
-LifeOS TELOS Goal  (G0: "ApoB under 60 by Q4")
+LifeOS Goals entry (G0: "ApoB under 60 by Q4")
       │
       ▼
 GitHub Milestone   ── Epic. Description carries the feature table.

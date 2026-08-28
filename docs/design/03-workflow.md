@@ -12,7 +12,7 @@ every code-specific assumption:
 | # | Command | Does | Produces |
 |---|---------|------|----------|
 | 0 | `/iai:init` | Bootstrap the repo. Once, ever. | Root docs, label set, `docs/` skeleton |
-| 1 | `/iai:goal-create` | TELOS goal → GitHub milestone | Milestone with a `\| Feature \| Description \|` table in its description |
+| 1 | `/iai:goal-create` | Goals entry → GitHub milestone | Milestone with a `\| Feature \| Description \|` table in its description |
 | 2 | `/iai:story-create 7` | One Story issue per feature-table row of milestone 7 | Stories `#901`, `#902`, `#903` … each labelled `type:story` + `domain:*` |
 | 3 | `/iai:story-design 901` | Write the Design | `docs/design/stories/901.md`, `## iai-design` sentinel, story branch |
 | 4 | `/iai:story-test-plan 901` | Design verifiable claims (`CLAIM-{story}.{n}`) → verification plan | `docs/test-plans/901-plan.md`, `## iai-test-plan` sentinel |

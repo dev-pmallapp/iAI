@@ -89,9 +89,9 @@ any point.
 
 | Skill | Argument hint | Reads | Writes | Gate? |
 |-------|---------------|-------|--------|-------|
-| `goal-create` | `[telos-id]` | `USER/TELOS/TELOS.md`, `references/context-discovery.md` | GitHub Milestone with feature table in description; back-link comment on the `G0` line | No |
+| `goal-create` | `[goal-id]` | `USER/GOALS/GOALS.md`, `references/context-discovery.md` | GitHub Milestone with feature table in description; back-link comment on the `G0` line | No |
 | `story-create` | `[milestone] [feature-row?]` | Milestone description feature table, `references/workflow-states.md` | Story issue, labels `type:story` + `domain:*`, milestone assignment | No |
-| `story-design` | `[story#]` | Story body, TELOS ancestry, `references/isa-format.md`, pack `domain.md` | `docs/design/stories/{issue}.md`; `## iai-design` sentinel comment with SHA-pinned permalink | No |
+| `story-design` | `[story#]` | Story body, Goals ancestry, `references/isa-format.md`, pack `domain.md` | `docs/design/stories/{issue}.md`; `## iai-design` sentinel comment with SHA-pinned permalink | No |
 | `story-test-plan` | `[story#]` | The Design's `CLAIM-{story}.{n}` claims and Test Strategy table, `binding.verify` | `docs/test-plans/{issue}-plan.md` with P0/P1/P2 tiers; `## iai-test-plan` sentinel | No |
 | `task-create` | `[story#]` | Design claims, `binding.unitOfWork`, `references/sizing-criteria.md` | One sub-issue per unit of work, labels `type:task` + `domain:*`, each anchored to a `CLAIM-{story}.{n}` | No |
 | `task-do` | `[task#]` | Task body, Design, pack leaf skill, `references/branch-and-pr-model.md` | `task/{n}-{slug}` branch, commits prefixed `#{issue}:`, PR targeting the story branch, `status:in-progress` | **Yes** — if `binding.gate.irreversibleAction` is in scope |
@@ -112,7 +112,7 @@ any point.
 | `story-verify` | `story-test` | Renamed because `binding.verify` may be a backtest, a reconciliation or an attestation, not a test suite. Retains the never-merge gate |
 | `learn` | `enhance-debugger` | Generalised from debugging code to learning from any failed verification in any domain |
 | `story-design` | `story-design` | Same name; output format is now the LifeOS Design rather than a freeform design doc |
-| `goal-create` | — | Net-new. forge has no intent layer above the Milestone; this is where TELOS attaches |
+| `goal-create` | — | Net-new. forge has no intent layer above the Milestone; this is where Goals attaches |
 | `checkpoint` / `resume` | `checkpoint` / `resume` | Sentinel renamed from `## forge-checkpoint` to `## iai-checkpoint`; the pair is promoted to the primary continuity mechanism, replacing Cortex |
 
 ---

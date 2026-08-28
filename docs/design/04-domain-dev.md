@@ -404,7 +404,7 @@ issue.
 Multi-repo, C++ and Go, `acme/telemetry` as the primary repo. Issue numbers here
 are local to this example.
 
-**Goal → Milestone.** TELOS goal `G1: "Customers can see their flows live"` →
+**Goal → Milestone.** Goals entry `G1: "Customers can see their flows live"` →
 `/iai:goal-create G1` → **Milestone 7 "Q3 Telemetry"**, whose description carries
 the feature table.
 

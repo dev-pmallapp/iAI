@@ -434,7 +434,7 @@ milestone dependency.
 | **Hooks / guards** | External process, stdin JSON, exit 2 blocks | In-process TS, mutate `output`, `throw` blocks | **Pure core `Decision`** + two adapters. No shared hook code |
 | **Model routing** | Per-agent `model` alias only; no per-request control | `chat.params` rewrites temperature, topP, topK, maxOutputTokens per request | **Enhancement.** CC gets static per-agent routing; behaviour must be correct without it |
 | **Permission prompts** | `PreToolUse` returning a decision; no structured policy file | `permission.ask` hook **and** declarative `permission:` in agent frontmatter | Policy authored once in core; opencode also gets the declarative form as defence in depth |
-| **System prompt injection** | Not available to hooks | `experimental.chat.system.transform` mutates `system: string[]` | **Enhancement.** CC injects the same TELOS context via `SessionStart` output and skill bodies |
+| **System prompt injection** | Not available to hooks | `experimental.chat.system.transform` mutates `system: string[]` | **Enhancement.** CC injects the same Goals context via `SessionStart` output and skill bodies |
 | **MCP servers** | `.mcp.json`, project and user scope | `mcp` block in `opencode.json`, local and remote | Declared per host by the installer; iAI ships **no required MCP server** — every one is optional |
 | **Telemetry** | Hook stdout, plus whatever a hook process writes | Plugin can call the SDK client and the local server on `serverUrl` | Both write the **same append-only JSONL** under `docs/evidence/`. The file is the interface, not the host API |
 
@@ -450,7 +450,7 @@ iAI/
 ├── packages/
 │   ├── core/                     iai-core          (library, pure, no host imports)
 │   │   └── src/
-│   │       ├── intent/           TELOS, Design, Current→Ideal delta
+│   │       ├── intent/           Goals, Design, Current→Ideal delta
 │   │       ├── routing/          category → model chain
 │   │       ├── guards/           checkEgress, checkRiskMandate, checkSpend,
 │   │       │                     checkCommitPrefix — pure, <50ms
@@ -524,7 +524,7 @@ Three non-negotiables:
 | opencode capability | What it buys | Claude Code fallback | Behaviour lost |
 |---|---|---|---|
 | `chat.params` — per-request model parameters | Category-based routing rewrites `temperature`, `topP`, `maxOutputTokens` per turn: deterministic (`temperature: 0`) for `risk-check` and reconciliation, exploratory for research | Static per-agent `model` in agent frontmatter, plus a skill-body instruction stating the intended reasoning level | **Per-turn** parameter tuning. A CC agent runs one parameter set for its whole life, so `risk-officer` is authored deterministic and never varies. Routing correctness is unaffected; only adaptivity is |
-| `experimental.chat.system.transform` — rewrite `system: string[]` | TELOS goals, active rung and mandate SHA injected into the system prompt for every turn, unskippable and not consuming conversation turns | `SessionStart` hook stdout injects the same context **once** at session start, and Tier-0 skill bodies restate the invariants | **Freshness.** CC's injected context is a snapshot from session start; if `MANDATE.md` changes mid-session it is stale. Mitigation: the mandate SHA is re-read from disk by the guard at gate time, so the *enforced* value is always current even when the *prompted* value is not |
+| `experimental.chat.system.transform` — rewrite `system: string[]` | Goals, active rung and mandate SHA injected into the system prompt for every turn, unskippable and not consuming conversation turns | `SessionStart` hook stdout injects the same context **once** at session start, and Tier-0 skill bodies restate the invariants | **Freshness.** CC's injected context is a snapshot from session start; if `MANDATE.md` changes mid-session it is stale. Mitigation: the mandate SHA is re-read from disk by the guard at gate time, so the *enforced* value is always current even when the *prompted* value is not |
 
 Separation of duties — `quant-analyst` cannot spawn `risk-officer` — is not in
 this table because it is not one-sided: Ring 2 specialists are issued no Task
