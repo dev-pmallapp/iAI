@@ -18,7 +18,7 @@ supplies is the four re-bound nouns: **unit of work**, **verification**,
 | This domain is for | This domain is **not** for |
 |--------------------|----------------------------|
 | Shipping software changes across one or many repositories | Managing infrastructure state as a side effect of a merge |
-| Turning an ISA's `ISC-N` claims into tests, then into passing tests | Writing tests against an implementation that already exists |
+| Turning a Design's `ISC-N` claims into tests, then into passing tests | Writing tests against an implementation that already exists |
 | Decomposing a feature into independently buildable units | Decomposing a feature by file, by layer, or by "frontend/backend" |
 | Independent review of a diff by an agent that did not write it | Self-approval of any kind |
 | Keeping `ARCHITECTURE.md` and the tree in agreement | Being the authority on what the architecture *should* be |
@@ -224,13 +224,13 @@ Four rungs. The default is the cheapest and the promotion order is fixed.
 | compile | `rung:compile` | The target builds from a clean tree with the declared build command. Syntax, types and link edges are sound | Exit 0 on `build`, and the `Passes when:` predicate holds. Build log captured to the evidence artifact | Yes |
 | unit | `rung:unit` | The target's own behaviour matches the ISC-N claims it is anchored to, in isolation from its siblings | Exit 0 on `test` for this target only; every anchored `ISC-N` maps to at least one named case; zero new skips | Yes |
 | integration | `rung:integration` | The Story's targets work *together* on the story branch — the thing the Story promised actually happens | All sibling Tasks at `unit`; story-branch build green; the test plan's P0 cases pass; P1 pass or are explicitly deferred with a reason | Yes |
-| review | `rung:review` | A reader who did not write the diff believes it is correct, minimal and consistent with the ISA | `dev/code-review` returns no unaddressed finding; `iai-validator` confirms evidence exists on disk; the integration PR is marked ready | **No** — this rung fronts the merge gate |
+| review | `rung:review` | A reader who did not write the diff believes it is correct, minimal and consistent with the Design | `dev/code-review` returns no unaddressed finding; `iai-validator` confirms evidence exists on disk; the integration PR is marked ready | **No** — this rung fronts the merge gate |
 
 Notes that keep the ladder honest:
 
 | Rule | Reason |
 |------|--------|
-| Tests are written from `ISC-N`, never from the code | `dev/test-gen` reads the ISA, not the implementation. Tests derived from code prove only that the code does what it does |
+| Tests are written from `ISC-N`, never from the code | `dev/test-gen` reads the Design, not the implementation. Tests derived from code prove only that the code does what it does |
 | The `unit` rung is per target, not per Story | `ctest -R ^libtelemetry$`, not `ctest`. A Task cannot be promoted by a sibling's tests |
 | A rung is never skipped | A Task at `compile` with no test command stays at `compile`. It does not "pass" the unit rung by having nothing to run |
 | Evidence precedes the label | `evidenceRequired: true`. `task-verify` writes `docs/evidence/{issue}-{ts}.md` and only then transitions the label |
@@ -255,7 +255,7 @@ Two gates fire inside `dev`, both from `03-workflow.md`'s gate table:
 
 | Gate | Fires when | Approver | Artifact |
 |------|-----------|----------|----------|
-| Design approval | ISA written, before `/iai:task-create` | Human, informed by `iai-critic` | `gate:pending` + `## iai-gate` |
+| Design approval | Design written, before `/iai:task-create` | Human, informed by `iai-critic` | `gate:pending` + `## iai-gate` |
 | Implementation review | Draft PR complete, before marking ready | Human, informed by `iai-validator` | `gate:pending` + `## iai-gate` |
 | Closure | `story-verify` returns `PASS` | Human only | `## iai-verdict`, then the human merges |
 
@@ -274,7 +274,7 @@ issues explicitly with `gh issue close 905`. The integration PR body carries one
 | `code-review` | `[task#\|pr#] [--strict]` | Independent read of a task diff by an agent that did not author it. Findings are anchored to `ISC-N` or to a build target, never to style preference. Blocks the readiness transition, does not block the commit | No — but blocks `rung:review` |
 | `debug` | `[issue#] [--repro]` | Reproduce first, isolate second, fix third, in that order. A fix with no reproduction is refused. Emits the minimal diff plus a regression test | No |
 | `refactor` | `[target] [--proof]` | Behaviour-preserving change with an explicit proof obligation: the same test set is green before and after, and the test files are unchanged in the same commit | No |
-| `test-gen` | `[story#] [--tier P0]` | Generates cases from the ISA's `ISC-N` claims and the Test Strategy table's `anchors_to` column. Never reads the implementation while generating | No |
+| `test-gen` | `[story#] [--tier P0]` | Generates cases from the Design's `ISC-N` claims and the Test Strategy table's `anchors_to` column. Never reads the implementation while generating | No |
 | `arch-audit` | `[--fix]` | Diff between `ARCHITECTURE.md`'s `## Build Targets` table and the build definition files actually present. Reports targets missing from the table and table rows with no build file | No |
 | `dep-audit` | `[target] [--licences]` | Dependency risk, licence compatibility and staleness for one target's manifest. Findings carry a severity and a suggested action, not an automatic bump | No |
 | `release` | `[version] [--dry-run]` | Version bump, changelog assembly from `#{issue}:` commit prefixes, tag proposal, and a release PR | **Yes** — tag and merge are human |
@@ -291,7 +291,7 @@ invokes `dev/debug` when the failure is a defect rather than a plan error.
 
 | Kind | Path | Format |
 |------|------|--------|
-| Story design (ISA) | `docs/design/stories/{issue}.md` | YAML frontmatter + 17 fixed sections + `## Build Targets` |
+| Story design (Design) | `docs/design/stories/{issue}.md` | YAML frontmatter + 17 fixed sections + `## Build Targets` |
 | Test plan | `docs/test-plans/{issue}-plan.md` | Markdown tables, P0/P1/P2 |
 | Evidence | `docs/evidence/{issue}-{ts}.md` | YAML frontmatter + build/test output |
 | Target inventory | `ARCHITECTURE.md` → `## Build Targets` | Markdown table, parsed mechanically |
@@ -376,10 +376,10 @@ drifts from them within a month. Resolution order:
 | Source | Provides | If absent |
 |--------|----------|-----------|
 | `git remote get-url origin` | `owner/repo`, default branch via `gh repo view --json defaultBranchRef` | Hard failure. Without a remote there is no system of record |
-| `README.md` | One-paragraph project summary; `## Repositories` table for multi-repo work | Single-repo assumed; summary omitted from the ISA context block |
+| `README.md` | One-paragraph project summary; `## Repositories` table for multi-repo work | Single-repo assumed; summary omitted from the Design context block |
 | `ARCHITECTURE.md` → `## Build Targets` | The target inventory `task-create` decomposes against | **Hard failure** for `task-create`. See failure modes |
 | `CONTRIBUTING.md` → `## Commands` | build / test / lint / integration commands and the `Passes when:` predicate | Tasks cannot leave `rung:compile`; `size` emits a warning; PRs stay draft |
-| `CLAUDE.md` / `AGENTS.md` | House conventions: style, commit rules, forbidden patterns, review expectations | Defaults apply; the ISA records that no conventions file was found |
+| `CLAUDE.md` / `AGENTS.md` | House conventions: style, commit rules, forbidden patterns, review expectations | Defaults apply; the Design records that no conventions file was found |
 | `docs/milestones/M*.md` | `\| Feature \| Description \|` rows that `story-create` turns into Stories | `story-create` requires an explicit feature argument |
 
 External tools:
@@ -420,7 +420,7 @@ and opens:
 End-to-end and multi-component, as required: it spans `libtelemetry` (C++),
 `exporter-svc` (Go) and the OTLP schema. It is **not** three Stories.
 
-**Story → ISA.** `/iai:story-design 901` writes `docs/design/stories/901.md`, cuts
+**Story → Design.** `/iai:story-design 901` writes `docs/design/stories/901.md`, cuts
 `story/901-live-flow-export`, and posts `## iai-design` with an SHA-pinned permalink.
 The claims:
 
@@ -432,14 +432,14 @@ The claims:
 | ISC-4 | Collector outage for 60s causes buffering, not loss, and drains on recovery | exporter-svc | P1 |
 | ISC-5 | End-to-end latency from flow completion to collector receipt is under 5s at P99 | both | P1 |
 
-The ISA's `## Build Targets` section, resolved from `ARCHITECTURE.md`:
+The Design's `## Build Targets` section, resolved from `ARCHITECTURE.md`:
 
 | Target | Type | Build file | Repo |
 |--------|------|-----------|------|
 | libtelemetry | library | `src/telemetry/CMakeLists.txt` | `.` (primary) |
 | exporter-svc | binary | `services/exporter/go.mod` | `acme/exporter` |
 
-**ISA → Tasks.** `/iai:task-create 901` produces one Task per build target, plus
+**Design → Tasks.** `/iai:task-create 901` produces one Task per build target, plus
 one for executing the test plan:
 
 ```
@@ -488,7 +488,7 @@ Code changed in two repositories. **Issues lived in exactly one.**
 | Branches, commits, task PRs | Each target's own repo |
 | Integration PR | One per repo touched, all referenced from the Story; only the primary repo's PR carries the `Closes #N` lines |
 
-One issue tree, one milestone, one ISA. A Story that spans five repos still has
+One issue tree, one milestone, one Design. A Story that spans five repos still has
 one home. The alternative — issues per repo — produces five partial views of one
 deliverable and no place to record the verdict.
 
@@ -504,7 +504,7 @@ deliverable and no place to record the verdict.
 | Sub-issue GraphQL unavailable (older GHES) | `gh` errors on the sub-issue mutation; Tasks orphaned | Fall back to `Parent: #901` as a body link on each Task plus a `## Tasks` checklist on the Story. `status` derives the tree from those instead. Capability is probed once per session and cached, not retried per Task |
 | Rate limits during a large batch | Partial issue creation; a re-run duplicates | Every skill is idempotent — `task-create` reads existing Tasks first and fills only the gaps. `gh/` backs off exponentially and the batch is resumable at the point of failure |
 | Monorepo with ~200 build targets | 200 Tasks under one Story; unreviewable, unschedulable | `size` fails the Story before decomposition. Split by deliverable, not by target: a Story should touch **3–12** targets. Above 12, `replan` cuts sibling Stories under the same milestone. Targets not touched by the Story's ISC-N claims are never Tasks |
-| Shared headers with no owning target | Two Tasks both edit `include/flow.h`, both branches conflict on merge to the story branch | Headers belong to the consuming target's Task. Two consumers means the second Task declares `Blocked by:` the first, and the ordering is recorded in the ISA's dependency graph, not discovered at merge time |
+| Shared headers with no owning target | Two Tasks both edit `include/flow.h`, both branches conflict on merge to the story branch | Headers belong to the consuming target's Task. Two consumers means the second Task declares `Blocked by:` the first, and the ordering is recorded in the Design's dependency graph, not discovered at merge time |
 | ISC-N claim maps to no build target | A claim can never be anchored, so the Story can never reach `review` | `story-test-plan` refuses to emit a plan with unanchored P0 claims. Either the target is missing from `ARCHITECTURE.md` or the claim belongs to a different Story |
 | Two agents pushing the same story branch | Non-fast-forward rejection mid-Task; work appears to vanish | One Task, one branch, one agent. Task branches never share a name; the story branch is written to only by `story-verify`. On rejection, `resume` re-reads `git log` and GitHub rather than trusting the transcript |
 | Reviewer is the author | Review passes trivially and the gate becomes decorative | `autoDeny` includes `reviewing agent is the authoring agent`; `dev/code-review` is spawned by `iai-conductor`, and the cross-vendor rule routes it to a different vendor from `dev-coder` |

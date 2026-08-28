@@ -5,7 +5,7 @@ import { checkCommitPrefix } from "../packages/core/src/index";
 // the commit message under construction (COMMIT_EDITMSG or equivalent).
 export function extractSubject(messageText: string): string {
   for (const rawLine of messageText.split("\n")) {
-    // Trim a trailing \r for CRLF safety, per the ISA.
+    // Trim a trailing \r for CRLF safety, per the Design.
     const line = rawLine.replace(/\r$/, "");
     // Deliberately NOT stripping lines starting with "#" as comments: git's
     // own comment character is "#", but our valid subjects also start with

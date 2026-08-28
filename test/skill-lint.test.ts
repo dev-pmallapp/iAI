@@ -38,7 +38,7 @@ describe("lintSkillSource", () => {
       "name: trade-backtest",
       "description: >-",
       "  Run a historical evaluation of a trading strategy defined in a Story",
-      "  ISA. Read-only with respect to any broker.",
+      "  Design. Read-only with respect to any broker.",
       "license: MIT",
       'compatibility: ">=0.1.0"',
       "metadata:",

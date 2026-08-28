@@ -105,7 +105,7 @@ export const wealthBinding: DomainBinding = {
         entryCriteria: [
           ">= 3 reconciled periods",
           "obligations.yaml complete for the projection horizon",
-          "projection horizon stated in the ISA",
+          "projection horizon stated in the Design",
         ],
         verifier: "tool-checked",
         reversible: true,
@@ -185,7 +185,7 @@ recorded ──▶ reconciled ──▶ projected ──▶ optimised
 |------|----------------|---------------|
 | `recorded` | The object exists in the schema with its required fields, monetary values as strings, `last_4` exactly four characters, dates ISO 8601 | A statement imported covering the full period |
 | `reconciled` | Ledger matches statement **to the cent**. Closing difference is exactly `0.00`. Every unmatched line has a written explanation, not a rounding excuse | Three or more reconciled periods plus a complete `obligations.yaml` for the horizon |
-| `projected` | Forward cash flow over a stated horizon, built only from reconciled history and known obligations. No growth assumptions unless declared in the ISA | A named change with a quantified delta |
+| `projected` | Forward cash flow over a stated horizon, built only from reconciled history and known obligations. No growth assumptions unless declared in the Design | A named change with a quantified delta |
 | `optimised` | The proposed change was executed **by a human** and the delta was measured against at least one subsequent reconciled period | Nothing. Terminal, and `reversible: false` because a cancelled contract and a closed account do not come back |
 
 Reconciliation is deterministic on purpose. `0.00` or not — there is no
@@ -320,7 +320,7 @@ All of `USER/FINANCES/` is `class:private` and hard-gated from cloud egress.
 Milestone 9  "Q4 Fixed-cost reduction"
  └── #903  [type:story][domain:wealth][class:private][rung:recorded]
       │   "Cut fixed monthly outflow by $400"
-      │   ISA: docs/design/stories/903.md   (ISC-1 .. ISC-4)
+      │   Design: docs/design/stories/903.md   (ISC-1 .. ISC-4)
       │   Branch: story/903-cut-fixed-monthly-outflow-by-400
       │
       ├── #919 [type:task] "Obligation audit"          → ISC-1
@@ -345,7 +345,7 @@ Milestone 9  "Q4 Fixed-cost reduction"
 |--------------|-----------------|------------|
 | **Duplicate transactions on re-import** | The same CSV imported twice; September expenses double | Content-hash each statement line (`date + descriptor + amount + last_4`) and de-duplicate on import. Import is idempotent per statement period, per the pack-wide idempotency doctrine |
 | **A `match` substring catches the wrong rows** | `match: ["APPLE"]` swallows `APPLEBEES` and every App Store charge | Require substrings ≥ 8 characters or anchored to a statement prefix; `reconcile` reports match counts per vendor per period and flags any count that moves more than 50% against the prior period |
-| **Currency mixing** | A EUR charge lands in a USD ledger and the total is quietly wrong | Every monetary string carries its symbol; `reconcile` refuses a period containing more than one currency unless the ISA declares a rate source and an `as_of` date |
+| **Currency mixing** | A EUR charge lands in a USD ledger and the total is quietly wrong | Every monetary string carries its symbol; `reconcile` refuses a period containing more than one currency unless the Design declares a rate source and an `as_of` date |
 | **Placeholder strings reach an arithmetic path** | `"$X,XXX"` parses to `NaN`, or worse to `0`, and net worth is understated | Parse monetary strings through one strict function that throws on anything not matching `^\$?-?[\d,]+\.\d{2}$`. A placeholder is a **hard failure**, never a zero |
 | **`last_4` collision at one institution** | Two Chase accounts both ending `1847`; lines route to the wrong ledger | The reconciliation key is `institution + type + last_4`, and `/iai:init` fails on a duplicate key, forcing a disambiguating `nickname` before any import runs |
 
@@ -539,7 +539,7 @@ later reader sees that the corpus is not unanimous.
 | `know/capture` | `[url\|path] [--category Research]` | Snapshot a source with provenance (`url`, `author`, `retrieved_at`, `sha256`), wrap it in the external-content fence, write to `MEMORY/KNOWLEDGE/{Category}/{slug}.md` | No |
 | `know/distill` | `[entry] [--confidence medium]` | Extract falsifiable claims from a captured source, each with a locator into the snapshot. The `unitOfWork.leafSkill` | No |
 | `know/contradict` | `[claim\|entry]` | BM25 conflict detection across held claims. Emits `CLEAR`, `CONFLICT(tier-A)` or `TENSION`. Opens a resolution Story on conflict | **Yes** — a `CONFLICT(tier-A)` blocks promotion |
-| `know/cite` | `[claim] [--for 57]` | Resolve a claim to a citable reference for another domain's ISA; pin the snapshot by SHA permalink | **Yes** — promotion to tier A requires human authorisation |
+| `know/cite` | `[claim] [--for 57]` | Resolve a claim to a citable reference for another domain's Design; pin the snapshot by SHA permalink | **Yes** — promotion to tier A requires human authorisation |
 | `know/digest` | `[--since 2026-08-01]` | Periodic synthesis across recent captures; surfaces orphans, stale sources and uncited entries | No |
 
 ## 7. Data model
@@ -634,7 +634,7 @@ a prompt injection that escaped its wrapper.
 | Web fetch | `webfetch`, snapshotted to disk at capture | Manual paste. The `sha256` is computed over whatever was pasted, and provenance is marked `manual` |
 | PDF extraction | Local text extraction | Capture the PDF as a binary artifact plus a human-written abstract; claims must cite page numbers |
 | BM25 index | Computed on demand from `MEMORY/KNOWLEDGE/**` | It is always present, because it is derived from disk. There is no index to lose |
-| Other domain packs | One-way: they cite `know`, `know` never reads them | A `domain:trade` or `domain:health` ISA citing a tier-B or tier-C entry gets a warning at `story-design`; citing a missing entry is a hard failure |
+| Other domain packs | One-way: they cite `know`, `know` never reads them | A `domain:trade` or `domain:health` Design citing a tier-B or tier-C entry gets a warning at `story-design`; citing a missing entry is a hard failure |
 
 ## 9. Worked example
 
@@ -658,7 +658,7 @@ Milestone 8  "Q3 Lipid protocol"
 | 3 | *(cross-link)* | `related:` links to `[[ldl-c-measurement-error]]` and `[[lipoprotein-a-independent-risk]]`; both resolve → `rung:cross-linked` |
 | 4 | `/iai:task-do 80` | `know/contradict` returns `TENSION` against a tier-C 2016 entry asserting LDL-C sufficiency. Tier C does not block; the tension is recorded on both entries |
 | 5 | *(gate)* | `## iai-gate` posted: promotion to tier A. Human reviews the tension, comments `**Decision:** APPROVED` → `gate:approved`, `promoted: 2026-09-03` |
-| 6 | `/iai:cite --for 57` | The health ISA's ISC-2 gains a SHA-pinned citation to the snapshot. `#901` may now assert the ApoB-over-LDL-C premise as settled |
+| 6 | `/iai:cite --for 57` | The health Design's ISC-2 gains a SHA-pinned citation to the snapshot. `#901` may now assert the ApoB-over-LDL-C premise as settled |
 | 7 | `/iai:story-verify 904` | Verdict `PASS`. The 2016 tier-C entry is demoted in the same PR with a note pointing at the new canon |
 
 Without step 6, ISC-2 in `#901` is an unsourced assertion, and `story-design`

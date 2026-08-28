@@ -14,8 +14,8 @@ every code-specific assumption:
 | 0 | `/iai:init` | Bootstrap the repo. Once, ever. | Root docs, label set, `docs/` skeleton |
 | 1 | `/iai:goal-create` | TELOS goal → GitHub milestone | Milestone with a `\| Feature \| Description \|` table in its description |
 | 2 | `/iai:story-create 7` | One Story issue per feature-table row of milestone 7 | Stories `#901`, `#902`, `#903` … each labelled `type:story` + `domain:*` |
-| 3 | `/iai:story-design 901` | Write the ISA | `docs/design/stories/901.md`, `## iai-design` sentinel, story branch |
-| 4 | `/iai:story-test-plan 901` | ISA verifiable claims (`ISC-N`) → verification plan | `docs/test-plans/901-plan.md`, `## iai-test-plan` sentinel |
+| 3 | `/iai:story-design 901` | Write the Design | `docs/design/stories/901.md`, `## iai-design` sentinel, story branch |
+| 4 | `/iai:story-test-plan 901` | Design verifiable claims (`ISC-N`) → verification plan | `docs/test-plans/901-plan.md`, `## iai-test-plan` sentinel |
 | 5 | `/iai:task-create 901` | One task sub-issue per unit of work | `#905`, `#906`, `#907` … `type:task`, parented to `#901` |
 | 6 | `/iai:task-do 905` | Execute the unit | `task/61-*` branch, commits, **draft** PR → story branch |
 | 7 | `/iai:task-verify 905` | Run the verification | Evidence artifact, PR marked ready, `#905` `status:resolved` and closed |
@@ -52,7 +52,7 @@ Milestone 7 — "Q1 Metabolic + Portfolio Reset"
 │
 ├── #901  [type:story] [domain:health] [status:in-progress]
 │    │   "Drive ApoB under 60 by end of Q1"
-│    │   ISA:  docs/design/stories/901.md          (ISC-1 .. ISC-6)
+│    │   Design:  docs/design/stories/901.md          (ISC-1 .. ISC-6)
 │    │   Plan: docs/test-plans/901-plan.md     (4 P0 / 6 P1 / 2 P2)
 │    │   Branch: story/901-apob-protocol
 │    │
@@ -62,7 +62,7 @@ Milestone 7 — "Q1 Metabolic + Portfolio Reset"
 │
 ├── #902  [type:story] [domain:trade] [status:blocked] [risk:vetoed]
 │    │   "Reset portfolio to mandate-compliant sector weights"
-│    │   ISA:  docs/design/stories/902.md
+│    │   Design:  docs/design/stories/902.md
 │    │   Rung: rung:paper   (rung:live NOT authorised)
 │    │   Branch: story/902-portfolio-reset
 │    │
@@ -72,7 +72,7 @@ Milestone 7 — "Q1 Metabolic + Portfolio Reset"
 │
 └── #903  [type:story] [domain:dev] [status:resolved]
      │   "Ship acme/telemetry metric export"
-     │   ISA:  docs/design/stories/903.md
+     │   Design:  docs/design/stories/903.md
      │   Branch: story/903-telemetry-export
      │
      ├── #911 [type:task] "OTLP exporter in packages/core/src/telemetry"  [resolved]
@@ -82,7 +82,7 @@ Milestone 7 — "Q1 Metabolic + Portfolio Reset"
 | Level | GitHub object | Labelled | Owns |
 |-------|---------------|----------|------|
 | Epic | Milestone | — (milestones take no labels) | The feature table |
-| Story | Issue | `type:story` + `domain:*` + one `status:*` | ISA, test plan, story branch, integration PR |
+| Story | Issue | `type:story` + `domain:*` + one `status:*` | Design, test plan, story branch, integration PR |
 | Task | Sub-issue of a Story | `type:task` + one `status:*` | One unit of work, one task branch, one draft PR |
 
 `#902` above is the interesting row: a `domain:trade` Story sitting at
@@ -236,7 +236,7 @@ blocks the tool call at runtime. Claude Code expresses the same block as a
 
 | Gate | Triggers when | Who approves | Blocking? |
 |------|---------------|--------------|-----------|
-| Design approval | ISA written, before `/iai:task-create` | Human, informed by `iai-critic` | Yes |
+| Design approval | Design written, before `/iai:task-create` | Human, informed by `iai-critic` | Yes |
 | Implementation review | Draft PR ready, before marking ready-for-review | Human, informed by `iai-validator` | Yes |
 | Closure | `story-verify` returns `PASS`, before integration PR merges | Human only | Yes — **iAI never merges** |
 | Rung promotion | `rung:research` → `rung:paper`, or `rung:paper` → `rung:live` | Human principal + `risk-officer` `PASS` | Yes — `rung:live` additionally requires a signed mandate and an armed kill switch |
@@ -444,7 +444,7 @@ ties a diff to a unit of work to a Story to a goal.
 #905: add baseline lipid panel importer with unit normalisation
 
 Parses the Q4 panel PDF into USER/HEALTH/panels/2026-01-09.yaml and
-normalises mg/dL vs mmol/L per the ISA's ISC-2.
+normalises mg/dL vs mmol/L per the Design's ISC-2.
 
 Co-Authored-By: iAI <noreply@iai.dev>
 ```
@@ -526,7 +526,7 @@ are short because they are absolute.
 An agent can be killed mid-phase by a timeout, a context limit, a crash, or a
 human hitting escape. The recovery strategy is not a transaction log — it is
 re-running the same command. `/iai:story-design 901` on a Story that already has
-an ISA reads it, finds the gaps, and fills only those. It does not overwrite, it
+a Design reads it, finds the gaps, and fills only those. It does not overwrite, it
 does not duplicate the sentinel comment, and it does not create a second branch.
 
 | Skill | Detects | Fills only |
@@ -549,7 +549,7 @@ and `gh issue view`.
 
 | Do not | Do |
 |--------|-----|
-| "I created the ISA earlier" | `test -f docs/design/stories/901.md && git log -1 -- docs/design/stories/901.md` |
+| "I created the Design earlier" | `test -f docs/design/stories/901.md && git log -1 -- docs/design/stories/901.md` |
 | "The task is resolved" | `gh issue view 61 --json labels,state` |
 | "The PR is open" | `gh pr list --head task/61-baseline-lipid-panel --json number,isDraft` |
 | "Tests passed" | Re-run them and capture the output |

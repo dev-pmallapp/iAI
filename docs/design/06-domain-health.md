@@ -93,7 +93,7 @@ export const healthBinding: DomainBinding = {
         id: "trend",
         name: "Trend",
         entryCriteria: [
-          "window declared in the ISA before the first data point",
+          "window declared in the Design before the first data point",
           "minimum point count N declared and met",
           "direction stated as improving, worsening or flat",
           "confounders enumerated with their own series",
@@ -198,7 +198,7 @@ to different confounders, and fail independently.
 | "Track ApoB, Lp(a), hs-CRP and HbA1c" | Above `maxSize`. `replan` cuts four Tasks |
 
 `task-create` reads `binding.unitOfWork` and anchors each Task to one `ISC-N`
-claim in the Story's ISA, so a marker with no verifiable claim behind it does
+claim in the Story's Design, so a marker with no verifiable claim behind it does
 not become a Task at all.
 
 ---
@@ -211,7 +211,7 @@ observe ──▶ trend ──▶ flag ──▶ clinician-review ──▶ (not
 
 | Rung | What it proves | What promotes off it |
 |------|----------------|----------------------|
-| `observe` | Data exists and is fresh. The source reports `ok`, day files cover the window, the day boundary is timezone-resolved, and missingness is under the declared tolerance | A declared window and a declared minimum point count `N`, both written into the ISA **before** the first point is collected |
+| `observe` | Data exists and is fresh. The source reports `ok`, day files cover the window, the day boundary is timezone-resolved, and missingness is under the declared tolerance | A declared window and a declared minimum point count `N`, both written into the Design **before** the first point is collected |
 | `trend` | At least `N` points across the pre-declared window, reduced to a stated direction — improving, worsening or flat — with confounders enumerated as their own series | A pre-declared threshold or a per-result reference range that the series actually crosses |
 | `flag` | A trend crosses a pre-declared threshold, or a value sits outside its own `ref_low`/`ref_high`, and the crossing persists across at least two consecutive measurements | A clinician brief, generated locally, containing questions and no instructions, plus a named clinician and an appointment |
 | `clinician-review` | A human clinician has seen the brief. Attested by the human, never inferred | **Nothing.** There is no automatic promotion past this rung, in any domain configuration, ever |
@@ -220,8 +220,8 @@ Four properties make the ladder honest:
 
 | Property | Detail |
 |----------|--------|
-| Thresholds are pre-declared | A threshold chosen after seeing the series is curve-fitting. `story-design` writes it into the ISA; `task-verify` re-reads it from disk and refuses a threshold whose file mtime is later than the first data point |
-| Direction is stated, not discovered | The ISA says "ApoB decreasing"; the verifier checks that claim, it does not go looking for whatever moved |
+| Thresholds are pre-declared | A threshold chosen after seeing the series is curve-fitting. `story-design` writes it into the Design; `task-verify` re-reads it from disk and refuses a threshold whose file mtime is later than the first data point |
+| Direction is stated, not discovered | The Design says "ApoB decreasing"; the verifier checks that claim, it does not go looking for whatever moved |
 | Persistence is required to flag | Two consecutive measurements, minimum. A lone excursion is assay noise until proven otherwise |
 | The last rung is `reversible: false` | Because a brief handed to a clinician cannot be unhanded. That is what puts it behind `gate` |
 
@@ -529,7 +529,7 @@ G0  "ApoB under 60 by Q4"                        USER/TELOS/TELOS.md
  └── Milestone 8  "Q3 Lipid protocol"            feature table in description
       └── #901  [type:story][domain:health][class:private][rung:observe]
            │   "Lower ApoB from 88 to under 60"
-           │   ISA:  docs/design/stories/901.md        (ISC-1 .. ISC-5)
+           │   Design:  docs/design/stories/901.md        (ISC-1 .. ISC-5)
            │   Plan: docs/test-plans/901-plan.md   (3 P0 / 5 P1 / 1 P2)
            │   Branch: story/901-lower-apob-from-88-to-under-60
            │
@@ -539,7 +539,7 @@ G0  "ApoB under 60 by Q4"                        USER/TELOS/TELOS.md
            └── #911 [type:task] "Clinician brief for Nov visit"   → ISC-5
 ```
 
-### ISA claims
+### Design claims
 
 | Claim | Statement | Verifier | Anchored task |
 |-------|-----------|----------|---------------|

@@ -223,7 +223,7 @@ HARD FAILURE in Phase 6 (task-do):
 
 ### Pre-registration
 
-> **Thresholds, position sizing and exit criteria are written into the ISA
+> **Thresholds, position sizing and exit criteria are written into the Design
 > BEFORE the backtest runs. Changing them after seeing results is logged as a
 > deviation and requires a new Story.**
 
@@ -234,9 +234,9 @@ nobody involved ever intended to cheat.
 | Mechanism | Detail |
 |-----------|--------|
 | What is pre-registered | Metric thresholds, out-of-sample split, data window, universe definition, sizing rule, stop and exit criteria, minimum paper window, tracking-error tolerance |
-| Where | The ISA's `ISC-N` claims, committed **before** the backtest Task starts. The commit SHA is the timestamp |
+| Where | The Design's `ISC-N` claims, committed **before** the backtest Task starts. The commit SHA is the timestamp |
 | Enforcement | `trade/backtest` refuses to run if the anchored `ISC-N` claims are uncommitted or were modified after the previous backtest run for this Story |
-| Backtest counter | Every run increments `backtests_run` in the ISA frontmatter and appends a row to the ISA's run log. Run 7 against the same universe is visible to `iai-critic` and to the human, forever |
+| Backtest counter | Every run increments `backtests_run` in the Design frontmatter and appends a row to the Design's run log. Run 7 against the same universe is visible to `iai-critic` and to the human, forever |
 | Deviations | A post-hoc threshold change is written to the journal as a deviation, closes the current Story, and opens a new one. The old evidence is not deleted — it is the record of what was tried |
 
 A strategy that only passes on its fourth threshold revision has not passed.
@@ -499,14 +499,14 @@ position opened in 2024. This is the ordinary case the pack is built for.
 `rung:research` is applied at creation. It is the default and it is not
 negotiable at this stage.
 
-**Story → ISA, with pre-registration.** `/iai:story-design 902` writes
+**Story → Design, with pre-registration.** `/iai:story-design 902` writes
 `docs/design/stories/902.md`, cuts `story/902-rotate-20-from-single-name-tech-into`,
 and posts `## iai-design`. The claims are written and **committed before any
 backtest runs**:
 
 | Claim | Pre-registered statement |
 |-------|--------------------------|
-| ISC-1 | Universe: US-listed factor ETFs with 20-day ADV ≥ $2,000,000 and expense ratio ≤ 0.25%. Frozen at design time; membership recorded in the ISA |
+| ISC-1 | Universe: US-listed factor ETFs with 20-day ADV ≥ $2,000,000 and expense ratio ≤ 0.25%. Frozen at design time; membership recorded in the Design |
 | ISC-2 | Backtest window 2014-01-01 → 2024-12-31, with 2022-01-01 → 2024-12-31 held out as out-of-sample. Slippage 5bp, fees $0.005/share, delisted names retained |
 | ISC-3 | Thresholds: CAGR ≥ 6.0%, max drawdown ≤ 18.0%, Sharpe ≥ 0.60, hit rate ≥ 45%, turnover ≤ 120%/yr. Worst 5 trades reported individually |
 | ISC-4 | Sizing: no single ETF above 8.0% of portfolio value; sleeve total 20.0% ± 1.0%; every leg carries a stop at submission |
@@ -516,7 +516,7 @@ backtest runs**:
 The commit SHA of `stories/902.md` is the pre-registration timestamp. Changing ISC-3
 after seeing a backtest result closes `#902` and opens a new Story.
 
-**ISA → Tasks.** `/iai:task-create 902`:
+**Design → Tasks.** `/iai:task-create 902`:
 
 ```
 #915 [type:task] Backtest the factor ETF sleeve         anchors ISC-1, ISC-2, ISC-3
@@ -534,11 +534,11 @@ for `/iai:auto`, and the rotation's twelve legs are **one** Task, not twelve.
 
 | Step | Command | Effect |
 |------|---------|--------|
-| 1 | `/iai:task-do 915` | `trade/backtest 58 --window 10y --oos 20%`. Writes `USER/TRADING/BACKTESTS/factor-etf-sleeve/{results.json,equity.csv,trades.csv}`. ISA `backtests_run: 1` |
+| 1 | `/iai:task-do 915` | `trade/backtest 58 --window 10y --oos 20%`. Writes `USER/TRADING/BACKTESTS/factor-etf-sleeve/{results.json,equity.csv,trades.csv}`. Design `backtests_run: 1` |
 | 2 | `/iai:task-verify 915` | Results against ISC-3: CAGR 7.4%, max DD 15.2%, Sharpe 0.71, hit rate 48%, turnover 86%. Look-ahead audit passes — every signal uses only data available at the bar it trades. Worst 5 trades listed. `docs/evidence/71-20260901T104412Z.md`, `## iai-evidence`, close `#915`. Story → `rung:backtest` |
 | 3 | `/iai:task-do 916` | `iai-conductor` spawns `risk-officer` **independently**. It reads `MANDATE.md` at SHA `a91c4f2`, `POSITIONS.yaml`, and the proposal from disk — not from `quant-analyst` |
 | 4 | verdict | `RISK #902: PASS_WITH_CONDITIONS` — sleeve capped at 20.0%, no single ETF above 6.5% (tighter than ISC-4's 8.0%), hard stop −8% per leg, execution over three sessions to limit market impact. Conditions applied verbatim, written to `USER/TRADING/JOURNAL/2026-09-02.md` under `## iai-risk` |
-| 5 | `/iai:task-verify 916` | Conditions recorded in the ISA. `#916` closed |
+| 5 | `/iai:task-verify 916` | Conditions recorded in the Design. `#916` closed |
 | 6 | `#917` unblocks | `trade/paper-trade 58 --sessions 30` against `PaperBroker`. Each simulated order appends to `ORDERS/2026/orders.jsonl` with `rung: "paper"` |
 | 7 | `/iai:task-verify 917` | 30 sessions complete. Tracking error 112bp, inside ISC-5's 150bp. `docs/evidence/73-20260913T210300Z.md` carries the paper equity curve overlaid on the backtest curve. `#917` closed. Story → `rung:paper` |
 
@@ -593,8 +593,8 @@ seven-character string.
 | Failure mode | Symptom | Mitigation |
 |--------------|---------|------------|
 | **Look-ahead bias** | Backtest uses data unavailable at the bar it trades — same-bar close, restated fundamentals, a later index membership | A look-ahead audit is a **promotion requirement**, not a review nicety. Every signal declares its as-of lag; the audit re-runs the strategy with all inputs shifted one bar and requires the edge to survive. A strategy that collapses under the shift is refused |
-| **Survivorship bias** | Universe contains only names that still exist, so the backtest never buys anything that went to zero | `BarSource` must expose a delisted-symbol channel. `trade/backtest` refuses to run against a universe that reports zero delistings over a 10-year window. The universe is frozen in the ISA at design time and its membership is committed |
-| **Overfitting via repeated backtests** | Run 9 finally clears the thresholds; runs 1–8 are forgotten | Pre-registration plus a **backtest counter**: `backtests_run` in the ISA frontmatter, incremented every run, with a run log the human and `iai-critic` both see. Thresholds changed after a run close the Story and require a new one, logged as a deviation |
+| **Survivorship bias** | Universe contains only names that still exist, so the backtest never buys anything that went to zero | `BarSource` must expose a delisted-symbol channel. `trade/backtest` refuses to run against a universe that reports zero delistings over a 10-year window. The universe is frozen in the Design at design time and its membership is committed |
+| **Overfitting via repeated backtests** | Run 9 finally clears the thresholds; runs 1–8 are forgotten | Pre-registration plus a **backtest counter**: `backtests_run` in the Design frontmatter, incremented every run, with a run log the human and `iai-critic` both see. Thresholds changed after a run close the Story and require a new one, logged as a deviation |
 | **Broker API outage mid-order** | Submission times out; the system does not know whether the order exists | Never resubmit on timeout. Reconcile: query `positions()` and open orders, match against `orders.jsonl` by `broker_order_id`, and if the state is ambiguous, fire the kill switch and stop for a human. An unmatched fill is a broker anomaly and auto-halts |
 | **Partial fills** | Position size differs from the size the risk check approved | Fills append lines; they never edit them. After each fill the remaining book is re-checked against the mandate before the next leg. A partial that leaves the book outside `max_position_pct` blocks the remaining legs and raises a gate |
 | **Stale market data** | Decisions made on prices from an hour ago | Every provider stamps `asOf`; `autoDeny` refuses at >60s. A provider that cannot stamp staleness is treated as research-only. Stale is treated identically to absent |
