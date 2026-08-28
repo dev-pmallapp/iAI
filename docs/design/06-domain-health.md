@@ -86,7 +86,7 @@ export const healthBinding: DomainBinding = {
           "day files exist for the window with <= 10% missing days",
           "day boundary resolved against a declared timezone",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -98,7 +98,7 @@ export const healthBinding: DomainBinding = {
           "direction stated as improving, worsening or flat",
           "confounders enumerated with their own series",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -109,7 +109,7 @@ export const healthBinding: DomainBinding = {
           "threshold crossed, or value outside per-result ref_low/ref_high",
           "crossing persists across >= 2 consecutive measurements",
         ],
-        verifier: "judged",
+        verifier: "model-judged",
         reversible: true,
       },
       {
@@ -121,7 +121,7 @@ export const healthBinding: DomainBinding = {
           "named human clinician and appointment date on record",
           "human attests the clinician has seen it",
         ],
-        verifier: "attested",
+        verifier: "human-attested",
         reversible: false,
       },
     ],
@@ -543,11 +543,11 @@ G0  "ApoB under 60 by Q4"                        USER/TELOS/TELOS.md
 
 | Claim | Statement | Verifier | Anchored task |
 |-------|-----------|----------|---------------|
-| ISC-1 | A lipid panel is collected monthly from 2026-08-01, at least 4 panels by 2026-11-01, each with per-result reference ranges | deterministic | #64 |
-| ISC-2 | ApoB decreases monotonically across at least 3 of 4 consecutive panels | deterministic | #64 |
-| ISC-3 | Protocol adherence is logged daily with ≥ 85% of days recorded over 90 days | deterministic | #65 |
-| ISC-4 | Sleep efficiency and 28-day training load are reported alongside every ApoB point, as named confounders (after: ISC-1) | deterministic | #66 |
-| ISC-5 | A clinician brief for the 2026-11-04 visit exists, contains no imperative sentence, and is attested as seen (after: ISC-2, ISC-3, ISC-4) | attested | #67 |
+| ISC-1 | A lipid panel is collected monthly from 2026-08-01, at least 4 panels by 2026-11-01, each with per-result reference ranges | tool-checked | #64 |
+| ISC-2 | ApoB decreases monotonically across at least 3 of 4 consecutive panels | tool-checked | #64 |
+| ISC-3 | Protocol adherence is logged daily with ≥ 85% of days recorded over 90 days | tool-checked | #65 |
+| ISC-4 | Sleep efficiency and 28-day training load are reported alongside every ApoB point, as named confounders (after: ISC-1) | tool-checked | #66 |
+| ISC-5 | A clinician brief for the 2026-11-04 visit exists, contains no imperative sentence, and is attested as seen (after: ISC-2, ISC-3, ISC-4) | human-attested | #67 |
 
 ### Trace
 
@@ -556,7 +556,7 @@ G0  "ApoB under 60 by Q4"                        USER/TELOS/TELOS.md
 | 1 | `/iai:goal-create G0` | Milestone 8 "Q3 Lipid protocol" created with its feature table |
 | 2 | `/iai:story-create 8` | `#57` opened; `type:story`, `domain:health`, `class:private`, `rung:observe` |
 | 3 | `/iai:story-design 57` | `docs/design/stories/57.md` with ISC-1..ISC-5. **Windows and thresholds declared here, before any data** |
-| 4 | `/iai:story-test-plan 57` | `docs/test-plans/57-plan.md`; ISC-5 lands as a P0 attested case |
+| 4 | `/iai:story-test-plan 57` | `docs/test-plans/57-plan.md`; ISC-5 lands as a P0 human-attested case |
 | 5 | `/iai:task-create 57` | `#64`, `#65`, `#66`, `#67` opened as sub-issues of `#57` |
 | 6 | `/iai:task-do 64` | Branch `task/64-ingest-monthly-lipid-panel`; `health/ingest` runs `function.ts`; `USER/HEALTH/LABS/2026-08-16-lipid-advanced.json` lands with `Biomarker{name:"ApoB", value:82, ref_low:0, ref_high:90}` |
 | 7 | `/iai:task-verify 64` | 4 panels present by 2026-11-01: 88 → 82 → 77 → 74. `docs/evidence/64-20261101T0914Z.md`, `## iai-evidence`, `#64` closed explicitly |

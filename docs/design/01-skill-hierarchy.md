@@ -53,7 +53,7 @@ within a month"* as the rejected alternative.
 | `references/context-discovery.md` | How to find project context without a config file: parse `## Build Targets` from `ARCHITECTURE.md`, `## Commands` from `CONTRIBUTING.md`, `\| Feature \| Description \|` from `docs/milestones/M*.md`. Resolution order and failure modes |
 | `references/gh-operations.md` | Exact `gh` invocations for every operation: sub-issue creation, label transitions, milestone queries, comment upsert by sentinel. Documents the hazard that `Closes #N` fires only on merge to the **default** branch, so task PRs never auto-close |
 | `references/gh-error-handling.md` | Rate-limit backoff, partial-batch resume, `gh` exit code taxonomy, retry-vs-fail decisions, what to do when a label edit races |
-| `references/verification.md` | The verification doctrine: never trust conversation memory; re-read disk and GitHub before acting. Evidence must exist on disk before any issue is closed. Defines the three verifier classes `deterministic`, `judged`, `attested` |
+| `references/verification.md` | The verification doctrine: never trust conversation memory; re-read disk and GitHub before acting. Evidence must exist on disk before any issue is closed. Defines the three verifier classes `tool-checked`, `model-judged`, `human-attested` |
 | `references/data-classification.md` | The four levels `PUBLIC` / `INTERNAL` / `PRIVATE` / `SECRET`, what falls in each, the `USER/` symlink-into-a-private-store pattern, the `last_4`-only rule, and the egress gate contract |
 | `references/model-routing.md` | Category → model chain → reasoning level → fallbacks. The built-in categories and the `deepwork` escalation keyword. The only document in the tree that names model IDs |
 | `references/domain-binding.md` | The `DomainBinding` interface, its sub-types, the registry, and the rules a pack must satisfy to be loadable |
@@ -204,7 +204,7 @@ export interface Rung {
   id:          string           // ordered; index 0 is always the safe default
   name:        string
   entryCriteria: string[]       // must all hold before promotion to this rung
-  verifier:    "deterministic" | "judged" | "attested"
+  verifier:    "tool-checked" | "model-judged" | "human-attested"
   reversible:  boolean          // false implies this rung is behind gate
 }
 
@@ -256,7 +256,7 @@ export const tradeBinding: DomainBinding = {
         id: "research",
         name: "Research",
         entryCriteria: ["thesis written", "invalidation trigger stated"],
-        verifier: "judged",
+        verifier: "model-judged",
         reversible: true,
       },
       {
@@ -267,7 +267,7 @@ export const tradeBinding: DomainBinding = {
           "assumptions declared: slippage, fees, survivorship",
           "out-of-sample window held back",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -278,7 +278,7 @@ export const tradeBinding: DomainBinding = {
           "position sizing rule fixed",
           "minimum 30 sessions of paper execution planned",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -290,7 +290,7 @@ export const tradeBinding: DomainBinding = {
           "kill switch armed and verified this session",
           "per-order human authorisation available",
         ],
-        verifier: "attested",
+        verifier: "human-attested",
         reversible: false,
       },
     ],
@@ -379,7 +379,7 @@ description: >-
   Declares slippage, fee and survivorship assumptions, holds out an
   out-of-sample window, and writes an equity curve plus a metrics table to
   docs/evidence/. Read-only with respect to any broker. Use when a trade Story
-  is on the research or backtest rung and needs deterministic evidence before
+  is on the research or backtest rung and needs tool-checked evidence before
   promotion to paper.
 license: MIT
 compatibility: ">=0.1.0"
@@ -388,7 +388,7 @@ metadata:
   domain: "trade"
   category: "ultrabrain"
   rung: "backtest"
-  verifier: "deterministic"
+  verifier: "tool-checked"
   invoked-by: "task-do"
   classification: "PRIVATE"
   argument-hint: "[story#] [--window 5y] [--oos 20%]"

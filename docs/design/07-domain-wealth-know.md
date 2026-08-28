@@ -84,7 +84,7 @@ export const wealthBinding: DomainBinding = {
           "monetary fields are strings",
           "last_4 present and exactly 4 characters",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -96,7 +96,7 @@ export const wealthBinding: DomainBinding = {
           "closing balance difference is exactly 0.00",
           "no placeholder strings in any matched row",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -107,7 +107,7 @@ export const wealthBinding: DomainBinding = {
           "obligations.yaml complete for the projection horizon",
           "projection horizon stated in the ISA",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -118,7 +118,7 @@ export const wealthBinding: DomainBinding = {
           "the delta is measured against >= 1 reconciled period after",
           "human executed the change; iAI did not",
         ],
-        verifier: "attested",
+        verifier: "human-attested",
         reversible: false,
       },
     ],
@@ -396,7 +396,7 @@ export const knowBinding: DomainBinding = {
           "provenance recorded: url, author, retrieved_at, sha256",
           "content wrapped in the external-content fence",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -407,7 +407,7 @@ export const knowBinding: DomainBinding = {
           "each claim carries >= 1 source with a locator",
           "confidence assigned: high | medium | low",
         ],
-        verifier: "judged",
+        verifier: "model-judged",
         reversible: true,
       },
       {
@@ -418,7 +418,7 @@ export const knowBinding: DomainBinding = {
           "at least one inbound or outbound link, or a written rationale " +
           "for why the claim stands alone",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -429,7 +429,7 @@ export const knowBinding: DomainBinding = {
           "zero unresolved conflicts with tier-A canon",
           "any conflict found has an open resolution Story",
         ],
-        verifier: "judged",
+        verifier: "model-judged",
         reversible: false,
       },
     ],

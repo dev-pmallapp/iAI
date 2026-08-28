@@ -63,7 +63,7 @@ export const devBinding: DomainBinding = {
           "build command resolved from CONTRIBUTING ## Commands",
           "toolchain present on PATH",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -74,7 +74,7 @@ export const devBinding: DomainBinding = {
           "test command declared for this target",
           "tests derived from ISC-N claims, not from the implementation",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -85,7 +85,7 @@ export const devBinding: DomainBinding = {
           "story branch builds as a whole, not target by target",
           "integration command declared, with a Passes when: predicate",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -97,7 +97,7 @@ export const devBinding: DomainBinding = {
           "no unaddressed iai-critic or dev/code-review finding",
           "every ISC-N anchored to evidence on disk",
         ],
-        verifier: "judged",
+        verifier: "model-judged",
         reversible: false,
       },
     ],

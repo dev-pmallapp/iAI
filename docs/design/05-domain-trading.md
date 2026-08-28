@@ -73,7 +73,7 @@ export const tradeBinding: DomainBinding = {
         id: "research",
         name: "Research",
         entryCriteria: ["thesis written", "invalidation trigger stated"],
-        verifier: "judged",
+        verifier: "model-judged",
         reversible: true,
       },
       {
@@ -84,7 +84,7 @@ export const tradeBinding: DomainBinding = {
           "assumptions declared: slippage, fees, survivorship",
           "out-of-sample window held back",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -95,7 +95,7 @@ export const tradeBinding: DomainBinding = {
           "position sizing rule fixed",
           "minimum 30 sessions of paper execution planned",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -107,7 +107,7 @@ export const tradeBinding: DomainBinding = {
           "kill switch armed and verified this session",
           "per-order human authorisation available",
         ],
-        verifier: "attested",
+        verifier: "human-attested",
         reversible: false,
       },
     ],
