@@ -288,12 +288,12 @@ The emergency rule, stated as an invariant:
 
 ```
 HARD FAILURE in Phase 6 (task-do):
-- Story: #57
+- Story: #901
 - Domain: health
 - Found: emergency-class signal (SpO2 84% at 2026-08-19T03:41-07:00)
 - Action: THIS IS NOT A MEDICAL ASSESSMENT. If you are experiencing symptoms
   now, stop reading and call your local emergency number. Pipeline halted.
-  Label health:emergency applied to #57. No trend, flag or brief was produced.
+  Label health:emergency applied to #901. No trend, flag or brief was produced.
 ```
 
 The notice is printed by the guard, not written by the model, so it cannot be
@@ -527,46 +527,46 @@ unchanged.
 ```
 G0  "ApoB under 60 by Q4"                        USER/TELOS/TELOS.md
  └── Milestone 8  "Q3 Lipid protocol"            feature table in description
-      └── #57  [type:story][domain:health][class:private][rung:observe]
+      └── #901  [type:story][domain:health][class:private][rung:observe]
            │   "Lower ApoB from 88 to under 60"
-           │   ISA:  docs/design/stories/57.md        (ISC-1 .. ISC-5)
-           │   Plan: docs/test-plans/57-plan.md   (3 P0 / 5 P1 / 1 P2)
-           │   Branch: story/57-lower-apob-from-88-to-under-60
+           │   ISA:  docs/design/stories/901.md        (ISC-1 .. ISC-5)
+           │   Plan: docs/test-plans/901-plan.md   (3 P0 / 5 P1 / 1 P2)
+           │   Branch: story/901-lower-apob-from-88-to-under-60
            │
-           ├── #64 [type:task] "Ingest monthly lipid panel"      → ISC-1
-           ├── #65 [type:task] "Protocol adherence tracking"     → ISC-3
-           ├── #66 [type:task] "Sleep/training confounder ctrl"  → ISC-4
-           └── #67 [type:task] "Clinician brief for Nov visit"   → ISC-5
+           ├── #908 [type:task] "Ingest monthly lipid panel"      → ISC-1
+           ├── #909 [type:task] "Protocol adherence tracking"     → ISC-3
+           ├── #910 [type:task] "Sleep/training confounder ctrl"  → ISC-4
+           └── #911 [type:task] "Clinician brief for Nov visit"   → ISC-5
 ```
 
 ### ISA claims
 
 | Claim | Statement | Verifier | Anchored task |
 |-------|-----------|----------|---------------|
-| ISC-1 | A lipid panel is collected monthly from 2026-08-01, at least 4 panels by 2026-11-01, each with per-result reference ranges | tool-checked | #64 |
-| ISC-2 | ApoB decreases monotonically across at least 3 of 4 consecutive panels | tool-checked | #64 |
-| ISC-3 | Protocol adherence is logged daily with ≥ 85% of days recorded over 90 days | tool-checked | #65 |
-| ISC-4 | Sleep efficiency and 28-day training load are reported alongside every ApoB point, as named confounders (after: ISC-1) | tool-checked | #66 |
-| ISC-5 | A clinician brief for the 2026-11-04 visit exists, contains no imperative sentence, and is attested as seen (after: ISC-2, ISC-3, ISC-4) | human-attested | #67 |
+| ISC-1 | A lipid panel is collected monthly from 2026-08-01, at least 4 panels by 2026-11-01, each with per-result reference ranges | tool-checked | #908 |
+| ISC-2 | ApoB decreases monotonically across at least 3 of 4 consecutive panels | tool-checked | #908 |
+| ISC-3 | Protocol adherence is logged daily with ≥ 85% of days recorded over 90 days | tool-checked | #909 |
+| ISC-4 | Sleep efficiency and 28-day training load are reported alongside every ApoB point, as named confounders (after: ISC-1) | tool-checked | #910 |
+| ISC-5 | A clinician brief for the 2026-11-04 visit exists, contains no imperative sentence, and is attested as seen (after: ISC-2, ISC-3, ISC-4) | human-attested | #911 |
 
 ### Trace
 
 | Step | Command | What happens |
 |------|---------|--------------|
 | 1 | `/iai:goal-create G0` | Milestone 8 "Q3 Lipid protocol" created with its feature table |
-| 2 | `/iai:story-create 8` | `#57` opened; `type:story`, `domain:health`, `class:private`, `rung:observe` |
-| 3 | `/iai:story-design 57` | `docs/design/stories/57.md` with ISC-1..ISC-5. **Windows and thresholds declared here, before any data** |
-| 4 | `/iai:story-test-plan 57` | `docs/test-plans/57-plan.md`; ISC-5 lands as a P0 human-attested case |
-| 5 | `/iai:task-create 57` | `#64`, `#65`, `#66`, `#67` opened as sub-issues of `#57` |
-| 6 | `/iai:task-do 64` | Branch `task/64-ingest-monthly-lipid-panel`; `health/ingest` runs `function.ts`; `USER/HEALTH/LABS/2026-08-16-lipid-advanced.json` lands with `Biomarker{name:"ApoB", value:82, ref_low:0, ref_high:90}` |
-| 7 | `/iai:task-verify 64` | 4 panels present by 2026-11-01: 88 → 82 → 77 → 74. `docs/evidence/64-20261101T0914Z.md`, `## iai-evidence`, `#64` closed explicitly |
-| 8 | *(rung)* | ISC-2 satisfied → `#57` promotes `rung:observe` → `rung:trend` in one `gh issue edit` |
-| 9 | `/iai:task-do 65` | `health/protocol` opens `USER/HEALTH/PROTOCOLS/q3-lipid-protocol.md`; adherence 81/90 days = 90% → ISC-3 passes |
-| 10 | `/iai:task-verify 66` | `sleep-review` reports efficiency 0.91 → 0.84; `training-load` reports 28-day load down 22%. Both recorded as **confounders**, not causes → ISC-4 passes |
+| 2 | `/iai:story-create 8` | `#901` opened; `type:story`, `domain:health`, `class:private`, `rung:observe` |
+| 3 | `/iai:story-design 901` | `docs/design/stories/901.md` with ISC-1..ISC-5. **Windows and thresholds declared here, before any data** |
+| 4 | `/iai:story-test-plan 901` | `docs/test-plans/901-plan.md`; ISC-5 lands as a P0 human-attested case |
+| 5 | `/iai:task-create 901` | `#908`, `#909`, `#910`, `#911` opened as sub-issues of `#901` |
+| 6 | `/iai:task-do 908` | Branch `task/64-ingest-monthly-lipid-panel`; `health/ingest` runs `function.ts`; `USER/HEALTH/LABS/2026-08-16-lipid-advanced.json` lands with `Biomarker{name:"ApoB", value:82, ref_low:0, ref_high:90}` |
+| 7 | `/iai:task-verify 908` | 4 panels present by 2026-11-01: 88 → 82 → 77 → 74. `docs/evidence/64-20261101T0914Z.md`, `## iai-evidence`, `#908` closed explicitly |
+| 8 | *(rung)* | ISC-2 satisfied → `#901` promotes `rung:observe` → `rung:trend` in one `gh issue edit` |
+| 9 | `/iai:task-do 909` | `health/protocol` opens `USER/HEALTH/PROTOCOLS/q3-lipid-protocol.md`; adherence 81/90 days = 90% → ISC-3 passes |
+| 10 | `/iai:task-verify 910` | `sleep-review` reports efficiency 0.91 → 0.84; `training-load` reports 28-day load down 22%. Both recorded as **confounders**, not causes → ISC-4 passes |
 | 11 | *(anomaly)* | `health/anomaly` on the 2026-07-19 panel: hs-CRP 0.7 → 1.4 mg/L, outside `ref_high: 1.0`, persists into the 2026-08-16 draw → `rung:flag` |
-| 12 | `/iai:task-do 67` | `health/clinician-brief reyes --visit 2026-11-04` writes `USER/HEALTH/BRIEFS/2026-11-04-reyes.md` **locally**. Draft contains "consider raising the dose" → the imperative is blocked, held, and regenerated as a question |
-| 13 | *(gate)* | `gate:pending` on `#57`; `## iai-gate` comment posted; the proposed dose change is a decision request, not an action |
-| 14 | `/iai:story-verify 57` | ApoB 88 → 74, direction as declared, but the target of 60 is not met. Verdict `PARTIAL`. `## iai-verdict` posted. Integration PR `story/57-* → main` opened against the **private data repo**, marked ready. **iAI does not merge** |
+| 12 | `/iai:task-do 911` | `health/clinician-brief reyes --visit 2026-11-04` writes `USER/HEALTH/BRIEFS/2026-11-04-reyes.md` **locally**. Draft contains "consider raising the dose" → the imperative is blocked, held, and regenerated as a question |
+| 13 | *(gate)* | `gate:pending` on `#901`; `## iai-gate` comment posted; the proposed dose change is a decision request, not an action |
+| 14 | `/iai:story-verify 901` | ApoB 88 → 74, direction as declared, but the target of 60 is not met. Verdict `PARTIAL`. `## iai-verdict` posted. Integration PR `story/901-* → main` opened against the **private data repo**, marked ready. **iAI does not merge** |
 | 15 | *(human)* | Human attends the 2026-11-04 visit, Dr. Reyes reviews the brief, human comments `**Decision:** APPROVED` → `gate:approved`, `rung:clinician-review` attested |
 | 16 | `/iai:learn 8` | Learning recorded: the hs-CRP rise coincided with a 22% training-load drop, which is a confounder, not a finding. Filed to `MEMORY/` at tier B |
 
@@ -576,7 +576,7 @@ The gate comment at step 13:
 ## iai-gate
 
 **Gate:** clinician-boundary
-**Story:** #57
+**Story:** #901
 **Request:** the 2026-11-04 brief proposes a question about therapy adjustment
 **Proposed by:** health-analyst
 **Preconditions:**
@@ -590,7 +590,7 @@ iAI has not recommended a dose change and cannot. Question 4 asks whether the
 current dose remains appropriate given ApoB 74 mg/dL at 81/90 days adherence.
 ```
 
-Two things to notice. `#57` finished at `PARTIAL`, not `FAIL` — the marker moved
+Two things to notice. `#901` finished at `PARTIAL`, not `FAIL` — the marker moved
 in the declared direction and missed the target, which is a real outcome and is
 recorded as one. And step 12 is the gate earning its keep: the model wrote an
 instruction, and the instruction never left the process.

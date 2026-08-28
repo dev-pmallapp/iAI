@@ -13,15 +13,15 @@ every code-specific assumption:
 |---|---------|------|----------|
 | 0 | `/iai:init` | Bootstrap the repo. Once, ever. | Root docs, label set, `docs/` skeleton |
 | 1 | `/iai:goal-create` | TELOS goal → GitHub milestone | Milestone with a `\| Feature \| Description \|` table in its description |
-| 2 | `/iai:story-create 7` | One Story issue per feature-table row of milestone 7 | Stories `#57`, `#58`, `#59` … each labelled `type:story` + `domain:*` |
-| 3 | `/iai:story-design 57` | Write the ISA | `docs/design/stories/57.md`, `## iai-design` sentinel, story branch |
-| 4 | `/iai:story-test-plan 57` | ISA verifiable claims (`ISC-N`) → verification plan | `docs/test-plans/57-plan.md`, `## iai-test-plan` sentinel |
-| 5 | `/iai:task-create 57` | One task sub-issue per unit of work | `#61`, `#62`, `#63` … `type:task`, parented to `#57` |
-| 6 | `/iai:task-do 61` | Execute the unit | `task/61-*` branch, commits, **draft** PR → story branch |
-| 7 | `/iai:task-verify 61` | Run the verification | Evidence artifact, PR marked ready, `#61` `status:resolved` and closed |
-| 8 | *(automatic)* | All tasks resolved → Story flips | `#57` gains `status:resolved` |
-| 9 | `/iai:story-verify 57` | Run the full plan; open the integration PR | `## iai-verdict`, integration PR `story/57-* → main` |
-| 10 | *(automatic)* | Integration PR merged into `main` | `#57` and all its tasks close via closing keywords |
+| 2 | `/iai:story-create 7` | One Story issue per feature-table row of milestone 7 | Stories `#901`, `#902`, `#903` … each labelled `type:story` + `domain:*` |
+| 3 | `/iai:story-design 901` | Write the ISA | `docs/design/stories/901.md`, `## iai-design` sentinel, story branch |
+| 4 | `/iai:story-test-plan 901` | ISA verifiable claims (`ISC-N`) → verification plan | `docs/test-plans/901-plan.md`, `## iai-test-plan` sentinel |
+| 5 | `/iai:task-create 901` | One task sub-issue per unit of work | `#905`, `#906`, `#907` … `type:task`, parented to `#901` |
+| 6 | `/iai:task-do 905` | Execute the unit | `task/61-*` branch, commits, **draft** PR → story branch |
+| 7 | `/iai:task-verify 905` | Run the verification | Evidence artifact, PR marked ready, `#905` `status:resolved` and closed |
+| 8 | *(automatic)* | All tasks resolved → Story flips | `#901` gains `status:resolved` |
+| 9 | `/iai:story-verify 901` | Run the full plan; open the integration PR | `## iai-verdict`, integration PR `story/901-* → main` |
+| 10 | *(automatic)* | Integration PR merged into `main` | `#901` and all its tasks close via closing keywords |
 | 11 | `/iai:learn 7` | Extract learnings | KB PRs, `## iai-learnings`, milestone closed |
 
 Read the same eleven steps as prose, per domain, to see that nothing about them
@@ -50,33 +50,33 @@ fourth level is two Stories.
 Milestone 7 — "Q1 Metabolic + Portfolio Reset"
 │  Epic. Description carries the | Feature | Description | table.
 │
-├── #57  [type:story] [domain:health] [status:in-progress]
+├── #901  [type:story] [domain:health] [status:in-progress]
 │    │   "Drive ApoB under 60 by end of Q1"
-│    │   ISA:  docs/design/stories/57.md          (ISC-1 .. ISC-6)
-│    │   Plan: docs/test-plans/57-plan.md     (4 P0 / 6 P1 / 2 P2)
-│    │   Branch: story/57-apob-protocol
+│    │   ISA:  docs/design/stories/901.md          (ISC-1 .. ISC-6)
+│    │   Plan: docs/test-plans/901-plan.md     (4 P0 / 6 P1 / 2 P2)
+│    │   Branch: story/901-apob-protocol
 │    │
-│    ├── #61 [type:task] "Baseline lipid panel + 90d wearable export"   [resolved]
-│    ├── #62 [type:task] "Protocol v2 — dose, timing, adherence log"    [in-progress]
-│    └── #63 [type:task] "Draft clinician question set for Q1 review"   [open]
+│    ├── #905 [type:task] "Baseline lipid panel + 90d wearable export"   [resolved]
+│    ├── #906 [type:task] "Protocol v2 — dose, timing, adherence log"    [in-progress]
+│    └── #907 [type:task] "Draft clinician question set for Q1 review"   [open]
 │
-├── #58  [type:story] [domain:trade] [status:blocked] [risk:vetoed]
+├── #902  [type:story] [domain:trade] [status:blocked] [risk:vetoed]
 │    │   "Reset portfolio to mandate-compliant sector weights"
-│    │   ISA:  docs/design/stories/58.md
+│    │   ISA:  docs/design/stories/902.md
 │    │   Rung: rung:paper   (rung:live NOT authorised)
-│    │   Branch: story/58-portfolio-reset
+│    │   Branch: story/902-portfolio-reset
 │    │
-│    ├── #64 [type:task] "Correlation cluster analysis of current book"  [resolved]
-│    ├── #65 [type:task] "Rebalance proposal + risk-officer assessment"  [blocked]
-│    └── #66 [type:task] "Paper-rung execution over Q4 window"           [open]
+│    ├── #908 [type:task] "Correlation cluster analysis of current book"  [resolved]
+│    ├── #909 [type:task] "Rebalance proposal + risk-officer assessment"  [blocked]
+│    └── #910 [type:task] "Paper-rung execution over Q4 window"           [open]
 │
-└── #59  [type:story] [domain:dev] [status:resolved]
+└── #903  [type:story] [domain:dev] [status:resolved]
      │   "Ship acme/telemetry metric export"
-     │   ISA:  docs/design/stories/59.md
-     │   Branch: story/59-telemetry-export
+     │   ISA:  docs/design/stories/903.md
+     │   Branch: story/903-telemetry-export
      │
-     ├── #67 [type:task] "OTLP exporter in packages/core/src/telemetry"  [resolved]
-     └── #68 [type:task] "Integration test against acme/telemetry v2"    [resolved]
+     ├── #911 [type:task] "OTLP exporter in packages/core/src/telemetry"  [resolved]
+     └── #912 [type:task] "Integration test against acme/telemetry v2"    [resolved]
 ```
 
 | Level | GitHub object | Labelled | Owns |
@@ -85,8 +85,8 @@ Milestone 7 — "Q1 Metabolic + Portfolio Reset"
 | Story | Issue | `type:story` + `domain:*` + one `status:*` | ISA, test plan, story branch, integration PR |
 | Task | Sub-issue of a Story | `type:task` + one `status:*` | One unit of work, one task branch, one draft PR |
 
-`#58` above is the interesting row: a `domain:trade` Story sitting at
-`status:blocked` with `risk:vetoed`, because `risk-officer` refused `#65`. The
+`#902` above is the interesting row: a `domain:trade` Story sitting at
+`status:blocked` with `risk:vetoed`, because `risk-officer` refused `#909`. The
 milestone cannot complete until a human either revises the proposal or logs an
 override to the trade journal. That is the whole design working as intended.
 
@@ -251,10 +251,10 @@ blocks the tool call at runtime. Claude Code expresses the same block as a
 ## iai-gate
 
 **Gate:** rung-promotion
-**Story:** #58
+**Story:** #902
 **Request:** promote domain:trade from rung:paper to rung:live
 **Proposed by:** quant-analyst
-**Risk assessment:** RISK #58: PASS_WITH_CONDITIONS (max 4% single-name, hard stop -8%)
+**Risk assessment:** RISK #902: PASS_WITH_CONDITIONS (max 4% single-name, hard stop -8%)
 **Preconditions:**
 - [x] Written mandate at USER/TRADING/MANDATE.md, signed 2026-01-04
 - [x] Paper-rung results over full Q4 window committed to docs/evidence/58-*.md
@@ -281,18 +281,18 @@ Rules:
 ```
 main
  │
- ├─◀── integration PR  (story/57-apob-protocol → main)   ← the ONLY auto-closing PR
+ ├─◀── integration PR  (story/901-apob-protocol → main)   ← the ONLY auto-closing PR
  │
- └── story/57-apob-protocol
+ └── story/901-apob-protocol
       │
-      ├─◀── draft PR  (task/61-baseline-panel → story/57-apob-protocol)
-      ├─◀── draft PR  (task/62-protocol-v2   → story/57-apob-protocol)
-      └─◀── draft PR  (task/63-clinician-qs  → story/57-apob-protocol)
+      ├─◀── draft PR  (task/61-baseline-panel → story/901-apob-protocol)
+      ├─◀── draft PR  (task/62-protocol-v2   → story/901-apob-protocol)
+      └─◀── draft PR  (task/63-clinician-qs  → story/901-apob-protocol)
 ```
 
 | Kind | Pattern | Cut from | Targets | Example |
 |------|---------|----------|---------|---------|
-| Story | `story/{n}-{slug}` | `main` | `main` (integration PR) | `story/57-apob-protocol` |
+| Story | `story/{n}-{slug}` | `main` | `main` (integration PR) | `story/901-apob-protocol` |
 | Task | `task/{n}-{slug}` | the story branch | the story branch | `task/61-baseline-lipid-panel` |
 | Bug | `bug/{n}-{slug}` | `main` | `main` | `bug/72-exporter-drops-labels` |
 
@@ -314,31 +314,31 @@ main
 ### The closing-keyword gotcha
 
 **GitHub's closing keywords only fire when a PR merges into the repository's
-DEFAULT branch. Task PRs target the story branch, not `main`, so `Closes #61` in
+DEFAULT branch. Task PRs target the story branch, not `main`, so `Closes #905` in
 a task PR body does NOTHING — the task issue is never auto-closed. iAI closes
 task issues explicitly with `gh issue close`. Only the integration PR
-(`story/57-* → main`) closes issues automatically, and its body needs one
+(`story/901-* → main`) closes issues automatically, and its body needs one
 `Closes #N` PER LINE, because GitHub does not parse comma-separated lists —
-`Closes #57, #61, #62` closes `#57` and silently ignores the rest.**
+`Closes #901, #905, #906` closes `#901` and silently ignores the rest.**
 
 Correct integration PR body:
 
 ```markdown
-Closes #57
-Closes #61
-Closes #62
-Closes #63
+Closes #901
+Closes #905
+Closes #906
+Closes #907
 ```
 
 Wrong, and it will look like it worked:
 
 ```markdown
-Closes #57, #61, #62, #63
+Closes #901, #905, #906, #907
 ```
 
 | Merge target | Closing keywords fire? | Who closes the issue |
 |--------------|------------------------|----------------------|
-| task PR → story branch | **No** | `/iai:task-verify` runs `gh issue close 61` |
+| task PR → story branch | **No** | `/iai:task-verify` runs `gh issue close 905` |
 | story PR → `main` | **Yes** | GitHub, one `Closes #N` per line |
 | bug PR → `main` | **Yes** | GitHub |
 
@@ -418,7 +418,7 @@ and treats the remainder as headroom for the sentinel, metadata and permalinks.
 ```markdown
 ## iai-evidence
 
-**Story:** #57 · **Run:** 2026-01-14T09:22:11Z · **Verdict:** PASS
+**Story:** #901 · **Run:** 2026-01-14T09:22:11Z · **Verdict:** PASS
 **Cases:** 4/4 P0, 6/6 P1, 1/2 P2 (1 deferred — see drift)
 
 Full output (184 kB) exceeds the inline budget:
@@ -441,7 +441,7 @@ ties a diff to a unit of work to a Story to a goal.
 ```
 
 ```
-#61: add baseline lipid panel importer with unit normalisation
+#905: add baseline lipid panel importer with unit normalisation
 
 Parses the Q4 panel PDF into USER/HEALTH/panels/2026-01-09.yaml and
 normalises mg/dL vs mmol/L per the ISA's ISC-2.
@@ -497,7 +497,7 @@ dispatch, before any agent is spawned:
 
 ```
 HARD FAILURE in Phase 6 (task-do):
-- Story: #58
+- Story: #902
 - Expected: rung:research or rung:paper for an /iai:auto run
 - Found: rung:live
 - Action: Pipeline cannot continue. Fix and re-run.
@@ -525,7 +525,7 @@ are short because they are absolute.
 
 An agent can be killed mid-phase by a timeout, a context limit, a crash, or a
 human hitting escape. The recovery strategy is not a transaction log — it is
-re-running the same command. `/iai:story-design 57` on a Story that already has
+re-running the same command. `/iai:story-design 901` on a Story that already has
 an ISA reads it, finds the gaps, and fills only those. It does not overwrite, it
 does not duplicate the sentinel comment, and it does not create a second branch.
 
@@ -549,7 +549,7 @@ and `gh issue view`.
 
 | Do not | Do |
 |--------|-----|
-| "I created the ISA earlier" | `test -f docs/design/stories/57.md && git log -1 -- docs/design/stories/57.md` |
+| "I created the ISA earlier" | `test -f docs/design/stories/901.md && git log -1 -- docs/design/stories/901.md` |
 | "The task is resolved" | `gh issue view 61 --json labels,state` |
 | "The PR is open" | `gh pr list --head task/61-baseline-lipid-panel --json number,isDraft` |
 | "Tests passed" | Re-run them and capture the output |
@@ -559,13 +559,13 @@ and `gh issue view`.
 > **Verify, don't assume.** The orchestrator checks GitHub rather than trusting
 > agent self-reports.
 
-An agent's output is a claim. `#61: RESOLVED` is a claim. Claims are checked
+An agent's output is a claim. `#905: RESOLVED` is a claim. Claims are checked
 against the system of record before the pipeline advances one step, and when the
 claim and the record disagree, the record wins and the conductor emits a
 correction:
 
 ```
-CORRECTION #61:
+CORRECTION #905:
   - agent said: RESOLVED (draft PR #94 ready)
   - actual:     status:in-progress, PR #94 still draft, 0 verification files
   - using:      actual
