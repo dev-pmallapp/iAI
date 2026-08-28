@@ -34,8 +34,8 @@ carries two anti-claim cases and the highest severity.
 | Claim | Cases | Priority |
 |-------|-------|----------|
 | CLAIM-194.1 | 1, 2, 12, 16 | P0, P1 |
-| CLAIM-194.2 | 3, 4, 13, 17 | P0, P1 |
-| CLAIM-194.3 | 5, 14 | P0, P1 |
+| CLAIM-194.2 | 3, 4, 13, 17, 21 | P0, P1 |
+| CLAIM-194.3 | 5, 14, 20 | P0, P1 |
 | CLAIM-194.4 | 6, 7, 15 | P0, P1 |
 | CLAIM-194.5 | 8, 18 | P1 |
 | NEVER-194.6 | 9, 10 | P0 |
@@ -51,7 +51,7 @@ carries two anti-claim cases and the highest severity.
 | 2 | The thematic design series is migrated | CLAIM-194.1 | iai-references | P1 | tool-checked | `git grep -c 'ISC-' -- docs/design` | 0 hits outside `stories/194.md` |
 | 3 | Every claim identifier is Story-qualified | CLAIM-194.2 | iai-core | P0 | tool-checked | `bun run claim-lint` | Exit 0; every identifier matches `^(CLAIM\|NEVER)-\d+\.\d+$` |
 | 4 | Story 9's nine identifiers map one-to-one with `n` preserved | CLAIM-194.2 | iai-references | P0 | tool-checked | `bun run claim-lint --map 9` | `ISC-1..6`→`CLAIM-9.1..6`, `ISC-7..9`→`NEVER-9.7..9` |
-| 5 | Every anti-claim carries the `NEVER-` prefix | CLAIM-194.3 | iai-core | P0 | tool-checked | `bun run claim-lint` | 0 anti-claim rows carrying `CLAIM-` |
+| 5 | Every anti-claim in a Story design document carries the `NEVER-` prefix | CLAIM-194.3 | iai-core | P0 | tool-checked | `bun run claim-lint` | 0 anti-claim rows carrying `CLAIM-` |
 | 6 | Every `anchors_to` resolves to an existing identifier | CLAIM-194.4 | iai-core | P0 | tool-checked | `bun run claim-lint` | 0 dangling references across `docs/test-plans/` |
 | 7 | Coverage tables resolve to identifiers in the matching design | CLAIM-194.4 | iai-core | P1 | tool-checked | `bun run claim-lint` | Every Coverage row resolves |
 | 8 | Every task issue's `\| Claims \|` row names identifiers that exist | CLAIM-194.5 | iai-references | P1 | human-attested | `gh issue list --label type:task` review | 43/43 bodies migrated, 0 unresolvable |
@@ -65,10 +65,16 @@ carries two anti-claim cases and the highest severity.
 | 11 | The `## iai-isa` sentinel is never left dangling | NEVER-194.7 | iai-references | P0 | tool-checked | `git grep -c 'iai-isa'` and `git grep -c 'iai-design'` | Writers and readers agree; no mixed state in any single commit |
 | 12 | A reintroduced `ISC-` token fails the check | CLAIM-194.1 | iai-core | P1 | tool-checked | plant `ISC-1` in a design file, run `claim-lint` | Non-zero exit naming the file and line |
 | 13 | A duplicate identifier across two Stories fails | CLAIM-194.2 | iai-core | P0 | tool-checked | plant `CLAIM-9.1` in another Story's design | Non-zero exit naming both files |
-| 14 | An anti-claim written as `CLAIM-` fails | CLAIM-194.3 | iai-core | P1 | tool-checked | plant an anti-claim row with `CLAIM-` | Non-zero exit naming the row |
+| 14 | An anti-claim written as `CLAIM-` in a Story design fails | CLAIM-194.3 | iai-core | P1 | tool-checked | plant an anti-claim row with `CLAIM-` | Non-zero exit naming the row |
 | 15 | A dangling `anchors_to` fails | CLAIM-194.4 | iai-core | P0 | tool-checked | plant `anchors_to: CLAIM-9.99` | Non-zero exit naming the dangling reference |
 
 ### Boundary
+
+| # | Case | anchors_to | Target | Priority | Verifier | Command | Passes when |
+|---|------|------------|--------|----------|----------|---------|-------------|
+| 20 | A milestone seed carrying `CLAIM-` for a prohibition does **not** fail | CLAIM-194.3 | iai-core | P1 | tool-checked | `bun run claim-lint docs/milestones` | Exit 0. `M1.md`'s `CLAIM-15.6` (*"No file … performs I/O"*) is a seed, not a design claim |
+| 21 | The same identifier in a seed and a design is not a duplicate | CLAIM-194.2 | iai-core | P0 | tool-checked | `bun run claim-lint` | `CLAIM-9.1`–`9.6` appear in both `M1.md` and `stories/9.md`; uniqueness is per-identifier-meaning, not per-occurrence |
+
 
 | # | Case | anchors_to | Target | Priority | Verifier | Command | Passes when |
 |---|------|------------|--------|----------|----------|---------|-------------|
