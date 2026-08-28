@@ -261,8 +261,8 @@ Two gates fire inside `dev`, both from `03-workflow.md`'s gate table:
 
 Remember the closing-keyword hazard, because it is where a "merged" Story quietly
 leaves four open Tasks: closing keywords fire **only** on merge into the default
-branch, so `Closes #61` in a task PR does nothing. `task-verify` closes task
-issues explicitly with `gh issue close 61`. The integration PR body carries one
+branch, so `Closes #905` in a task PR does nothing. `task-verify` closes task
+issues explicitly with `gh issue close 905`. The integration PR body carries one
 `Closes #N` **per line**.
 
 ---
@@ -389,7 +389,7 @@ External tools:
 | `gh` CLI, authenticated | Every issue, label, milestone and PR operation | Hard failure. The pack has no offline mode |
 | `git` | Branches, commits, SHA pinning of permalinks | Hard failure |
 | Build toolchain (cmake, go, cargo, uv, node) | The `compile` and `unit` rungs | Task stays `status:in-progress`, PR stays **draft**, `## iai-evidence` records the missing toolchain by name |
-| Sub-issue GraphQL API | Real Task↔Story parenting | Degrade to `Parent: #57` in the Task body plus a `## Tasks` checklist on the Story. See failure modes |
+| Sub-issue GraphQL API | Real Task↔Story parenting | Degrade to `Parent: #901` in the Task body plus a `## Tasks` checklist on the Story. See failure modes |
 | CI checks (Actions or equivalent) | A second, independent run of the same commands | Local evidence becomes the only signal; the artifact is stamped `ci: absent` so the weaker guarantee is auditable |
 | Advisory database (e.g. OSV) | `dep-audit` vulnerability findings | `dep-audit` reports staleness and licences only, and marks vulnerability findings `unverified` |
 
@@ -413,15 +413,15 @@ the feature table.
 and opens:
 
 ```
-#57  [type:story] [domain:dev] [iai]   Milestone 7
+#901  [type:story] [domain:dev] [iai]   Milestone 7
      "Live flow export"
 ```
 
 End-to-end and multi-component, as required: it spans `libtelemetry` (C++),
 `exporter-svc` (Go) and the OTLP schema. It is **not** three Stories.
 
-**Story → ISA.** `/iai:story-design 57` writes `docs/design/stories/57.md`, cuts
-`story/57-live-flow-export`, and posts `## iai-design` with an SHA-pinned permalink.
+**Story → ISA.** `/iai:story-design 901` writes `docs/design/stories/901.md`, cuts
+`story/901-live-flow-export`, and posts `## iai-design` with an SHA-pinned permalink.
 The claims:
 
 | Claim | Statement | anchors_to | Tier |
@@ -439,41 +439,41 @@ The ISA's `## Build Targets` section, resolved from `ARCHITECTURE.md`:
 | libtelemetry | library | `src/telemetry/CMakeLists.txt` | `.` (primary) |
 | exporter-svc | binary | `services/exporter/go.mod` | `acme/exporter` |
 
-**ISA → Tasks.** `/iai:task-create 57` produces one Task per build target, plus
+**ISA → Tasks.** `/iai:task-create 901` produces one Task per build target, plus
 one for executing the test plan:
 
 ```
-#61 [type:task] libtelemetry: emit per-flow OTLP records      anchors ISC-1, ISC-2
-#62 [type:task] exporter-svc: batch and ship with buffering   anchors ISC-3, ISC-4
-#63 [type:task] Execute test plan for #57                     anchors ISC-5
-    Blocked by: #61, #62
+#905 [type:task] libtelemetry: emit per-flow OTLP records      anchors ISC-1, ISC-2
+#906 [type:task] exporter-svc: batch and ship with buffering   anchors ISC-3, ISC-4
+#907 [type:task] Execute test plan for #901                     anchors ISC-5
+    Blocked by: #905, #906
 ```
 
 Note what did **not** happen. The OTLP schema change lives in headers under
 `src/telemetry/include/` with no build file of their own, so it went under
-`#61` — the consuming target's Task — rather than becoming `#64`. The
-`FlowState` enum addition in `exporter-svc` was likewise folded into `#62`
+`#905` — the consuming target's Task — rather than becoming `#908`. The
+`FlowState` enum addition in `exporter-svc` was likewise folded into `#906`
 instead of becoming a Task of its own.
 
 **Tasks → work.**
 
 | Step | Command | Effect |
 |------|---------|--------|
-| 1 | `/iai:task-do 61` | Branch `task/61-libtelemetry-emit-per-flow-otlp-rec` cut from the story branch; commits `#61: add per-flow OTLP record emitter`; **draft** PR → `story/57-live-flow-export`; `status:in-progress`, `rung:compile` |
+| 1 | `/iai:task-do 905` | Branch `task/61-libtelemetry-emit-per-flow-otlp-rec` cut from the story branch; commits `#905: add per-flow OTLP record emitter`; **draft** PR → `story/901-live-flow-export`; `status:in-progress`, `rung:compile` |
 | 2 | build green | `cmake --build build --target libtelemetry` exits 0 → `rung:unit` |
 | 3 | `dev/test-gen 57 --tier P0` | Cases generated from ISC-1 and ISC-2, not from the emitter source |
-| 4 | `/iai:task-verify 61` | `ctest -R ^libtelemetry$` → 128 passed. Writes `docs/evidence/61-20260825T141207Z.md`, posts `## iai-evidence`, sets `status:resolved`, runs `gh issue close 61` explicitly |
-| 5 | `/iai:task-do 62`, `/iai:task-verify 62` | Same shape in `acme/exporter`. The Task issue still lives in the **primary** repo, `acme/telemetry` |
-| 6 | `#63` unblocks | Both blockers closed; `/iai:task-do 63` runs the P0/P1 plan across the story branch → `rung:integration` |
+| 4 | `/iai:task-verify 905` | `ctest -R ^libtelemetry$` → 128 passed. Writes `docs/evidence/61-20260825T141207Z.md`, posts `## iai-evidence`, sets `status:resolved`, runs `gh issue close 905` explicitly |
+| 5 | `/iai:task-do 906`, `/iai:task-verify 906` | Same shape in `acme/exporter`. The Task issue still lives in the **primary** repo, `acme/telemetry` |
+| 6 | `#907` unblocks | Both blockers closed; `/iai:task-do 907` runs the P0/P1 plan across the story branch → `rung:integration` |
 
 **Story → close.**
 
 | Step | Command | Effect |
 |------|---------|--------|
-| 7 | *(automatic)* | All Tasks resolved → `#57` gains `status:resolved` |
-| 8 | `/iai:story-verify 57` | Full plan run: 3/3 P0, 2/2 P1. Writes `docs/evidence/57-20260826T091132Z.md`, posts `## iai-verdict PASS`, opens the integration PR `story/57-live-flow-export → main`, `rung:review`, `gate:pending` |
-| 9 | `dev/code-review 57 --strict` | Read by an agent that did not author either diff. One finding on `#62` buffering bounds; addressed; re-reviewed clean |
-| 10 | **human merges** | The PR body carries `Closes #57`, `Closes #61`, `Closes #62`, `Closes #63` — one per line. GitHub closes all four |
+| 7 | *(automatic)* | All Tasks resolved → `#901` gains `status:resolved` |
+| 8 | `/iai:story-verify 901` | Full plan run: 3/3 P0, 2/2 P1. Writes `docs/evidence/57-20260826T091132Z.md`, posts `## iai-verdict PASS`, opens the integration PR `story/901-live-flow-export → main`, `rung:review`, `gate:pending` |
+| 9 | `dev/code-review 57 --strict` | Read by an agent that did not author either diff. One finding on `#906` buffering bounds; addressed; re-reviewed clean |
+| 10 | **human merges** | The PR body carries `Closes #901`, `Closes #905`, `Closes #906`, `Closes #907` — one per line. GitHub closes all four |
 | 11 | `/iai:learn 7` | `## iai-learnings`, `MEMORY/` entry, milestone 7 closed |
 
 Step 10 is the only step iAI does not perform.
@@ -501,7 +501,7 @@ deliverable and no place to record the verdict.
 | `ARCHITECTURE.md` has no `## Build Targets` table | `task-create` has nothing to decompose against and would invent Tasks by file | **Hard failure**, not a guess. `task-create` refuses, posts `## iai-gate` naming the missing section, and offers `dev/arch-audit --fix` to generate the table from discovered build definition files for human review |
 | Table exists but headers were renamed | Parse returns zero rows; looks identical to "no table" | Columns are matched by header name and the parser reports which required headers it could not find (`Target`, `Type`, `Build file`, `Source dirs`) rather than reporting an empty table |
 | Build target with no test command | Nothing to run at the `unit` rung; a naive pipeline would call it green | Task stays `status:in-progress` at `rung:compile`, PR stays **draft**, `blocked:no-test-cmd` applied, and `## iai-evidence` records `test: absent`. Never promoted by silence |
-| Sub-issue GraphQL unavailable (older GHES) | `gh` errors on the sub-issue mutation; Tasks orphaned | Fall back to `Parent: #57` as a body link on each Task plus a `## Tasks` checklist on the Story. `status` derives the tree from those instead. Capability is probed once per session and cached, not retried per Task |
+| Sub-issue GraphQL unavailable (older GHES) | `gh` errors on the sub-issue mutation; Tasks orphaned | Fall back to `Parent: #901` as a body link on each Task plus a `## Tasks` checklist on the Story. `status` derives the tree from those instead. Capability is probed once per session and cached, not retried per Task |
 | Rate limits during a large batch | Partial issue creation; a re-run duplicates | Every skill is idempotent — `task-create` reads existing Tasks first and fills only the gaps. `gh/` backs off exponentially and the batch is resumable at the point of failure |
 | Monorepo with ~200 build targets | 200 Tasks under one Story; unreviewable, unschedulable | `size` fails the Story before decomposition. Split by deliverable, not by target: a Story should touch **3–12** targets. Above 12, `replan` cuts sibling Stories under the same milestone. Targets not touched by the Story's ISC-N claims are never Tasks |
 | Shared headers with no owning target | Two Tasks both edit `include/flow.h`, both branches conflict on merge to the story branch | Headers belong to the consuming target's Task. Two consumers means the second Task declares `Blocked by:` the first, and the ordering is recorded in the ISA's dependency graph, not discovered at merge time |

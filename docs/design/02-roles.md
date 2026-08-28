@@ -41,7 +41,7 @@ and hardens it at the orchestrator layer:
 Both halves matter. The first is about **who**: a different agent, on a
 different model, ideally from a different vendor, performs the check. The second
 is about **what evidence**: the check reads the system of record, not the
-conversation transcript. An agent that says `#61: RESOLVED` has made a *claim*.
+conversation transcript. An agent that says `#905: RESOLVED` has made a *claim*.
 The claim is worth nothing until `gh issue view 61 --json labels` agrees.
 
 Applied across the roster:
@@ -106,7 +106,7 @@ subagent returns, it re-reads GitHub and diffs the claim against reality. When
 they disagree, it emits a correction and **uses the actual**, not the claim.
 
 ```
-CORRECTION #61:
+CORRECTION #905:
   - agent said: RESOLVED (draft PR #94 ready)
   - actual:     status:in-progress, PR #94 still draft, 0 verification files
   - using:      actual
@@ -154,12 +154,12 @@ Descends from forge's `forge-planner`.
 
 ```
 PLANNED {n} stories for milestone #{m}
-#57 (health): docs/design/stories/57.md @ {permalink} | effort: M (3d) | tests: 4 P0 / 6 P1 / 2 P2 | branch: story/57-apob-protocol
-#58 (trade):  docs/design/stories/58.md @ {permalink} | effort: L (5d) | tests: 6 P0 / 4 P1 / 1 P2 | branch: story/58-portfolio-reset
-#59 (dev):    docs/design/stories/59.md @ {permalink} | effort: S (1d) | tests: 3 P0 / 2 P1 / 0 P2 | branch: story/59-telemetry-export
+#901 (health): docs/design/stories/901.md @ {permalink} | effort: M (3d) | tests: 4 P0 / 6 P1 / 2 P2 | branch: story/901-apob-protocol
+#902 (trade):  docs/design/stories/902.md @ {permalink} | effort: L (5d) | tests: 6 P0 / 4 P1 / 1 P2 | branch: story/902-portfolio-reset
+#903 (dev):    docs/design/stories/903.md @ {permalink} | effort: S (1d) | tests: 3 P0 / 2 P1 / 0 P2 | branch: story/903-telemetry-export
 ```
 
-Permalinks are SHA-pinned (`.../blob/{sha}/docs/design/stories/57.md`), never
+Permalinks are SHA-pinned (`.../blob/{sha}/docs/design/stories/901.md`), never
 branch-relative, so the reference survives rebases.
 
 ### `iai-executor`
@@ -198,10 +198,10 @@ Descends from forge's `forge-coder`.
 **Output contract** — first line is parsed; exactly four shapes:
 
 ```
-#61 (backtest-harness): RESOLVED
-#61 (backtest-harness): IMPLEMENTED (verification pending)
-#61 (backtest-harness): PARTIAL
-#61 (backtest-harness): BLOCKED
+#905 (backtest-harness): RESOLVED
+#905 (backtest-harness): IMPLEMENTED (verification pending)
+#905 (backtest-harness): PARTIAL
+#905 (backtest-harness): BLOCKED
 ```
 
 | Shape | Means | Conductor's next move |
@@ -215,13 +215,13 @@ Descends from forge's `forge-coder`.
 pick up cold:
 
 ```
-#61 (backtest-harness): PARTIAL
+#905 (backtest-harness): PARTIAL
 
 Resume prompt:
 Slippage model and fill logic are committed on task/61-backtest-harness (3 commits,
 HEAD 4f2a1c9). The walk-forward split in src/backtest/window.ts is stubbed and
 throws. Remaining: implement window.ts per ISC-3, then add the two P0 cases from
-docs/test-plans/57-plan.md. Do not touch src/backtest/fills.ts — it is done.
+docs/test-plans/901-plan.md. Do not touch src/backtest/fills.ts — it is done.
 ```
 
 ### `iai-validator`
@@ -257,7 +257,7 @@ Descends from forge's `forge-validator`.
 **Output contract** — first line:
 
 ```
-#57: PASS | FAIL | TESTS_SKIPPED | PARTIAL
+#901: PASS | FAIL | TESTS_SKIPPED | PARTIAL
 ```
 
 | Verdict | Means |
@@ -285,9 +285,9 @@ Worked example:
 
 ```
 HARD FAILURE in Phase 6 (task-do):
-- Story: #57
-- Expected: branch story/57-apob-protocol with docs/design/stories/57.md committed
-- Found: branch exists, 0 files under docs/design/, ISA sentinel absent from #57
+- Story: #901
+- Expected: branch story/901-apob-protocol with docs/design/stories/901.md committed
+- Found: branch exists, 0 files under docs/design/, ISA sentinel absent from #901
 - Action: Pipeline cannot continue. Fix and re-run.
 ```
 
@@ -324,7 +324,7 @@ the conductor treats an empty objection list as a non-answer.
 Output first line:
 
 ```
-CRITIC #57: {n} BLOCKER / {n} MAJOR / {n} MINOR / {n} NIT
+CRITIC #901: {n} BLOCKER / {n} MAJOR / {n} MINOR / {n} NIT
 ```
 
 ### `iai-researcher` — external content is data
@@ -415,7 +415,7 @@ No mandate, no risk-taking.
 **Its verdict is unappealable by any other agent.**
 
 ```
-RISK #58: VETO | PASS | PASS_WITH_CONDITIONS
+RISK #902: VETO | PASS | PASS_WITH_CONDITIONS
 ```
 
 | Verdict | Effect |
