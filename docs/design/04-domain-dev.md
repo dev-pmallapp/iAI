@@ -18,7 +18,7 @@ supplies is the four re-bound nouns: **unit of work**, **verification**,
 | This domain is for | This domain is **not** for |
 |--------------------|----------------------------|
 | Shipping software changes across one or many repositories | Managing infrastructure state as a side effect of a merge |
-| Turning a Design's `ISC-N` claims into tests, then into passing tests | Writing tests against an implementation that already exists |
+| Turning a Design's `CLAIM-{story}.{n}` claims into tests, then into passing tests | Writing tests against an implementation that already exists |
 | Decomposing a feature into independently buildable units | Decomposing a feature by file, by layer, or by "frontend/backend" |
 | Independent review of a diff by an agent that did not write it | Self-approval of any kind |
 | Keeping `ARCHITECTURE.md` and the tree in agreement | Being the authority on what the architecture *should* be |
@@ -72,7 +72,7 @@ export const devBinding: DomainBinding = {
         entryCriteria: [
           "target compiles clean on the task branch",
           "test command declared for this target",
-          "tests derived from ISC-N claims, not from the implementation",
+          "tests derived from CLAIM-{story}.{n} claims, not from the implementation",
         ],
         verifier: "tool-checked",
         reversible: true,
@@ -95,7 +95,7 @@ export const devBinding: DomainBinding = {
           "integration rung green on the story branch",
           "diff read by an agent that did not write it",
           "no unaddressed iai-critic or dev/code-review finding",
-          "every ISC-N anchored to evidence on disk",
+          "every CLAIM-{story}.{n} anchored to evidence on disk",
         ],
         verifier: "model-judged",
         reversible: false,
@@ -111,7 +111,7 @@ export const devBinding: DomainBinding = {
       "tool call is gh pr merge, for any actor, at any rung",
       "force push to the default branch or to a story branch with open task PRs",
       "commit subject fails ^(#[0-9]+: .+|Merge .+|fixup! .+|squash! .+|Revert \".+\")",
-      "PR marked ready while an anchored ISC-N has no evidence on disk",
+      "PR marked ready while an anchored CLAIM-{story}.{n} has no evidence on disk",
       "reviewing agent is the authoring agent",
     ],
   },
@@ -222,7 +222,7 @@ Four rungs. The default is the cheapest and the promotion order is fixed.
 | Rung | Label | What it proves | Promotion requires | Can iAI act alone? |
 |------|-------|----------------|--------------------|--------------------|
 | compile | `rung:compile` | The target builds from a clean tree with the declared build command. Syntax, types and link edges are sound | Exit 0 on `build`, and the `Passes when:` predicate holds. Build log captured to the evidence artifact | Yes |
-| unit | `rung:unit` | The target's own behaviour matches the ISC-N claims it is anchored to, in isolation from its siblings | Exit 0 on `test` for this target only; every anchored `ISC-N` maps to at least one named case; zero new skips | Yes |
+| unit | `rung:unit` | The target's own behaviour matches the CLAIM-{story}.{n} claims it is anchored to, in isolation from its siblings | Exit 0 on `test` for this target only; every anchored `CLAIM-{story}.{n}` maps to at least one named case; zero new skips | Yes |
 | integration | `rung:integration` | The Story's targets work *together* on the story branch — the thing the Story promised actually happens | All sibling Tasks at `unit`; story-branch build green; the test plan's P0 cases pass; P1 pass or are explicitly deferred with a reason | Yes |
 | review | `rung:review` | A reader who did not write the diff believes it is correct, minimal and consistent with the Design | `dev/code-review` returns no unaddressed finding; `iai-validator` confirms evidence exists on disk; the integration PR is marked ready | **No** — this rung fronts the merge gate |
 
@@ -230,7 +230,7 @@ Notes that keep the ladder honest:
 
 | Rule | Reason |
 |------|--------|
-| Tests are written from `ISC-N`, never from the code | `dev/test-gen` reads the Design, not the implementation. Tests derived from code prove only that the code does what it does |
+| Tests are written from `CLAIM-{story}.{n}`, never from the code | `dev/test-gen` reads the Design, not the implementation. Tests derived from code prove only that the code does what it does |
 | The `unit` rung is per target, not per Story | `ctest -R ^libtelemetry$`, not `ctest`. A Task cannot be promoted by a sibling's tests |
 | A rung is never skipped | A Task at `compile` with no test command stays at `compile`. It does not "pass" the unit rung by having nothing to run |
 | Evidence precedes the label | `evidenceRequired: true`. `task-verify` writes `docs/evidence/{issue}-{ts}.md` and only then transitions the label |
@@ -271,10 +271,10 @@ issues explicitly with `gh issue close 931`. The integration PR body carries one
 
 | Skill | Argument hint | Description | Gate? |
 |-------|---------------|-------------|-------|
-| `code-review` | `[task#\|pr#] [--strict]` | Independent read of a task diff by an agent that did not author it. Findings are anchored to `ISC-N` or to a build target, never to style preference. Blocks the readiness transition, does not block the commit | No — but blocks `rung:review` |
+| `code-review` | `[task#\|pr#] [--strict]` | Independent read of a task diff by an agent that did not author it. Findings are anchored to `CLAIM-{story}.{n}` or to a build target, never to style preference. Blocks the readiness transition, does not block the commit | No — but blocks `rung:review` |
 | `debug` | `[issue#] [--repro]` | Reproduce first, isolate second, fix third, in that order. A fix with no reproduction is refused. Emits the minimal diff plus a regression test | No |
 | `refactor` | `[target] [--proof]` | Behaviour-preserving change with an explicit proof obligation: the same test set is green before and after, and the test files are unchanged in the same commit | No |
-| `test-gen` | `[story#] [--tier P0]` | Generates cases from the Design's `ISC-N` claims and the Test Strategy table's `anchors_to` column. Never reads the implementation while generating | No |
+| `test-gen` | `[story#] [--tier P0]` | Generates cases from the Design's `CLAIM-{story}.{n}` claims and the Test Strategy table's `anchors_to` column. Never reads the implementation while generating | No |
 | `arch-audit` | `[--fix]` | Diff between `ARCHITECTURE.md`'s `## Build Targets` table and the build definition files actually present. Reports targets missing from the table and table rows with no build file | No |
 | `dep-audit` | `[target] [--licences]` | Dependency risk, licence compatibility and staleness for one target's manifest. Findings carry a severity and a suggested action, not an automatic bump | No |
 | `release` | `[version] [--dry-run]` | Version bump, changelog assembly from `#{issue}:` commit prefixes, tag proposal, and a release PR | **Yes** — tag and merge are human |
@@ -356,7 +356,7 @@ commands:
 results:
   build: { exit: 0, duration_s: 41 }
   test:  { exit: 0, passed: 128, failed: 0, skipped: 2 }
-anchors: [ISC-1, ISC-2]
+anchors: [CLAIM-930.1, CLAIM-930.2]
 passes_when: "exit code 0 and no line matching ^FAILED"
 ---
 ```
@@ -426,11 +426,11 @@ The claims:
 
 | Claim | Statement | anchors_to | Tier |
 |-------|-----------|-----------|------|
-| ISC-1 | `libtelemetry` emits one OTLP record per completed flow, with no record loss under 10k flows/s | libtelemetry | P0 |
-| ISC-2 | Records carry `flow.id`, `flow.start`, `flow.bytes` and survive a round trip through the schema | libtelemetry | P0 |
-| ISC-3 | `exporter-svc` batches and ships records to a configured collector with at-least-once delivery | exporter-svc | P0 |
-| ISC-4 | Collector outage for 60s causes buffering, not loss, and drains on recovery | exporter-svc | P1 |
-| ISC-5 | End-to-end latency from flow completion to collector receipt is under 5s at P99 | both | P1 |
+| CLAIM-930.1 | `libtelemetry` emits one OTLP record per completed flow, with no record loss under 10k flows/s | libtelemetry | P0 |
+| CLAIM-930.2 | Records carry `flow.id`, `flow.start`, `flow.bytes` and survive a round trip through the schema | libtelemetry | P0 |
+| CLAIM-930.3 | `exporter-svc` batches and ships records to a configured collector with at-least-once delivery | exporter-svc | P0 |
+| CLAIM-930.4 | Collector outage for 60s causes buffering, not loss, and drains on recovery | exporter-svc | P1 |
+| CLAIM-930.5 | End-to-end latency from flow completion to collector receipt is under 5s at P99 | both | P1 |
 
 The Design's `## Build Targets` section, resolved from `ARCHITECTURE.md`:
 
@@ -443,9 +443,9 @@ The Design's `## Build Targets` section, resolved from `ARCHITECTURE.md`:
 one for executing the test plan:
 
 ```
-#931 [type:task] libtelemetry: emit per-flow OTLP records      anchors ISC-1, ISC-2
-#932 [type:task] exporter-svc: batch and ship with buffering   anchors ISC-3, ISC-4
-#933 [type:task] Execute test plan for #930                    anchors ISC-5
+#931 [type:task] libtelemetry: emit per-flow OTLP records      anchors CLAIM-930.1, CLAIM-930.2
+#932 [type:task] exporter-svc: batch and ship with buffering   anchors CLAIM-930.3, CLAIM-930.4
+#933 [type:task] Execute test plan for #930                    anchors CLAIM-930.5
     Blocked by: #931, #932
 ```
 
@@ -461,7 +461,7 @@ instead of becoming a Task of its own.
 |------|---------|--------|
 | 1 | `/iai:task-do 931` | Branch `task/931-libtelemetry-emit-per-flow-otlp-rec` cut from the story branch; commits `#931: add per-flow OTLP record emitter`; **draft** PR → `story/930-live-flow-export`; `status:in-progress`, `rung:compile` |
 | 2 | build green | `cmake --build build --target libtelemetry` exits 0 → `rung:unit` |
-| 3 | `dev/test-gen 930 --tier P0` | Cases generated from ISC-1 and ISC-2, not from the emitter source |
+| 3 | `dev/test-gen 930 --tier P0` | Cases generated from CLAIM-930.1 and CLAIM-930.2, not from the emitter source |
 | 4 | `/iai:task-verify 931` | `ctest -R ^libtelemetry$` → 128 passed. Writes `docs/evidence/931-20260825T141207Z.md`, posts `## iai-evidence`, sets `status:resolved`, runs `gh issue close 931` explicitly |
 | 5 | `/iai:task-do 932`, `/iai:task-verify 932` | Same shape in `acme/exporter`. The Task issue still lives in the **primary** repo, `acme/telemetry` |
 | 6 | `#933` unblocks | Both blockers closed; `/iai:task-do 933` runs the P0/P1 plan across the story branch → `rung:integration` |
@@ -503,10 +503,10 @@ deliverable and no place to record the verdict.
 | Build target with no test command | Nothing to run at the `unit` rung; a naive pipeline would call it green | Task stays `status:in-progress` at `rung:compile`, PR stays **draft**, `blocked:no-test-cmd` applied, and `## iai-evidence` records `test: absent`. Never promoted by silence |
 | Sub-issue GraphQL unavailable (older GHES) | `gh` errors on the sub-issue mutation; Tasks orphaned | Fall back to `Parent: #930` as a body link on each Task plus a `## Tasks` checklist on the Story. `status` derives the tree from those instead. Capability is probed once per session and cached, not retried per Task |
 | Rate limits during a large batch | Partial issue creation; a re-run duplicates | Every skill is idempotent — `task-create` reads existing Tasks first and fills only the gaps. `gh/` backs off exponentially and the batch is resumable at the point of failure |
-| Monorepo with ~200 build targets | 200 Tasks under one Story; unreviewable, unschedulable | `size` fails the Story before decomposition. Split by deliverable, not by target: a Story should touch **3–12** targets. Above 12, `replan` cuts sibling Stories under the same milestone. Targets not touched by the Story's ISC-N claims are never Tasks |
+| Monorepo with ~200 build targets | 200 Tasks under one Story; unreviewable, unschedulable | `size` fails the Story before decomposition. Split by deliverable, not by target: a Story should touch **3–12** targets. Above 12, `replan` cuts sibling Stories under the same milestone. Targets not touched by the Story's CLAIM-{story}.{n} claims are never Tasks |
 | Shared headers with no owning target | Two Tasks both edit `include/flow.h`, both branches conflict on merge to the story branch | Headers belong to the consuming target's Task. Two consumers means the second Task declares `Blocked by:` the first, and the ordering is recorded in the Design's dependency graph, not discovered at merge time |
-| ISC-N claim maps to no build target | A claim can never be anchored, so the Story can never reach `review` | `story-test-plan` refuses to emit a plan with unanchored P0 claims. Either the target is missing from `ARCHITECTURE.md` or the claim belongs to a different Story |
+| CLAIM-{story}.{n} claim maps to no build target | A claim can never be anchored, so the Story can never reach `review` | `story-test-plan` refuses to emit a plan with unanchored P0 claims. Either the target is missing from `ARCHITECTURE.md` or the claim belongs to a different Story |
 | Two agents pushing the same story branch | Non-fast-forward rejection mid-Task; work appears to vanish | One Task, one branch, one agent. Task branches never share a name; the story branch is written to only by `story-verify`. On rejection, `resume` re-reads `git log` and GitHub rather than trusting the transcript |
 | Reviewer is the author | Review passes trivially and the gate becomes decorative | `autoDeny` includes `reviewing agent is the authoring agent`; `dev/code-review` is spawned by `iai-conductor`, and the cross-vendor rule routes it to a different vendor from `dev-coder` |
-| PR marked ready with no evidence on disk | Story looks mergeable; the audit trail is empty | `evidenceRequired: true` plus the `autoDeny` entry `PR marked ready while an anchored ISC-N has no evidence on disk`. `iai-validator` re-reads the disk, never the agent's claim |
+| PR marked ready with no evidence on disk | Story looks mergeable; the audit trail is empty | `evidenceRequired: true` plus the `autoDeny` entry `PR marked ready while an anchored CLAIM-{story}.{n} has no evidence on disk`. `iai-validator` re-reads the disk, never the agent's claim |
 | Task issues left open after merge | Milestone shows complete, four Tasks still open | Closing keywords fire only into the default branch. `task-verify` closes each Task explicitly; the integration PR uses one `Closes #N` per line, never a comma-separated list |

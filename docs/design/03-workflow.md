@@ -15,7 +15,7 @@ every code-specific assumption:
 | 1 | `/iai:goal-create` | TELOS goal → GitHub milestone | Milestone with a `\| Feature \| Description \|` table in its description |
 | 2 | `/iai:story-create 7` | One Story issue per feature-table row of milestone 7 | Stories `#901`, `#902`, `#903` … each labelled `type:story` + `domain:*` |
 | 3 | `/iai:story-design 901` | Write the Design | `docs/design/stories/901.md`, `## iai-design` sentinel, story branch |
-| 4 | `/iai:story-test-plan 901` | Design verifiable claims (`ISC-N`) → verification plan | `docs/test-plans/901-plan.md`, `## iai-test-plan` sentinel |
+| 4 | `/iai:story-test-plan 901` | Design verifiable claims (`CLAIM-{story}.{n}`) → verification plan | `docs/test-plans/901-plan.md`, `## iai-test-plan` sentinel |
 | 5 | `/iai:task-create 901` | One task sub-issue per unit of work | `#905`, `#906`, `#907` … `type:task`, parented to `#901` |
 | 6 | `/iai:task-do 905` | Execute the unit | `task/905-*` branch, commits, **draft** PR → story branch |
 | 7 | `/iai:task-verify 905` | Run the verification | Evidence artifact, PR marked ready, `#905` `status:resolved` and closed |
@@ -52,7 +52,7 @@ Milestone 7 — "Q1 Metabolic + Portfolio Reset"
 │
 ├── #901  [type:story] [domain:health] [status:in-progress]
 │    │   "Drive ApoB under 60 by end of Q1"
-│    │   Design:  docs/design/stories/901.md          (ISC-1 .. ISC-6)
+│    │   Design:  docs/design/stories/901.md          (CLAIM-901.1 .. CLAIM-901.6)
 │    │   Plan: docs/test-plans/901-plan.md     (4 P0 / 6 P1 / 2 P2)
 │    │   Branch: story/901-apob-protocol
 │    │
@@ -444,7 +444,7 @@ ties a diff to a unit of work to a Story to a goal.
 #905: add baseline lipid panel importer with unit normalisation
 
 Parses the Q4 panel PDF into USER/HEALTH/panels/2026-01-09.yaml and
-normalises mg/dL vs mmol/L per the Design's ISC-2.
+normalises mg/dL vs mmol/L per the Design's CLAIM-901.2.
 
 Co-Authored-By: iAI <noreply@iai.dev>
 ```

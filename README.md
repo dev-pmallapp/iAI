@@ -35,7 +35,7 @@ GitHub Milestone   ── Epic. Description carries the feature table.
 Story issue        ── One end-to-end deliverable outcome.
       │              Design doc — the artifact LifeOS calls the ISA.
       ▼
-Test plan          ── Design verifiable claims (ISC-N) become test cases.
+Test plan          ── Design verifiable claims (CLAIM-{story}.{n}) become test cases.
       │
       ▼
 Task sub-issues    ── One per "unit of work" (domain-defined).

@@ -234,8 +234,8 @@ nobody involved ever intended to cheat.
 | Mechanism | Detail |
 |-----------|--------|
 | What is pre-registered | Metric thresholds, out-of-sample split, data window, universe definition, sizing rule, stop and exit criteria, minimum paper window, tracking-error tolerance |
-| Where | The Design's `ISC-N` claims, committed **before** the backtest Task starts. The commit SHA is the timestamp |
-| Enforcement | `trade/backtest` refuses to run if the anchored `ISC-N` claims are uncommitted or were modified after the previous backtest run for this Story |
+| Where | The Design's `CLAIM-{story}.{n}` claims, committed **before** the backtest Task starts. The commit SHA is the timestamp |
+| Enforcement | `trade/backtest` refuses to run if the anchored `CLAIM-{story}.{n}` claims are uncommitted or were modified after the previous backtest run for this Story |
 | Backtest counter | Every run increments `backtests_run` in the Design frontmatter and appends a row to the Design's run log. Run 7 against the same universe is visible to `iai-critic` and to the human, forever |
 | Deviations | A post-hoc threshold change is written to the journal as a deviation, closes the current Story, and opens a new one. The old evidence is not deleted — it is the record of what was tried |
 
@@ -506,24 +506,24 @@ backtest runs**:
 
 | Claim | Pre-registered statement |
 |-------|--------------------------|
-| ISC-1 | Universe: US-listed factor ETFs with 20-day ADV ≥ $2,000,000 and expense ratio ≤ 0.25%. Frozen at design time; membership recorded in the Design |
-| ISC-2 | Backtest window 2014-01-01 → 2024-12-31, with 2022-01-01 → 2024-12-31 held out as out-of-sample. Slippage 5bp, fees $0.005/share, delisted names retained |
-| ISC-3 | Thresholds: CAGR ≥ 6.0%, max drawdown ≤ 18.0%, Sharpe ≥ 0.60, hit rate ≥ 45%, turnover ≤ 120%/yr. Worst 5 trades reported individually |
-| ISC-4 | Sizing: no single ETF above 8.0% of portfolio value; sleeve total 20.0% ± 1.0%; every leg carries a stop at submission |
-| ISC-5 | Paper window: 30 consecutive sessions. Tracking error versus backtest ≤ 150bp annualised. Declared before the window opens |
-| ISC-6 | Post-rotation, `MSFT` ≤ `max_position_pct` and no GICS sector exceeds `max_sector_pct`, verified against `POSITIONS.yaml` |
+| CLAIM-940.1 | Universe: US-listed factor ETFs with 20-day ADV ≥ $2,000,000 and expense ratio ≤ 0.25%. Frozen at design time; membership recorded in the Design |
+| CLAIM-940.2 | Backtest window 2014-01-01 → 2024-12-31, with 2022-01-01 → 2024-12-31 held out as out-of-sample. Slippage 5bp, fees $0.005/share, delisted names retained |
+| CLAIM-940.3 | Thresholds: CAGR ≥ 6.0%, max drawdown ≤ 18.0%, Sharpe ≥ 0.60, hit rate ≥ 45%, turnover ≤ 120%/yr. Worst 5 trades reported individually |
+| CLAIM-940.4 | Sizing: no single ETF above 8.0% of portfolio value; sleeve total 20.0% ± 1.0%; every leg carries a stop at submission |
+| CLAIM-940.5 | Paper window: 30 consecutive sessions. Tracking error versus backtest ≤ 150bp annualised. Declared before the window opens |
+| CLAIM-940.6 | Post-rotation, `MSFT` ≤ `max_position_pct` and no GICS sector exceeds `max_sector_pct`, verified against `POSITIONS.yaml` |
 
-The commit SHA of `stories/940.md` is the pre-registration timestamp. Changing ISC-3
+The commit SHA of `stories/940.md` is the pre-registration timestamp. Changing CLAIM-940.3
 after seeing a backtest result closes `#940` and opens a new Story.
 
 **Design → Tasks.** `/iai:task-create 940`:
 
 ```
-#941 [type:task] Backtest the factor ETF sleeve          anchors ISC-1, ISC-2, ISC-3
-#942 [type:task] Risk-check the rotation against MANDATE anchors ISC-4, ISC-6
-#943 [type:task] Paper-trade the sleeve for 30 sessions  anchors ISC-5
+#941 [type:task] Backtest the factor ETF sleeve          anchors CLAIM-940.1, CLAIM-940.2, CLAIM-940.3
+#942 [type:task] Risk-check the rotation against MANDATE anchors CLAIM-940.4, CLAIM-940.6
+#943 [type:task] Paper-trade the sleeve for 30 sessions  anchors CLAIM-940.5
     Blocked by: #941, #942
-#944 [type:task] Execute the live rotation               anchors ISC-4, ISC-6
+#944 [type:task] Execute the live rotation               anchors CLAIM-940.4, CLAIM-940.6
     Blocked by: #943   [gate:pending]
 ```
 
@@ -535,12 +535,12 @@ for `/iai:auto`, and the rotation's twelve legs are **one** Task, not twelve.
 | Step | Command | Effect |
 |------|---------|--------|
 | 1 | `/iai:task-do 941` | `trade/backtest 58 --window 10y --oos 20%`. Writes `USER/TRADING/BACKTESTS/factor-etf-sleeve/{results.json,equity.csv,trades.csv}`. Design `backtests_run: 1` |
-| 2 | `/iai:task-verify 941` | Results against ISC-3: CAGR 7.4%, max DD 15.2%, Sharpe 0.71, hit rate 48%, turnover 86%. Look-ahead audit passes — every signal uses only data available at the bar it trades. Worst 5 trades listed. `docs/evidence/941-20260901T104412Z.md`, `## iai-evidence`, close `#941`. Story → `rung:backtest` |
+| 2 | `/iai:task-verify 941` | Results against CLAIM-940.3: CAGR 7.4%, max DD 15.2%, Sharpe 0.71, hit rate 48%, turnover 86%. Look-ahead audit passes — every signal uses only data available at the bar it trades. Worst 5 trades listed. `docs/evidence/941-20260901T104412Z.md`, `## iai-evidence`, close `#941`. Story → `rung:backtest` |
 | 3 | `/iai:task-do 942` | `iai-conductor` spawns `risk-officer` **independently**. It reads `MANDATE.md` at SHA `a91c4f2`, `POSITIONS.yaml`, and the proposal from disk — not from `quant-analyst` |
-| 4 | verdict | `RISK #940: PASS_WITH_CONDITIONS` — sleeve capped at 20.0%, no single ETF above 6.5% (tighter than ISC-4's 8.0%), hard stop −8% per leg, execution over three sessions to limit market impact. Conditions applied verbatim, written to `USER/TRADING/JOURNAL/2026-09-02.md` under `## iai-risk` |
+| 4 | verdict | `RISK #940: PASS_WITH_CONDITIONS` — sleeve capped at 20.0%, no single ETF above 6.5% (tighter than CLAIM-940.4's 8.0%), hard stop −8% per leg, execution over three sessions to limit market impact. Conditions applied verbatim, written to `USER/TRADING/JOURNAL/2026-09-02.md` under `## iai-risk` |
 | 5 | `/iai:task-verify 942` | Conditions recorded in the Design. `#942` closed |
 | 6 | `#943` unblocks | `trade/paper-trade 58 --sessions 30` against `PaperBroker`. Each simulated order appends to `ORDERS/2026/orders.jsonl` with `rung: "paper"` |
-| 7 | `/iai:task-verify 943` | 30 sessions complete. Tracking error 112bp, inside ISC-5's 150bp. `docs/evidence/943-20260913T210300Z.md` carries the paper equity curve overlaid on the backtest curve. `#943` closed. Story → `rung:paper` |
+| 7 | `/iai:task-verify 943` | 30 sessions complete. Tracking error 112bp, inside CLAIM-940.5's 150bp. `docs/evidence/943-20260913T210300Z.md` carries the paper equity curve overlaid on the backtest curve. `#943` closed. Story → `rung:paper` |
 
 **The gate.** `#943` closing does **not** promote the Story. Promotion to
 `rung:live` is a human gate plus a `risk-officer` `PASS`:
@@ -576,7 +576,7 @@ at entry, before any outcome is known.
 
 | Step | Effect |
 |------|--------|
-| `/iai:task-verify 944` | `POSITIONS.yaml` re-read from the broker and reconciled. `MSFT` now 3.6% (≤ 4.0), no sector above 25.0 — ISC-6 satisfied. Evidence written, `#944` closed explicitly |
+| `/iai:task-verify 944` | `POSITIONS.yaml` re-read from the broker and reconciled. `MSFT` now 3.6% (≤ 4.0), no sector above 25.0 — CLAIM-940.6 satisfied. Evidence written, `#944` closed explicitly |
 | *(automatic)* | All Tasks resolved → `#940` gains `status:resolved` |
 | `/iai:story-verify 940` | Full plan: 6/6 claims. `## iai-verdict PASS`. Integration PR `story/940-* → main` **of the private data repo**, carrying the thesis, the backtest outputs, the journal entries and the `POSITIONS.yaml` diff |
 | **human merges** | One `Closes #N` per line for `#940`, `#941`, `#942`, `#943`, `#944` |

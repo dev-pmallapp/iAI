@@ -123,7 +123,7 @@ in `docs/design/` against LifeOS, forge and oh-my-opencode, with every
 1. **The `anchors_to` collision.** The token is used with three different
    meanings across the repo: claim provenance in the Design's Test Strategy
    table (`literal`, `derived:`), a build-target reference in
-   `docs/design/04-domain-dev.md:427-433`, and "the ISC-N a case covers" in
+   `docs/design/04-domain-dev.md:427-433`, and "the CLAIM-{story}.{n} a case covers" in
    `docs/milestones/M2.md:88-90`. This plan uses the third meaning
    throughout. Flag for the CLAIM-9.6 reconciliation pass.
 2. **Priority is not carried on the Design.** `docs/design/01-skill-hierarchy.md:63`
