@@ -180,7 +180,7 @@ def story_body(s):
 
 The task list below is *indicative*, taken from `docs/milestones/M{s['milestone']}.md`.
 The authoritative list is produced by `/iai:task-create` from the Build Targets
-table in this Story's ISA and may differ once the design is written.
+table in this Story's Design and may differ once the design is written.
 
 <sub>Created by `scripts/bootstrap-stories.py` from `docs/milestones/M{s['milestone']}.md`.</sub>
 """

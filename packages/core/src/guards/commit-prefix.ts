@@ -1,7 +1,7 @@
 import { decide, type Decision } from "../decision";
 
 // Validation regex per docs/design/03-workflow.md:462, adopted over the
-// owner/repo-prefixed variant at CONTRIBUTING.md:206 per this story's ISA
+// owner/repo-prefixed variant at CONTRIBUTING.md:206 per this story's Design
 // Decisions section (that reconciliation is #14's job under CLAIM-9.6).
 //
 // Exemptions, per the table at docs/design/03-workflow.md:465-470:

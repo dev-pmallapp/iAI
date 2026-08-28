@@ -83,7 +83,7 @@ No host imports. No `process.cwd()`. Everything is a pure function from input to
 
 | Module | Responsibility |
 |--------|----------------|
-| `intent/` | TELOS parsing, ISA read/write, Current→Ideal delta, goal→milestone mapping |
+| `intent/` | TELOS parsing, Design read/write, Current→Ideal delta, goal→milestone mapping |
 | `routing/` | Category → model chain resolution, reasoning level, fallbacks |
 | `guards/` | Pure predicates: `checkEgress`, `checkRiskMandate`, `checkSpend`, `checkCommitPrefix` |
 | `classify/` | Data classification (`PUBLIC` / `INTERNAL` / `PRIVATE` / `SECRET`) |
@@ -158,7 +158,7 @@ a code dependency.
 ### `iai-pulse`
 
 Optional read-only dashboard on `:31337`, modelled on LifeOS's Pulse. Renders the
-GitHub state, the ISA tree, and per-domain surfaces. Never writes. If absent,
+GitHub state, the Design tree, and per-domain surfaces. Never writes. If absent,
 everything still works — `/iai:status` is the text-mode equivalent.
 
 ---
@@ -171,7 +171,7 @@ everything still works — `/iai:status` is the text-mode equivalent.
 | Kind | Location | Format |
 |---|---|---|
 | Intent | `USER/TELOS/TELOS.md` | Markdown, `G0`/`P0`/`S0` IDs |
-| Story design (ISA) | `docs/design/stories/{issue}.md` | YAML frontmatter + 17 fixed sections |
+| Story design (Design) | `docs/design/stories/{issue}.md` | YAML frontmatter + 17 fixed sections |
 | Test plan | `docs/test-plans/{issue}-plan.md` | Markdown tables, P0/P1/P2 |
 | Evidence | `docs/evidence/{issue}-{ts}.md` | Markdown + committed raw data |
 | Memory | `MEMORY/**` | Markdown + JSONL append-only |

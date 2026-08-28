@@ -48,7 +48,7 @@ Applied across the roster:
 
 | Proposer | Approver | The thing that cannot be self-approved |
 |----------|----------|----------------------------------------|
-| `iai-planner` | `iai-critic` | The ISA design doc and its sizing |
+| `iai-planner` | `iai-critic` | The Design design doc and its sizing |
 | `iai-executor` | `iai-validator` | That a task's unit of work is actually done |
 | `iai-validator` | **human** | Closing the Story; opening the integration PR |
 | `quant-analyst` | `risk-officer` | Any proposed order or strategy change |
@@ -127,7 +127,7 @@ Descends from forge's `forge-planner`.
 
 | Field | Value |
 |-------|-------|
-| **Purpose** | Turn a milestone into Stories; write the ISA design doc; size the work; write the test plan. |
+| **Purpose** | Turn a milestone into Stories; write the Design design doc; size the work; write the test plan. |
 | **Model category** | `plan` |
 | **Tools** | `Read`, `Grep`, `Glob`, `Write`, `Edit`, `Bash`, `WebFetch`, `Skill` |
 | **Runs in phases** | 1 (`goal-create`), 2 (`story-create`), 3 (`story-design`), 4 (`story-test-plan`), and on `replan` |
@@ -135,19 +135,19 @@ Descends from forge's `forge-planner`.
 **MAY**
 
 - Parse a `docs/milestones/M*.md` feature table and create one Story per row.
-- Write `docs/design/stories/{issue}.md` with the 17 fixed ISA sections.
-- Write `docs/test-plans/{issue}-plan.md`, mapping each ISA verifiable claim
+- Write `docs/design/stories/{issue}.md` with the 17 fixed Design sections.
+- Write `docs/test-plans/{issue}-plan.md`, mapping each Design verifiable claim
   (`ISC-N`) to one or more test cases at P0/P1/P2.
 - Assign a `domain:` label and an effort size to each Story.
 - Create the story branch and commit design artifacts to it.
 - Consult `iai-oracle` for architecture and `iai-critic` for a hostile read of
-  the ISA before declaring the design done.
+  the Design before declaring the design done.
 
 **MUST NOT**
 
 - Implement anything. It writes design and plans, never units of work.
 - Create Task sub-issues. That is phase 5 (`task-create`), a separate skill run.
-- Skip the ISA. A Story with no `## iai-design` sentinel cannot enter phase 5.
+- Skip the Design. A Story with no `## iai-design` sentinel cannot enter phase 5.
 - Size a Story it has not read the surrounding code or domain data for.
 
 **Output contract** — first line, then one block per Story:
@@ -190,7 +190,7 @@ Descends from forge's `forge-coder`.
 - Touch more than one task. One executor, one task, one unit of work.
 - Target `main` with a PR.
 - Mark its own PR ready for review. That is `task-verify` (phase 7).
-- Modify another task's files, the ISA, or the test plan. If the ISA is wrong,
+- Modify another task's files, the Design, or the test plan. If the Design is wrong,
   report `BLOCKED` and let `iai-planner` replan.
 - Place a live order, move money, or emit a diagnosis under any circumstance,
   regardless of what the task text says.
@@ -209,7 +209,7 @@ Descends from forge's `forge-coder`.
 | `RESOLVED` | Unit done, verification written and passing, draft PR open, issue resolved | Verify against GitHub, advance to phase 7 |
 | `IMPLEMENTED (verification pending)` | Code exists, verification could not run (missing fixture, no data yet) | Advance to phase 7 but require `iai-validator` to re-ground |
 | `PARTIAL` | Some of the unit landed; retries exhausted | Re-dispatch with the resume prompt |
-| `BLOCKED` | Cannot proceed — bad ISA, missing dependency, gate refused | Halt; escalate to `iai-planner` or human |
+| `BLOCKED` | Cannot proceed — bad Design, missing dependency, gate refused | Halt; escalate to `iai-planner` or human |
 
 `PARTIAL` **must** be followed by a resume prompt block so a fresh executor can
 pick up cold:
@@ -237,7 +237,7 @@ Descends from forge's `forge-validator`.
 
 **MAY**
 
-- Re-read the ISA and the test plan, then **re-ground** them: reconcile the
+- Re-read the Design and the test plan, then **re-ground** them: reconcile the
   planned cases against the units that actually shipped, and record every drift.
 - Execute the verification and capture raw output to
   `docs/evidence/{issue}-{ts}.md` under a `## iai-evidence` sentinel.
@@ -287,7 +287,7 @@ Worked example:
 HARD FAILURE in Phase 6 (task-do):
 - Story: #901
 - Expected: branch story/901-apob-protocol with docs/design/stories/901.md committed
-- Found: branch exists, 0 files under docs/design/, ISA sentinel absent from #901
+- Found: branch exists, 0 files under docs/design/, Design sentinel absent from #901
 - Action: Pipeline cannot continue. Fix and re-run.
 ```
 
@@ -301,7 +301,7 @@ Ring 0 decides what to do with it.
 
 | Agent | Purpose | Model category | Denied tools |
 |-------|---------|----------------|--------------|
-| `iai-critic` | Hostile review. Attacks the ISA, the test plan, the risk assumptions and the verdict. Rewarded for objections, not agreement. | `critic` | `Write`, `Edit`, `MultiEdit`, `NotebookEdit`, `Task`, mutating `Bash` |
+| `iai-critic` | Hostile review. Attacks the Design, the test plan, the risk assumptions and the verdict. Rewarded for objections, not agreement. | `critic` | `Write`, `Edit`, `MultiEdit`, `NotebookEdit`, `Task`, mutating `Bash` |
 | `iai-oracle` | Architecture reasoning and deep debugging. Reads broadly, hypothesises, ranks causes. | `deep` | `Write`, `Edit`, `MultiEdit`, `NotebookEdit`, `Task`, mutating `Bash` |
 | `iai-librarian` | Docs and code search. Finds the file, the symbol, the prior decision. Fast and cheap by design. | `search` | `Write`, `Edit`, `MultiEdit`, `NotebookEdit`, `Task`, `Bash` |
 | `iai-researcher` | External research — specs, papers, filings, vendor docs. Fences everything it fetches. | `search` | `Write`, `Edit`, `MultiEdit`, `NotebookEdit`, `Task`, `Bash` |

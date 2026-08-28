@@ -22,7 +22,7 @@ them by explicit path. ARCHITECTURE lists this as a cross-cutting concern:
 
 **Why the tiers are shaped this way and not by domain.** If you group by domain
 you get five copies of `story-design`, and within a month they disagree about
-what an ISA is. Grouping by *lifecycle stage* means there is exactly one
+what a Design is. Grouping by *lifecycle stage* means there is exactly one
 `story-design`, and the domain-specific part is data it reads.
 
 The rule that makes the whole scheme hold:
@@ -60,7 +60,7 @@ within a month"* as the rejected alternative.
 | `references/evidence-artifacts.md` | The artifact envelope, the `## iai-*` sentinel namespace, SHA-pinned permalinks, the 65536 hard limit and 60000 working budget, and the disk path templates |
 | `references/branch-and-pr-model.md` | `story/{n}-{slug}` and `task/{n}-{slug}` naming, task PRs targeting the story branch, one integration PR per Story, commit prefix `#{issue}:` |
 | `references/workflow-states.md` | The label state machine. `type:` and `status:` namespaces, the at-most-one-`status:` invariant, and the single-command transition `gh issue edit --add-label X --remove-label Y` |
-| `references/isa-format.md` | ISA v2.21.0: YAML frontmatter keys `phase` / `progress` / `task` / `slug`, the 17 fixed body sections, `- [ ] ISC-N:` claims with `(after: ID)` dependencies, the Test Strategy table columns `anchors_to` / `severity` / `tier`, plus the `## Build Targets` section iAI adds |
+| `references/isa-format.md` | Design v2.21.0: YAML frontmatter keys `phase` / `progress` / `task` / `slug`, the 17 fixed body sections, `- [ ] ISC-N:` claims with `(after: ID)` dependencies, the Test Strategy table columns `anchors_to` / `severity` / `tier`, plus the `## Build Targets` section iAI adds |
 | `references/sizing-criteria.md` | When a Story is too big to design, when a Task is too big to do in one pass, and what `replan` does about it. Per-domain thresholds are supplied by the binding, not here |
 
 Tier 0 contains exactly **one skill**:
@@ -92,14 +92,14 @@ any point.
 | `goal-create` | `[telos-id]` | `USER/TELOS/TELOS.md`, `references/context-discovery.md` | GitHub Milestone with feature table in description; back-link comment on the `G0` line | No |
 | `story-create` | `[milestone] [feature-row?]` | Milestone description feature table, `references/workflow-states.md` | Story issue, labels `type:story` + `domain:*`, milestone assignment | No |
 | `story-design` | `[story#]` | Story body, TELOS ancestry, `references/isa-format.md`, pack `domain.md` | `docs/design/stories/{issue}.md`; `## iai-design` sentinel comment with SHA-pinned permalink | No |
-| `story-test-plan` | `[story#]` | The ISA's `ISC-N` claims and Test Strategy table, `binding.verify` | `docs/test-plans/{issue}-plan.md` with P0/P1/P2 tiers; `## iai-test-plan` sentinel | No |
-| `task-create` | `[story#]` | ISA claims, `binding.unitOfWork`, `references/sizing-criteria.md` | One sub-issue per unit of work, labels `type:task` + `domain:*`, each anchored to an `ISC-N` | No |
-| `task-do` | `[task#]` | Task body, ISA, pack leaf skill, `references/branch-and-pr-model.md` | `task/{n}-{slug}` branch, commits prefixed `#{issue}:`, PR targeting the story branch, `status:in-progress` | **Yes** — if `binding.gate.irreversibleAction` is in scope |
+| `story-test-plan` | `[story#]` | The Design's `ISC-N` claims and Test Strategy table, `binding.verify` | `docs/test-plans/{issue}-plan.md` with P0/P1/P2 tiers; `## iai-test-plan` sentinel | No |
+| `task-create` | `[story#]` | Design claims, `binding.unitOfWork`, `references/sizing-criteria.md` | One sub-issue per unit of work, labels `type:task` + `domain:*`, each anchored to an `ISC-N` | No |
+| `task-do` | `[task#]` | Task body, Design, pack leaf skill, `references/branch-and-pr-model.md` | `task/{n}-{slug}` branch, commits prefixed `#{issue}:`, PR targeting the story branch, `status:in-progress` | **Yes** — if `binding.gate.irreversibleAction` is in scope |
 | `task-verify` | `[task#]` | Evidence on disk, the anchored `ISC-N`, `references/verification.md` | `docs/evidence/{issue}-{ts}.md`; `## iai-evidence` sentinel; `status:resolved`; explicit issue close | No |
 | `story-verify` | `[story#]` | All task evidence, the full test plan, `binding.verify.rungs` | Story-level evidence artifact; integration PR marked ready; `status:resolved` | **Yes** — never merges; a human merges |
-| `status` | `[scope?]` | GitHub labels, ISA frontmatter `phase`/`progress`, Current→Ideal percentages | Nothing. Read-only report | No |
-| `size` | `[issue#]` | Issue body, ISA, `references/sizing-criteria.md`, `binding` thresholds | A sizing verdict comment; may add `status:blocked` | No |
-| `replan` | `[story#]` | Sizing verdicts, blocked tasks, ISA dependency graph | Re-cut Task sub-issues, updated ISA claims, closed superseded issues with reasons | No |
+| `status` | `[scope?]` | GitHub labels, Design frontmatter `phase`/`progress`, Current→Ideal percentages | Nothing. Read-only report | No |
+| `size` | `[issue#]` | Issue body, Design, `references/sizing-criteria.md`, `binding` thresholds | A sizing verdict comment; may add `status:blocked` | No |
+| `replan` | `[story#]` | Sizing verdicts, blocked tasks, Design dependency graph | Re-cut Task sub-issues, updated Design claims, closed superseded issues with reasons | No |
 | `checkpoint` | `[session?]` | Live session state, open branches, uncommitted work | Checkpoint comment on the active issue plus `MEMORY/` entry; enough to cold-start | No |
 | `resume` | `[issue#?]` | Latest checkpoint, GitHub labels, disk state — re-read, never remembered | Restored working context; a reconciliation note if disk and GitHub disagree | No |
 | `learn` | `[issue#\|failure]` | Failure evidence, post-mortems, the diff between planned and actual | `MEMORY/` entry (Cortex-lite, tier A/B/C); optionally a proposed edit to a reference | No |
@@ -111,7 +111,7 @@ any point.
 | `task-do` | `task-implement` | Renamed because in `health` or `wealth` the unit of work is not implemented, it is *performed*. Delegates the domain-specific act to a Tier-2 leaf |
 | `story-verify` | `story-test` | Renamed because `binding.verify` may be a backtest, a reconciliation or an attestation, not a test suite. Retains the never-merge gate |
 | `learn` | `enhance-debugger` | Generalised from debugging code to learning from any failed verification in any domain |
-| `story-design` | `story-design` | Same name; output format is now the LifeOS ISA rather than a freeform design doc |
+| `story-design` | `story-design` | Same name; output format is now the LifeOS Design rather than a freeform design doc |
 | `goal-create` | — | Net-new. forge has no intent layer above the Milestone; this is where TELOS attaches |
 | `checkpoint` / `resume` | `checkpoint` / `resume` | Sentinel renamed from `## forge-checkpoint` to `## iai-checkpoint`; the pair is promoted to the primary continuity mechanism, replacing Cortex |
 
@@ -375,7 +375,7 @@ Example — `skills/trade/backtest/SKILL.md`:
 ---
 name: trade-backtest
 description: >-
-  Run a historical evaluation of a trading strategy defined in a Story ISA.
+  Run a historical evaluation of a trading strategy defined in a Story Design.
   Declares slippage, fee and survivorship assumptions, holds out an
   out-of-sample window, and writes an equity curve plus a metrics table to
   docs/evidence/. Read-only with respect to any broker. Use when a trade Story

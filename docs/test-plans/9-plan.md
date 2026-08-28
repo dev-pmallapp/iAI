@@ -19,7 +19,7 @@ created: 2026-08-25
 | Story | S1.1 — Monorepo scaffold and build targets |
 | Milestone | M1 — Kernel and foundation |
 | Domain | dev |
-| ISA | https://github.com/dev-pmallapp/iAI/blob/ce02b291a9216d297a17d22fb8bb2fe398d14f7c/docs/design/9-isa.md |
+| Design | https://github.com/dev-pmallapp/iAI/blob/ce02b291a9216d297a17d22fb8bb2fe398d14f7c/docs/design/9-isa.md |
 | Rung ladder | compile -> unit -> integration -> review |
 | Date | 2026-08-25 |
 
@@ -57,7 +57,7 @@ in `docs/design/` against LifeOS, forge and oh-my-opencode, with every
 
 | # | Case | anchors_to | Target | Priority | Verifier | Command | Passes when |
 |---|------|------------|--------|----------|----------|---------|-------------|
-| 1 | Clean install and workspace build produces an artifact for every library and binary target | CLAIM-9.1 | iai-core | P0 | tool-checked | `bun install && bun run build` | Exit code 0, no `error TS` line on stderr, and an artifact exists for each of the ten library/binary targets in the ISA's Build Targets table |
+| 1 | Clean install and workspace build produces an artifact for every library and binary target | CLAIM-9.1 | iai-core | P0 | tool-checked | `bun install && bun run build` | Exit code 0, no `error TS` line on stderr, and an artifact exists for each of the ten library/binary targets in the Design's Build Targets table |
 | 2 | A filtered build of `iai-core` alone succeeds, confirming the filter mechanism every other target's build depends on | CLAIM-9.1 | iai-core | P1 | tool-checked | `bun run build --filter iai-core` | Exit code 0, no `error TS` line on stderr, artifact produced for `packages/core` |
 | 3 | A pull request reports exactly five separately named required check contexts | CLAIM-9.2 | iai-core | P0 | tool-checked | `bash scripts/verify-required-checks.sh` | Exit code 0 and the script reports exactly 5 contexts named build, test, lint, typecheck, skill-lint |
 | 4 | Lint exits clean on an unmodified `packages/core` tree | CLAIM-9.4 | iai-core | P1 | tool-checked | `bun run lint` | Exit code 0 with no errors reported against `packages/core` |
@@ -112,7 +112,7 @@ in `docs/design/` against LifeOS, forge and oh-my-opencode, with every
 - **Scale** — no claim specifies a load or volume threshold (contrast S1.2's
   10,000-iteration benchmark); build, lint and typecheck run once per
   invocation regardless of workspace size.
-- **Performance** — no claim in this ISA carries a latency or throughput
+- **Performance** — no claim in this Design carries a latency or throughput
   threshold; CLAIM-9.1..NEVER-9.9 are exit-code and structural checks only.
 - **Loop/Stability** — no claim describes a long-running or repeatedly
   invoked process; the commit-msg hook and CI checks each run once per commit
@@ -121,15 +121,15 @@ in `docs/design/` against LifeOS, forge and oh-my-opencode, with every
 ## Notes
 
 1. **The `anchors_to` collision.** The token is used with three different
-   meanings across the repo: claim provenance in the ISA's Test Strategy
+   meanings across the repo: claim provenance in the Design's Test Strategy
    table (`literal`, `derived:`), a build-target reference in
    `docs/design/04-domain-dev.md:427-433`, and "the ISC-N a case covers" in
    `docs/milestones/M2.md:88-90`. This plan uses the third meaning
    throughout. Flag for the CLAIM-9.6 reconciliation pass.
-2. **Priority is not carried on the ISA.** `docs/design/01-skill-hierarchy.md:63`
-   says the Test Strategy table has a `tier` column, but the actual ISA at
+2. **Priority is not carried on the Design.** `docs/design/01-skill-hierarchy.md:63`
+   says the Test Strategy table has a `tier` column, but the actual Design at
    `docs/design/stories/9.md` has no such column. Priorities in this plan are
-   assigned by this plan, using the ISA's `severity` column as the signal:
+   assigned by this plan, using the Design's `severity` column as the signal:
    `critical` (CLAIM-9.1..CLAIM-9.5) forms the P0 spine, the blank-severity anti-claims
    and the manual reconciliation/recognize-on-encounter checks (CLAIM-9.6..NEVER-9.9)
    are distributed across P1/P2 by judgement. Flag for reconciliation.

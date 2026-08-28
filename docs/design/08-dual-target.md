@@ -450,7 +450,7 @@ iAI/
 ├── packages/
 │   ├── core/                     iai-core          (library, pure, no host imports)
 │   │   └── src/
-│   │       ├── intent/           TELOS, ISA, Current→Ideal delta
+│   │       ├── intent/           TELOS, Design, Current→Ideal delta
 │   │       ├── routing/          category → model chain
 │   │       ├── guards/           checkEgress, checkRiskMandate, checkSpend,
 │   │       │                     checkCommitPrefix — pure, <50ms

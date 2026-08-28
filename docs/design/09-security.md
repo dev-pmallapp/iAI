@@ -47,7 +47,7 @@ containing one biomarker value is `PRIVATE` in its entirety.
 | Class | Examples | May reach a cloud model? | Storage |
 |---|---|---|---|
 | **PUBLIC** | Ticker symbols, market prices, published papers and their DOIs, open-source code, public GitHub issues, general medical literature | **Yes**, unrestricted | The public repo. Cacheable. Citable |
-| **INTERNAL** | Project code and design docs, test plans, evidence artifacts, ISAs, work state, TELOS goal *titles* | **Yes** | The public repo. Not published, but not sensitive |
+| **INTERNAL** | Project code and design docs, test plans, evidence artifacts, Designs, work state, TELOS goal *titles* | **Yes** | The public repo. Not published, but not sensitive |
 | **PRIVATE** | Health data and lab results, biomarker values, wearable streams, **open positions and quantities**, account balances, transaction history, statement PDFs, clinician notes | **No — by default.** Requires an explicit **per-session opt-in**, and is **de-identified by default** even then | `USER/` only, which is a symlink into the private repo. Never in the public repo, never in a commit |
 | **SECRET** | API keys, broker credentials, OAuth tokens, session cookies, `.env` contents, private keys | **Never. Under any circumstance. There is no opt-in** | `.env` on the local filesystem, or the OS keychain. Never read into a model context, never logged, never echoed |
 
@@ -205,7 +205,7 @@ Two mitigations, and the second is the one that holds:
 
 1. **Every thesis claim must carry a cited source**, resolved through the `know`
    pack, with the snapshot pinned by SHA permalink. An uncited claim cannot
-   enter an ISA. This raises the cost of the attack — the attacker must poison
+   enter a Design. This raises the cost of the attack — the attacker must poison
    a source that survives tier assignment — but does not eliminate it.
 2. **The `risk-officer`'s mandate check is content-independent.** It never
    evaluates whether the thesis is *true*. It evaluates position size, sector
