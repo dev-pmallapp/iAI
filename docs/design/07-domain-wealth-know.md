@@ -320,12 +320,12 @@ All of `USER/FINANCES/` is `class:private` and hard-gated from cloud egress.
 Milestone 9  "Q4 Fixed-cost reduction"
  └── #960  [type:story][domain:wealth][class:private][rung:recorded]
       │   "Cut fixed monthly outflow by $400"
-      │   Design: docs/design/stories/960.md   (ISC-1 .. ISC-4)
+      │   Design: docs/design/stories/960.md   (CLAIM-960.1 .. CLAIM-960.4)
       │   Branch: story/960-cut-fixed-monthly-outflow-by-400
       │
-      ├── #961 [type:task] "Obligation audit"          → ISC-1
-      ├── #962 [type:task] "Vendor renegotiation list"  → ISC-3
-      └── #963 [type:task] "Reconcile Q3"               → ISC-2
+      ├── #961 [type:task] "Obligation audit"          → CLAIM-960.1
+      ├── #962 [type:task] "Vendor renegotiation list"  → CLAIM-960.3
+      └── #963 [type:task] "Reconcile Q3"               → CLAIM-960.2
 ```
 
 | Step | Command | Result |
@@ -333,7 +333,7 @@ Milestone 9  "Q4 Fixed-cost reduction"
 | 1 | `/iai:task-do 963` | `wealth/reconcile` imports 3 statements. Chase `1847` closes at difference `0.00`; Amex `3009` leaves one $84.20 residual, explained as a pending authorisation → `rung:reconciled` |
 | 2 | `/iai:task-do 961` | `obligation-audit` reads `obligations.yaml`: 23 recurring obligations, $2,914/mo fixed. Six show price creep since first observation |
 | 3 | *(finding)* | Adobe CC $54.99 → $59.99/mo; storage tier $9.99 → $19.99/mo; two duplicate streaming obligations on different cards, both matched by `vendors.yaml` |
-| 4 | `/iai:task-do 962` | Renegotiation list: 4 cancellations ($188/mo), 2 downgrades ($97/mo), 1 rate renegotiation on the auto loan ($131/mo) = **$416/mo** → ISC-3 |
+| 4 | `/iai:task-do 962` | Renegotiation list: 4 cancellations ($188/mo), 2 downgrades ($97/mo), 1 rate renegotiation on the auto loan ($131/mo) = **$416/mo** → CLAIM-960.3 |
 | 5 | *(gate)* | `gate:pending` on `#960`. Each cancellation over the spend threshold gets a line in the `## iai-gate` comment with its cancellation window |
 | 6 | *(human)* | Human executes all seven changes. iAI touched nothing |
 | 7 | `/iai:task-verify 963` | Q4 reconciliation shows fixed outflow $2,914 → $2,498. Delta **$416**. `docs/evidence/963-20270115T1102Z.md` |
@@ -644,7 +644,7 @@ Story `#970` exists to serve Story `#950` from
 ```
 Milestone 8  "Q3 Lipid protocol"
  ├── #950  [domain:health] "Lower ApoB from 88 to under 60"
- │        ISC-2 cites → know entries below
+ │        CLAIM-950.2 cites → know entries below
  └── #970  [domain:know] "Establish the ApoB-vs-LDL-C evidence base"
       ├── #971 [type:task] "Capture 4 primary sources"
       ├── #972 [type:task] "Distill discordance claim"
@@ -658,10 +658,10 @@ Milestone 8  "Q3 Lipid protocol"
 | 3 | *(cross-link)* | `related:` links to `[[ldl-c-measurement-error]]` and `[[lipoprotein-a-independent-risk]]`; both resolve → `rung:cross-linked` |
 | 4 | `/iai:task-do 973` | `know/contradict` returns `TENSION` against a tier-C 2016 entry asserting LDL-C sufficiency. Tier C does not block; the tension is recorded on both entries |
 | 5 | *(gate)* | `## iai-gate` posted: promotion to tier A. Human reviews the tension, comments `**Decision:** APPROVED` → `gate:approved`, `promoted: 2026-09-03` |
-| 6 | `/iai:cite --for 950` | The health Design's ISC-2 gains a SHA-pinned citation to the snapshot. `#950` may now assert the ApoB-over-LDL-C premise as settled |
+| 6 | `/iai:cite --for 950` | The health Design's CLAIM-950.2 gains a SHA-pinned citation to the snapshot. `#950` may now assert the ApoB-over-LDL-C premise as settled |
 | 7 | `/iai:story-verify 970` | Verdict `PASS`. The 2016 tier-C entry is demoted in the same PR with a note pointing at the new canon |
 
-Without step 6, ISC-2 in `#950` is an unsourced assertion, and `story-design`
+Without step 6, CLAIM-950.2 in `#950` is an unsourced assertion, and `story-design`
 would have flagged it. That dependency is the whole reason `know` exists.
 
 ## 10. Failure modes and mitigations

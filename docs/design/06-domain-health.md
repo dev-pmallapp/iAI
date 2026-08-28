@@ -197,7 +197,7 @@ to different confounders, and fail independently.
 | "Measure ApoB" with no window and no review | Below `minSize`. Fold into the sibling Task that owns the review |
 | "Track ApoB, Lp(a), hs-CRP and HbA1c" | Above `maxSize`. `replan` cuts four Tasks |
 
-`task-create` reads `binding.unitOfWork` and anchors each Task to one `ISC-N`
+`task-create` reads `binding.unitOfWork` and anchors each Task to one `CLAIM-{story}.{n}`
 claim in the Story's Design, so a marker with no verifiable claim behind it does
 not become a Task at all.
 
@@ -529,25 +529,25 @@ G0  "ApoB under 60 by Q4"                        USER/TELOS/TELOS.md
  └── Milestone 8  "Q3 Lipid protocol"            feature table in description
       └── #950  [type:story][domain:health][class:private][rung:observe]
            │   "Lower ApoB from 88 to under 60"
-           │   Design:  docs/design/stories/950.md        (ISC-1 .. ISC-5)
+           │   Design:  docs/design/stories/950.md        (CLAIM-950.1 .. CLAIM-950.5)
            │   Plan: docs/test-plans/950-plan.md   (3 P0 / 5 P1 / 1 P2)
            │   Branch: story/950-lower-apob-from-88-to-under-60
            │
-           ├── #951 [type:task] "Ingest monthly lipid panel"      → ISC-1
-           ├── #952 [type:task] "Protocol adherence tracking"     → ISC-3
-           ├── #953 [type:task] "Sleep/training confounder ctrl"  → ISC-4
-           └── #954 [type:task] "Clinician brief for Nov visit"   → ISC-5
+           ├── #951 [type:task] "Ingest monthly lipid panel"      → CLAIM-950.1
+           ├── #952 [type:task] "Protocol adherence tracking"     → CLAIM-950.3
+           ├── #953 [type:task] "Sleep/training confounder ctrl"  → CLAIM-950.4
+           └── #954 [type:task] "Clinician brief for Nov visit"   → CLAIM-950.5
 ```
 
 ### Design claims
 
 | Claim | Statement | Verifier | Anchored task |
 |-------|-----------|----------|---------------|
-| ISC-1 | A lipid panel is collected monthly from 2026-08-01, at least 4 panels by 2026-11-01, each with per-result reference ranges | tool-checked | #951 |
-| ISC-2 | ApoB decreases monotonically across at least 3 of 4 consecutive panels | tool-checked | #951 |
-| ISC-3 | Protocol adherence is logged daily with ≥ 85% of days recorded over 90 days | tool-checked | #952 |
-| ISC-4 | Sleep efficiency and 28-day training load are reported alongside every ApoB point, as named confounders (after: ISC-1) | tool-checked | #953 |
-| ISC-5 | A clinician brief for the 2026-11-04 visit exists, contains no imperative sentence, and is attested as seen (after: ISC-2, ISC-3, ISC-4) | human-attested | #954 |
+| CLAIM-950.1 | A lipid panel is collected monthly from 2026-08-01, at least 4 panels by 2026-11-01, each with per-result reference ranges | tool-checked | #951 |
+| CLAIM-950.2 | ApoB decreases monotonically across at least 3 of 4 consecutive panels | tool-checked | #951 |
+| CLAIM-950.3 | Protocol adherence is logged daily with ≥ 85% of days recorded over 90 days | tool-checked | #952 |
+| CLAIM-950.4 | Sleep efficiency and 28-day training load are reported alongside every ApoB point, as named confounders (after: CLAIM-950.1) | tool-checked | #953 |
+| CLAIM-950.5 | A clinician brief for the 2026-11-04 visit exists, contains no imperative sentence, and is attested as seen (after: CLAIM-950.2, CLAIM-950.3, CLAIM-950.4) | human-attested | #954 |
 
 ### Trace
 
@@ -555,14 +555,14 @@ G0  "ApoB under 60 by Q4"                        USER/TELOS/TELOS.md
 |------|---------|--------------|
 | 1 | `/iai:goal-create G0` | Milestone 8 "Q3 Lipid protocol" created with its feature table |
 | 2 | `/iai:story-create 8` | `#950` opened; `type:story`, `domain:health`, `class:private`, `rung:observe` |
-| 3 | `/iai:story-design 950` | `docs/design/stories/950.md` with ISC-1..ISC-5. **Windows and thresholds declared here, before any data** |
-| 4 | `/iai:story-test-plan 950` | `docs/test-plans/950-plan.md`; ISC-5 lands as a P0 human-attested case |
+| 3 | `/iai:story-design 950` | `docs/design/stories/950.md` with CLAIM-950.1..CLAIM-950.5. **Windows and thresholds declared here, before any data** |
+| 4 | `/iai:story-test-plan 950` | `docs/test-plans/950-plan.md`; CLAIM-950.5 lands as a P0 human-attested case |
 | 5 | `/iai:task-create 950` | `#951`, `#952`, `#953`, `#954` opened as sub-issues of `#950` |
 | 6 | `/iai:task-do 951` | Branch `task/951-ingest-monthly-lipid-panel`; `health/ingest` runs `function.ts`; `USER/HEALTH/LABS/2026-08-16-lipid-advanced.json` lands with `Biomarker{name:"ApoB", value:82, ref_low:0, ref_high:90}` |
 | 7 | `/iai:task-verify 951` | 4 panels present by 2026-11-01: 88 → 82 → 77 → 74. `docs/evidence/951-20261101T0914Z.md`, `## iai-evidence`, `#951` closed explicitly |
-| 8 | *(rung)* | ISC-2 satisfied → `#950` promotes `rung:observe` → `rung:trend` in one `gh issue edit` |
-| 9 | `/iai:task-do 952` | `health/protocol` opens `USER/HEALTH/PROTOCOLS/q3-lipid-protocol.md`; adherence 81/90 days = 90% → ISC-3 passes |
-| 10 | `/iai:task-verify 953` | `sleep-review` reports efficiency 0.91 → 0.84; `training-load` reports 28-day load down 22%. Both recorded as **confounders**, not causes → ISC-4 passes |
+| 8 | *(rung)* | CLAIM-950.2 satisfied → `#950` promotes `rung:observe` → `rung:trend` in one `gh issue edit` |
+| 9 | `/iai:task-do 952` | `health/protocol` opens `USER/HEALTH/PROTOCOLS/q3-lipid-protocol.md`; adherence 81/90 days = 90% → CLAIM-950.3 passes |
+| 10 | `/iai:task-verify 953` | `sleep-review` reports efficiency 0.91 → 0.84; `training-load` reports 28-day load down 22%. Both recorded as **confounders**, not causes → CLAIM-950.4 passes |
 | 11 | *(anomaly)* | `health/anomaly` on the 2026-07-19 panel: hs-CRP 0.7 → 1.4 mg/L, outside `ref_high: 1.0`, persists into the 2026-08-16 draw → `rung:flag` |
 | 12 | `/iai:task-do 954` | `health/clinician-brief reyes --visit 2026-11-04` writes `USER/HEALTH/BRIEFS/2026-11-04-reyes.md` **locally**. Draft contains "consider raising the dose" → the imperative is blocked, held, and regenerated as a question |
 | 13 | *(gate)* | `gate:pending` on `#950`; `## iai-gate` comment posted; the proposed dose change is a decision request, not an action |
@@ -605,7 +605,7 @@ instruction, and the instruction never left the process.
 | **Missing days break a trend** | 11 of 90 days absent; the arithmetic still returns a number | `observe` entry criterion caps missingness at 10%. Never interpolate, never carry forward. Report `n` and the missing-day count alongside every trend |
 | **Assay or reference-range change mid-series** | Lab switches vendors; hs-CRP range moves from 0.0–3.0 to 0.0–1.0 and every historic result becomes "out of range" | **Store `ref_low`/`ref_high` per result, never globally.** `lab-review` compares each value against its own range and emits an explicit `assay-change` note when consecutive results disagree on range |
 | **Timezone day-boundary bug** | A 02:00 sync lands in the previous day; sleep appears twice on one date and zero on the next | Resolve `LIFEOS_HEALTH_TZ → TZ → host → fallback`, record which one won in the day file, and make `ingest` idempotent per resolved local date so a re-run overwrites rather than duplicating |
-| **Correlation mistaken for causation** | ApoB fell during the protocol; the protocol gets the credit, and the 22% training-load drop is ignored | ISC-4-style confounder claims are mandatory: every marker Task names its confounders and reports their series in the same evidence artifact. The brief states association, never mechanism |
+| **Correlation mistaken for causation** | ApoB fell during the protocol; the protocol gets the credit, and the 22% training-load drop is ignored | CLAIM-950.4-style confounder claims are mandatory: every marker Task names its confounders and reports their series in the same evidence artifact. The brief states association, never mechanism |
 | **Model over-interprets a single value** | One hs-CRP at 1.4 mg/L becomes a paragraph about inflammation | `binding.gate.autoDeny` includes *"single out-of-range value with no prior series"*, and `flag` requires persistence across ≥ 2 consecutive measurements |
 | **PRIVATE data leaks into a cloud prompt** | A day file is pasted into a summarisation request | `class:private` on every issue, `guards/checkEgress` defaults to **deny**, trend/flag compute locally without a model, and only de-identified derived summaries are eligible even after a per-session opt-in |
 | **Stale source silently reports `ok`** | Eight Sleep stopped syncing on 2026-06-02; `current.json` still says `ok` because the last successful fetch is cached | `SourceStatus` is computed from `fetched_at` freshness against a per-source expected cadence, not from the last HTTP result. Past the cadence window the status is `stale`, and `status` surfaces every non-`ok` source before any rung is evaluated |

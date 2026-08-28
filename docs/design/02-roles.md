@@ -137,7 +137,7 @@ Descends from forge's `forge-planner`.
 - Parse a `docs/milestones/M*.md` feature table and create one Story per row.
 - Write `docs/design/stories/{issue}.md` with the 17 fixed Design sections.
 - Write `docs/test-plans/{issue}-plan.md`, mapping each Design verifiable claim
-  (`ISC-N`) to one or more test cases at P0/P1/P2.
+  (`CLAIM-{story}.{n}`) to one or more test cases at P0/P1/P2.
 - Assign a `domain:` label and an effort size to each Story.
 - Create the story branch and commit design artifacts to it.
 - Consult `iai-oracle` for architecture and `iai-critic` for a hostile read of
@@ -220,7 +220,7 @@ pick up cold:
 Resume prompt:
 Slippage model and fill logic are committed on task/905-backtest-harness (3 commits,
 HEAD 4f2a1c9). The walk-forward split in src/backtest/window.ts is stubbed and
-throws. Remaining: implement window.ts per ISC-3, then add the two P0 cases from
+throws. Remaining: implement window.ts per CLAIM-901.3, then add the two P0 cases from
 docs/test-plans/901-plan.md. Do not touch src/backtest/fills.ts — it is done.
 ```
 

@@ -60,7 +60,7 @@ within a month"* as the rejected alternative.
 | `references/evidence-artifacts.md` | The artifact envelope, the `## iai-*` sentinel namespace, SHA-pinned permalinks, the 65536 hard limit and 60000 working budget, and the disk path templates |
 | `references/branch-and-pr-model.md` | `story/{n}-{slug}` and `task/{n}-{slug}` naming, task PRs targeting the story branch, one integration PR per Story, commit prefix `#{issue}:` |
 | `references/workflow-states.md` | The label state machine. `type:` and `status:` namespaces, the at-most-one-`status:` invariant, and the single-command transition `gh issue edit --add-label X --remove-label Y` |
-| `references/isa-format.md` | Design v2.21.0: YAML frontmatter keys `phase` / `progress` / `task` / `slug`, the 17 fixed body sections, `- [ ] ISC-N:` claims with `(after: ID)` dependencies, the Test Strategy table columns `anchors_to` / `severity` / `tier`, plus the `## Build Targets` section iAI adds |
+| `references/isa-format.md` | Design v2.21.0: YAML frontmatter keys `phase` / `progress` / `task` / `slug`, the 17 fixed body sections, `- [ ] CLAIM-{story}.{n}:` claims with `(after: ID)` dependencies, the Test Strategy table columns `anchors_to` / `severity` / `tier`, plus the `## Build Targets` section iAI adds |
 | `references/sizing-criteria.md` | When a Story is too big to design, when a Task is too big to do in one pass, and what `replan` does about it. Per-domain thresholds are supplied by the binding, not here |
 
 Tier 0 contains exactly **one skill**:
@@ -92,10 +92,10 @@ any point.
 | `goal-create` | `[telos-id]` | `USER/TELOS/TELOS.md`, `references/context-discovery.md` | GitHub Milestone with feature table in description; back-link comment on the `G0` line | No |
 | `story-create` | `[milestone] [feature-row?]` | Milestone description feature table, `references/workflow-states.md` | Story issue, labels `type:story` + `domain:*`, milestone assignment | No |
 | `story-design` | `[story#]` | Story body, TELOS ancestry, `references/isa-format.md`, pack `domain.md` | `docs/design/stories/{issue}.md`; `## iai-design` sentinel comment with SHA-pinned permalink | No |
-| `story-test-plan` | `[story#]` | The Design's `ISC-N` claims and Test Strategy table, `binding.verify` | `docs/test-plans/{issue}-plan.md` with P0/P1/P2 tiers; `## iai-test-plan` sentinel | No |
-| `task-create` | `[story#]` | Design claims, `binding.unitOfWork`, `references/sizing-criteria.md` | One sub-issue per unit of work, labels `type:task` + `domain:*`, each anchored to an `ISC-N` | No |
+| `story-test-plan` | `[story#]` | The Design's `CLAIM-{story}.{n}` claims and Test Strategy table, `binding.verify` | `docs/test-plans/{issue}-plan.md` with P0/P1/P2 tiers; `## iai-test-plan` sentinel | No |
+| `task-create` | `[story#]` | Design claims, `binding.unitOfWork`, `references/sizing-criteria.md` | One sub-issue per unit of work, labels `type:task` + `domain:*`, each anchored to a `CLAIM-{story}.{n}` | No |
 | `task-do` | `[task#]` | Task body, Design, pack leaf skill, `references/branch-and-pr-model.md` | `task/{n}-{slug}` branch, commits prefixed `#{issue}:`, PR targeting the story branch, `status:in-progress` | **Yes** — if `binding.gate.irreversibleAction` is in scope |
-| `task-verify` | `[task#]` | Evidence on disk, the anchored `ISC-N`, `references/verification.md` | `docs/evidence/{issue}-{ts}.md`; `## iai-evidence` sentinel; `status:resolved`; explicit issue close | No |
+| `task-verify` | `[task#]` | Evidence on disk, the anchored `CLAIM-{story}.{n}`, `references/verification.md` | `docs/evidence/{issue}-{ts}.md`; `## iai-evidence` sentinel; `status:resolved`; explicit issue close | No |
 | `story-verify` | `[story#]` | All task evidence, the full test plan, `binding.verify.rungs` | Story-level evidence artifact; integration PR marked ready; `status:resolved` | **Yes** — never merges; a human merges |
 | `status` | `[scope?]` | GitHub labels, Design frontmatter `phase`/`progress`, Current→Ideal percentages | Nothing. Read-only report | No |
 | `size` | `[issue#]` | Issue body, Design, `references/sizing-criteria.md`, `binding` thresholds | A sizing verdict comment; may add `status:blocked` | No |
@@ -130,7 +130,7 @@ skills/
 │   ├── code-review/         independent review of a task diff
 │   ├── debug/               reproduce, isolate, minimal fix
 │   ├── refactor/            behaviour-preserving change with a proof obligation
-│   ├── test-gen/            tests from ISC-N claims, not from code
+│   ├── test-gen/            tests from CLAIM-{story}.{n} claims, not from code
 │   ├── arch-audit/          drift between ARCHITECTURE Build Targets and the tree
 │   ├── dep-audit/           dependency risk, licence, and staleness review
 │   └── release/             version, changelog, tag, and release PR

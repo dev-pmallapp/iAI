@@ -186,7 +186,7 @@ tying a diff to a unit of work to a Story to a goal.
 #905: add baseline lipid panel importer with unit normalisation
 
 Parses the Q4 panel PDF into USER/HEALTH/panels/2026-01-09.yaml and
-normalises mg/dL vs mmol/L per the Design's ISC-2.
+normalises mg/dL vs mmol/L per the Design's CLAIM-901.2.
 
 Co-Authored-By: iAI <noreply@iai.dev>
 ```
