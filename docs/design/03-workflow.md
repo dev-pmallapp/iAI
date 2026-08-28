@@ -17,7 +17,7 @@ every code-specific assumption:
 | 3 | `/iai:story-design 901` | Write the Design | `docs/design/stories/901.md`, `## iai-design` sentinel, story branch |
 | 4 | `/iai:story-test-plan 901` | Design verifiable claims (`ISC-N`) → verification plan | `docs/test-plans/901-plan.md`, `## iai-test-plan` sentinel |
 | 5 | `/iai:task-create 901` | One task sub-issue per unit of work | `#905`, `#906`, `#907` … `type:task`, parented to `#901` |
-| 6 | `/iai:task-do 905` | Execute the unit | `task/61-*` branch, commits, **draft** PR → story branch |
+| 6 | `/iai:task-do 905` | Execute the unit | `task/905-*` branch, commits, **draft** PR → story branch |
 | 7 | `/iai:task-verify 905` | Run the verification | Evidence artifact, PR marked ready, `#905` `status:resolved` and closed |
 | 8 | *(automatic)* | All tasks resolved → Story flips | `#901` gains `status:resolved` |
 | 9 | `/iai:story-verify 901` | Run the full plan; open the integration PR | `## iai-verdict`, integration PR `story/901-* → main` |
@@ -257,7 +257,7 @@ blocks the tool call at runtime. Claude Code expresses the same block as a
 **Risk assessment:** RISK #902: PASS_WITH_CONDITIONS (max 4% single-name, hard stop -8%)
 **Preconditions:**
 - [x] Written mandate at USER/TRADING/MANDATE.md, signed 2026-01-04
-- [x] Paper-rung results over full Q4 window committed to docs/evidence/58-*.md
+- [x] Paper-rung results over full Q4 window committed to docs/evidence/902-*.md
 - [ ] Kill switch armed and verified
 **Decision:** PENDING
 ```
@@ -285,16 +285,16 @@ main
  │
  └── story/901-apob-protocol
       │
-      ├─◀── draft PR  (task/61-baseline-panel → story/901-apob-protocol)
-      ├─◀── draft PR  (task/62-protocol-v2   → story/901-apob-protocol)
-      └─◀── draft PR  (task/63-clinician-qs  → story/901-apob-protocol)
+      ├─◀── draft PR  (task/905-baseline-panel → story/901-apob-protocol)
+      ├─◀── draft PR  (task/906-protocol-v2   → story/901-apob-protocol)
+      └─◀── draft PR  (task/907-clinician-qs  → story/901-apob-protocol)
 ```
 
 | Kind | Pattern | Cut from | Targets | Example |
 |------|---------|----------|---------|---------|
 | Story | `story/{n}-{slug}` | `main` | `main` (integration PR) | `story/901-apob-protocol` |
-| Task | `task/{n}-{slug}` | the story branch | the story branch | `task/61-baseline-lipid-panel` |
-| Bug | `bug/{n}-{slug}` | `main` | `main` | `bug/72-exporter-drops-labels` |
+| Task | `task/{n}-{slug}` | the story branch | the story branch | `task/905-baseline-lipid-panel` |
+| Bug | `bug/{n}-{slug}` | `main` | `main` | `bug/913-exporter-drops-labels` |
 
 ### Slug rule
 
@@ -422,7 +422,7 @@ and treats the remainder as headroom for the sentinel, metadata and permalinks.
 **Cases:** 4/4 P0, 6/6 P1, 1/2 P2 (1 deferred — see drift)
 
 Full output (184 kB) exceeds the inline budget:
-https://github.com/acme/telemetry/blob/4f2a1c9e/docs/evidence/57-20260114T092211.md
+https://github.com/acme/telemetry/blob/4f2a1c9e/docs/evidence/901-20260114T092211.md
 ```
 
 Permalinks are pinned to a commit SHA, never to a branch name. A
@@ -551,7 +551,7 @@ and `gh issue view`.
 |--------|-----|
 | "I created the Design earlier" | `test -f docs/design/stories/901.md && git log -1 -- docs/design/stories/901.md` |
 | "The task is resolved" | `gh issue view 61 --json labels,state` |
-| "The PR is open" | `gh pr list --head task/61-baseline-lipid-panel --json number,isDraft` |
+| "The PR is open" | `gh pr list --head task/905-baseline-lipid-panel --json number,isDraft` |
 | "Tests passed" | Re-run them and capture the output |
 
 ### Verification

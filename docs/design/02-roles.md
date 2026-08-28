@@ -218,7 +218,7 @@ pick up cold:
 #905 (backtest-harness): PARTIAL
 
 Resume prompt:
-Slippage model and fill logic are committed on task/61-backtest-harness (3 commits,
+Slippage model and fill logic are committed on task/905-backtest-harness (3 commits,
 HEAD 4f2a1c9). The walk-forward split in src/backtest/window.ts is stubbed and
 throws. Remaining: implement window.ts per ISC-3, then add the two P0 cases from
 docs/test-plans/901-plan.md. Do not touch src/backtest/fills.ts — it is done.
