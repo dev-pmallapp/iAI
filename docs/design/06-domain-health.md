@@ -22,7 +22,7 @@ rejected on purpose.
 
 ## 1. Purpose and scope
 
-The `health` pack turns a TELOS health goal into the same
+The `health` pack turns a health goal into the same
 Milestone → Story → Task machine every other domain uses, and binds four nouns
 to it: a protocol or marker is the unit, a trend is the verification, the
 clinician boundary is the gate, and a lab PDF plus daily metrics are the
@@ -521,11 +521,11 @@ Two rules govern absence:
 
 ## 9. Worked example
 
-TELOS goal **G0: "ApoB under 60 by Q4"** — the README's example, carried through
+Goals entry **G0: "ApoB under 60 by Q4"** — the README's example, carried through
 unchanged.
 
 ```
-G0  "ApoB under 60 by Q4"                        USER/TELOS/TELOS.md
+G0  "ApoB under 60 by Q4"                        USER/GOALS/GOALS.md
  └── Milestone 8  "Q3 Lipid protocol"            feature table in description
       └── #950  [type:story][domain:health][class:private][rung:observe]
            │   "Lower ApoB from 88 to under 60"

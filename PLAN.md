@@ -71,7 +71,7 @@ test proves a domain can be added without editing core. No package in
 | Feature | Description |
 |---------|-------------|
 | Kernel reference documents | The twelve `references/*.md` contract documents that skills cite rather than restate: context-discovery, gh-operations, gh-error-handling, verification, data-classification, model-routing, domain-binding, evidence-artifacts, branch-and-pr-model, workflow-states, isa-format and sizing-criteria. |
-| Planning skills | goal-create (TELOS goal to GitHub milestone), story-create (milestone feature table to Story issues), story-design (writes the Design design document with pre-registered claims) and story-test-plan (Design claims to a categorised verification plan). |
+| Planning skills | goal-create (Goals entry to GitHub milestone), story-create (milestone feature table to Story issues), story-design (writes the Design design document with pre-registered claims) and story-test-plan (Design claims to a categorised verification plan). |
 | Execution skills | task-create (one task sub-issue per unit of work, with Blocked-by dependency links and the parent checklist), task-do (branch, execute, draft PR, commit traceability) and task-verify (run the verification, mark the PR ready, resolve the task, roll up to the Story). |
 | Closure skills | story-verify (re-ground the plan on what was actually done, run it, open the integration PR, close the Story) and learn (extract learnings from a completed milestone, raise knowledge-base PRs, close the milestone). |
 | Continuity skills | checkpoint and resume for cross-session and cross-engineer handoff, plus status (six view modes with a local-only fallback), size (S/M/L/XL estimation) and replan (requirement-change detection and incremental update). |

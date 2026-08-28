@@ -47,7 +47,7 @@ containing one biomarker value is `PRIVATE` in its entirety.
 | Class | Examples | May reach a cloud model? | Storage |
 |---|---|---|---|
 | **PUBLIC** | Ticker symbols, market prices, published papers and their DOIs, open-source code, public GitHub issues, general medical literature | **Yes**, unrestricted | The public repo. Cacheable. Citable |
-| **INTERNAL** | Project code and design docs, test plans, evidence artifacts, Designs, work state, TELOS goal *titles* | **Yes** | The public repo. Not published, but not sensitive |
+| **INTERNAL** | Project code and design docs, test plans, evidence artifacts, Designs, work state, Goals entry *titles* | **Yes** | The public repo. Not published, but not sensitive |
 | **PRIVATE** | Health data and lab results, biomarker values, wearable streams, **open positions and quantities**, account balances, transaction history, statement PDFs, clinician notes | **No — by default.** Requires an explicit **per-session opt-in**, and is **de-identified by default** even then | `USER/` only, which is a symlink into the private repo. Never in the public repo, never in a commit |
 | **SECRET** | API keys, broker credentials, OAuth tokens, session cookies, `.env` contents, private keys | **Never. Under any circumstance. There is no opt-in** | `.env` on the local filesystem, or the OS keychain. Never read into a model context, never logged, never echoed |
 
@@ -296,7 +296,7 @@ iAI/                        ← PUBLIC repo (or private, but code-shaped)
 ├── skills/                 skills
 ├── docs/                   design docs, TEMPLATES ONLY
 ├── templates/
-│   ├── TELOS.template.md
+│   ├── GOALS.template.md
 │   ├── MANDATE.template.md
 │   └── POSITIONS.template.yaml
 └── USER/  ──────symlink──▶ ../iai-private/USER/
@@ -304,7 +304,7 @@ iAI/                        ← PUBLIC repo (or private, but code-shaped)
                                  ▼
 iai-private/                ← PRIVATE repo. Never public. Ever.
 ├── USER/
-│   ├── TELOS/TELOS.md           real goals
+│   ├── GOALS/GOALS.md           real goals
 │   ├── HEALTH/                  real labs, real biomarkers
 │   ├── FINANCES/                real balances, real statements
 │   └── TRADING/                 real MANDATE.md, real POSITIONS.yaml
