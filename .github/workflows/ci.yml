@@ -106,6 +106,29 @@ jobs:
       - run: bun install
       - run: bun run skill-lint skills/
 
+  # claim-lint enforces CLAIM-194.1 through CLAIM-194.4 of
+  # docs/design/stories/194.md. It is intentionally NOT in branch protection
+  # or ruleset 21656025 yet. Per the decision recorded on issue #204, a
+  # required context that has never reported sits at "pending" forever and
+  # blocks every PR permanently, so the context must first merge to main and
+  # report on a real PR before it can be made required. Making it required is
+  # a follow-up commit that must also update scripts/verify-required-checks.sh
+  # and scripts/verify-workflow-hygiene.sh (each hardcodes the job list twice)
+  # in that same commit. Unlike smoke-install, this job can meaningfully fail
+  # today — it is a real check, merely not yet enforced.
+  claim-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: bun install
+      - run: bun run claim-lint docs/
+
   # This job is intentionally NOT added to branch protection and must never
   # be made required. docs/milestones/M1.md and PLAN.md's risk table both
   # describe a both-host install smoke test, but packages/installer has no

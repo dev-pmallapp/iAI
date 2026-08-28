@@ -122,6 +122,17 @@ both hosts ignore unknown fields silently and a typo would otherwise ship
 unnoticed. Also checks: description length under 300 characters, a Phase 0
 context-discovery section, and an Error Handling section.
 
+### claim-lint
+
+```bash
+bun run claim-lint docs/
+```
+
+Passes when: exit code 0. Validates `CLAIM-`/`NEVER-`/`ISC-` usage across
+`docs/` per `docs/design/stories/194.md` — no `ISC-` token outside the four
+allow-listed paths, every claim identifier Story-qualified and unique, every
+anti-claim carrying `NEVER-`, and no `anchors_to` reference left dangling.
+
 ### install-dry
 
 ```bash
