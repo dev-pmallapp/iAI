@@ -7,7 +7,7 @@ existing systems into a single operating model:
 
 | Source | Layer it contributes | Question it answers |
 |--------|----------------------|---------------------|
-| **LifeOS** (`~/tmp/LifeOS`) | **Intent** — TELOS, Current→Ideal State, ISA, Cortex memory | *Why am I doing this, and what does "done" look like?* |
+| **LifeOS** (`~/tmp/LifeOS`) | **Intent** — Goals, Current→Ideal State, Design, Cortex memory | *Why am I doing this, and what does "done" look like?* |
 | **forge / gh-workflow** (`~/tmp/gh-workflow`) | **Execution** — Milestone→Story→Task on GitHub, gates, traceability | *How is work tracked, and how do I prove it happened?* |
 | **oh-my-opencode** (`oh-my-openagent`) | **Runtime** — category-based model routing, agent roster, hook composer | *Who runs it, on which model, with what guardrails?* |
 
@@ -26,16 +26,16 @@ loop. forge runs a rigorous loop — but only for code.
 iAI is the join: **forge's loop, driven by LifeOS's intent, across every domain.**
 
 ```
-LifeOS TELOS Goal  (G0: "ApoB under 60 by Q4")
+LifeOS Goals entry (G0: "ApoB under 60 by Q4")
       │
       ▼
 GitHub Milestone   ── Epic. Description carries the feature table.
       │
       ▼
 Story issue        ── One end-to-end deliverable outcome.
-      │              Design doc == LifeOS ISA (Ideal State Artifact).
+      │              Design doc — the artifact LifeOS calls the ISA.
       ▼
-Test plan          ── ISA verifiable claims (ISC-N) become test cases.
+Test plan          ── Design verifiable claims (CLAIM-{story}.{n}) become test cases.
       │
       ▼
 Task sub-issues    ── One per "unit of work" (domain-defined).
@@ -161,7 +161,7 @@ It is never installed and never invoked: it was consumed at design time in
 reconciliation source for S1.1 and the parity target for S4.5.
 
 Until the Tier-1 verbs land at the end of M2, the loop in
-`docs/design/03-workflow.md` is executed **by hand** — the ISA, the `## iai-*`
+`docs/design/03-workflow.md` is executed **by hand** — the Design, the `## iai-*`
 sentinels, the rungs and the three gates are all followed as written, just not
 yet automated. From M3 onward `/iai:` drives its own construction.
 

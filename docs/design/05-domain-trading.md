@@ -73,7 +73,7 @@ export const tradeBinding: DomainBinding = {
         id: "research",
         name: "Research",
         entryCriteria: ["thesis written", "invalidation trigger stated"],
-        verifier: "judged",
+        verifier: "model-judged",
         reversible: true,
       },
       {
@@ -84,7 +84,7 @@ export const tradeBinding: DomainBinding = {
           "assumptions declared: slippage, fees, survivorship",
           "out-of-sample window held back",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -95,7 +95,7 @@ export const tradeBinding: DomainBinding = {
           "position sizing rule fixed",
           "minimum 30 sessions of paper execution planned",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -107,7 +107,7 @@ export const tradeBinding: DomainBinding = {
           "kill switch armed and verified this session",
           "per-order human authorisation available",
         ],
-        verifier: "attested",
+        verifier: "human-attested",
         reversible: false,
       },
     ],
@@ -215,7 +215,7 @@ The refusal, verbatim from `03-workflow.md`:
 
 ```
 HARD FAILURE in Phase 6 (task-do):
-- Story: #58
+- Story: #940
 - Expected: rung:research or rung:paper for an /iai:auto run
 - Found: rung:live
 - Action: Pipeline cannot continue. Fix and re-run.
@@ -223,7 +223,7 @@ HARD FAILURE in Phase 6 (task-do):
 
 ### Pre-registration
 
-> **Thresholds, position sizing and exit criteria are written into the ISA
+> **Thresholds, position sizing and exit criteria are written into the Design
 > BEFORE the backtest runs. Changing them after seeing results is logged as a
 > deviation and requires a new Story.**
 
@@ -234,9 +234,9 @@ nobody involved ever intended to cheat.
 | Mechanism | Detail |
 |-----------|--------|
 | What is pre-registered | Metric thresholds, out-of-sample split, data window, universe definition, sizing rule, stop and exit criteria, minimum paper window, tracking-error tolerance |
-| Where | The ISA's `ISC-N` claims, committed **before** the backtest Task starts. The commit SHA is the timestamp |
-| Enforcement | `trade/backtest` refuses to run if the anchored `ISC-N` claims are uncommitted or were modified after the previous backtest run for this Story |
-| Backtest counter | Every run increments `backtests_run` in the ISA frontmatter and appends a row to the ISA's run log. Run 7 against the same universe is visible to `iai-critic` and to the human, forever |
+| Where | The Design's `CLAIM-{story}.{n}` claims, committed **before** the backtest Task starts. The commit SHA is the timestamp |
+| Enforcement | `trade/backtest` refuses to run if the anchored `CLAIM-{story}.{n}` claims are uncommitted or were modified after the previous backtest run for this Story |
+| Backtest counter | Every run increments `backtests_run` in the Design frontmatter and appends a row to the Design's run log. Run 7 against the same universe is visible to `iai-critic` and to the human, forever |
 | Deviations | A post-hoc threshold change is written to the journal as a deviation, closes the current Story, and opens a new one. The old evidence is not deleted — it is the record of what was tried |
 
 A strategy that only passes on its fourth threshold revision has not passed.
@@ -392,7 +392,7 @@ positions:
     qty: 120
     avg_cost: "402.15"
     market_value: "51834.00"
-    weight_pct: "28.1"         # exceeds max_position_pct: this is why #58 exists
+    weight_pct: "28.1"         # exceeds max_position_pct: this is why #940 exists
     sector: "information_technology"
     opened: "2024-11-12"
     stop: "365.00"
@@ -486,77 +486,77 @@ The book has drifted: `MSFT` is 28.1% of portfolio value against a
 `max_position_pct` of 4.0. The mandate is being violated *right now*, by a
 position opened in 2024. This is the ordinary case the pack is built for.
 
-**Goal → Milestone.** TELOS goal `G2: "Portfolio reset"` → `/iai:goal-create G2`
+**Goal → Milestone.** Goals entry `G2: "Portfolio reset"` → `/iai:goal-create G2`
 → **Milestone 9 "Portfolio reset"**, feature table in the description.
 
 **Milestone → Story.** `/iai:story-create 9` opens:
 
 ```
-#58  [type:story] [domain:trade] [class:private] [rung:research] [iai]
+#940  [type:story] [domain:trade] [class:private] [rung:research] [iai]
      "Rotate 20% from single-name tech into a factor ETF sleeve"
 ```
 
 `rung:research` is applied at creation. It is the default and it is not
 negotiable at this stage.
 
-**Story → ISA, with pre-registration.** `/iai:story-design 58` writes
-`docs/design/58-isa.md`, cuts `story/58-rotate-20-from-single-name-tech-into`,
-and posts `## iai-isa`. The claims are written and **committed before any
+**Story → Design, with pre-registration.** `/iai:story-design 940` writes
+`docs/design/stories/940.md`, cuts `story/940-rotate-20-from-single-name-tech-into`,
+and posts `## iai-design`. The claims are written and **committed before any
 backtest runs**:
 
 | Claim | Pre-registered statement |
 |-------|--------------------------|
-| ISC-1 | Universe: US-listed factor ETFs with 20-day ADV ≥ $2,000,000 and expense ratio ≤ 0.25%. Frozen at design time; membership recorded in the ISA |
-| ISC-2 | Backtest window 2014-01-01 → 2024-12-31, with 2022-01-01 → 2024-12-31 held out as out-of-sample. Slippage 5bp, fees $0.005/share, delisted names retained |
-| ISC-3 | Thresholds: CAGR ≥ 6.0%, max drawdown ≤ 18.0%, Sharpe ≥ 0.60, hit rate ≥ 45%, turnover ≤ 120%/yr. Worst 5 trades reported individually |
-| ISC-4 | Sizing: no single ETF above 8.0% of portfolio value; sleeve total 20.0% ± 1.0%; every leg carries a stop at submission |
-| ISC-5 | Paper window: 30 consecutive sessions. Tracking error versus backtest ≤ 150bp annualised. Declared before the window opens |
-| ISC-6 | Post-rotation, `MSFT` ≤ `max_position_pct` and no GICS sector exceeds `max_sector_pct`, verified against `POSITIONS.yaml` |
+| CLAIM-940.1 | Universe: US-listed factor ETFs with 20-day ADV ≥ $2,000,000 and expense ratio ≤ 0.25%. Frozen at design time; membership recorded in the Design |
+| CLAIM-940.2 | Backtest window 2014-01-01 → 2024-12-31, with 2022-01-01 → 2024-12-31 held out as out-of-sample. Slippage 5bp, fees $0.005/share, delisted names retained |
+| CLAIM-940.3 | Thresholds: CAGR ≥ 6.0%, max drawdown ≤ 18.0%, Sharpe ≥ 0.60, hit rate ≥ 45%, turnover ≤ 120%/yr. Worst 5 trades reported individually |
+| CLAIM-940.4 | Sizing: no single ETF above 8.0% of portfolio value; sleeve total 20.0% ± 1.0%; every leg carries a stop at submission |
+| CLAIM-940.5 | Paper window: 30 consecutive sessions. Tracking error versus backtest ≤ 150bp annualised. Declared before the window opens |
+| CLAIM-940.6 | Post-rotation, `MSFT` ≤ `max_position_pct` and no GICS sector exceeds `max_sector_pct`, verified against `POSITIONS.yaml` |
 
-The commit SHA of `58-isa.md` is the pre-registration timestamp. Changing ISC-3
-after seeing a backtest result closes `#58` and opens a new Story.
+The commit SHA of `stories/940.md` is the pre-registration timestamp. Changing CLAIM-940.3
+after seeing a backtest result closes `#940` and opens a new Story.
 
-**ISA → Tasks.** `/iai:task-create 58`:
+**Design → Tasks.** `/iai:task-create 940`:
 
 ```
-#71 [type:task] Backtest the factor ETF sleeve         anchors ISC-1, ISC-2, ISC-3
-#72 [type:task] Risk-check the rotation against MANDATE anchors ISC-4, ISC-6
-#73 [type:task] Paper-trade the sleeve for 30 sessions anchors ISC-5
-    Blocked by: #71, #72
-#74 [type:task] Execute the live rotation              anchors ISC-4, ISC-6
-    Blocked by: #73   [gate:pending]
+#941 [type:task] Backtest the factor ETF sleeve          anchors CLAIM-940.1, CLAIM-940.2, CLAIM-940.3
+#942 [type:task] Risk-check the rotation against MANDATE anchors CLAIM-940.4, CLAIM-940.6
+#943 [type:task] Paper-trade the sleeve for 30 sessions  anchors CLAIM-940.5
+    Blocked by: #941, #942
+#944 [type:task] Execute the live rotation               anchors CLAIM-940.4, CLAIM-940.6
+    Blocked by: #943   [gate:pending]
 ```
 
-`#74` carries `gate:pending` from the moment it is created. It is never eligible
+`#944` carries `gate:pending` from the moment it is created. It is never eligible
 for `/iai:auto`, and the rotation's twelve legs are **one** Task, not twelve.
 
 **Tasks → evidence.**
 
 | Step | Command | Effect |
 |------|---------|--------|
-| 1 | `/iai:task-do 71` | `trade/backtest 58 --window 10y --oos 20%`. Writes `USER/TRADING/BACKTESTS/factor-etf-sleeve/{results.json,equity.csv,trades.csv}`. ISA `backtests_run: 1` |
-| 2 | `/iai:task-verify 71` | Results against ISC-3: CAGR 7.4%, max DD 15.2%, Sharpe 0.71, hit rate 48%, turnover 86%. Look-ahead audit passes — every signal uses only data available at the bar it trades. Worst 5 trades listed. `docs/evidence/71-20260901T104412Z.md`, `## iai-evidence`, close `#71`. Story → `rung:backtest` |
-| 3 | `/iai:task-do 72` | `iai-conductor` spawns `risk-officer` **independently**. It reads `MANDATE.md` at SHA `a91c4f2`, `POSITIONS.yaml`, and the proposal from disk — not from `quant-analyst` |
-| 4 | verdict | `RISK #58: PASS_WITH_CONDITIONS` — sleeve capped at 20.0%, no single ETF above 6.5% (tighter than ISC-4's 8.0%), hard stop −8% per leg, execution over three sessions to limit market impact. Conditions applied verbatim, written to `USER/TRADING/JOURNAL/2026-09-02.md` under `## iai-risk` |
-| 5 | `/iai:task-verify 72` | Conditions recorded in the ISA. `#72` closed |
-| 6 | `#73` unblocks | `trade/paper-trade 58 --sessions 30` against `PaperBroker`. Each simulated order appends to `ORDERS/2026/orders.jsonl` with `rung: "paper"` |
-| 7 | `/iai:task-verify 73` | 30 sessions complete. Tracking error 112bp, inside ISC-5's 150bp. `docs/evidence/73-20260913T210300Z.md` carries the paper equity curve overlaid on the backtest curve. `#73` closed. Story → `rung:paper` |
+| 1 | `/iai:task-do 941` | `trade/backtest 58 --window 10y --oos 20%`. Writes `USER/TRADING/BACKTESTS/factor-etf-sleeve/{results.json,equity.csv,trades.csv}`. Design `backtests_run: 1` |
+| 2 | `/iai:task-verify 941` | Results against CLAIM-940.3: CAGR 7.4%, max DD 15.2%, Sharpe 0.71, hit rate 48%, turnover 86%. Look-ahead audit passes — every signal uses only data available at the bar it trades. Worst 5 trades listed. `docs/evidence/941-20260901T104412Z.md`, `## iai-evidence`, close `#941`. Story → `rung:backtest` |
+| 3 | `/iai:task-do 942` | `iai-conductor` spawns `risk-officer` **independently**. It reads `MANDATE.md` at SHA `a91c4f2`, `POSITIONS.yaml`, and the proposal from disk — not from `quant-analyst` |
+| 4 | verdict | `RISK #940: PASS_WITH_CONDITIONS` — sleeve capped at 20.0%, no single ETF above 6.5% (tighter than CLAIM-940.4's 8.0%), hard stop −8% per leg, execution over three sessions to limit market impact. Conditions applied verbatim, written to `USER/TRADING/JOURNAL/2026-09-02.md` under `## iai-risk` |
+| 5 | `/iai:task-verify 942` | Conditions recorded in the Design. `#942` closed |
+| 6 | `#943` unblocks | `trade/paper-trade 58 --sessions 30` against `PaperBroker`. Each simulated order appends to `ORDERS/2026/orders.jsonl` with `rung: "paper"` |
+| 7 | `/iai:task-verify 943` | 30 sessions complete. Tracking error 112bp, inside CLAIM-940.5's 150bp. `docs/evidence/943-20260913T210300Z.md` carries the paper equity curve overlaid on the backtest curve. `#943` closed. Story → `rung:paper` |
 
-**The gate.** `#73` closing does **not** promote the Story. Promotion to
+**The gate.** `#943` closing does **not** promote the Story. Promotion to
 `rung:live` is a human gate plus a `risk-officer` `PASS`:
 
 ```markdown
 ## iai-gate
 
 **Gate:** rung-promotion
-**Story:** #58
+**Story:** #940
 **Request:** promote domain:trade from rung:paper to rung:live
 **Proposed by:** quant-analyst
-**Risk assessment:** RISK #58: PASS_WITH_CONDITIONS (sleeve 20.0% cap, 6.5%
+**Risk assessment:** RISK #940: PASS_WITH_CONDITIONS (sleeve 20.0% cap, 6.5%
   per-ETF cap, hard stop -8%, execution across 3 sessions)
 **Preconditions:**
 - [x] Written mandate at USER/TRADING/MANDATE.md, signed 2026-01-04, expires 2026-07-04 — RENEWED 2026-07-01, sha a91c4f2
-- [x] Paper-rung results over the full 30-session window in docs/evidence/73-*.md
+- [x] Paper-rung results over the full 30-session window in docs/evidence/943-*.md
 - [x] Kill switch armed and verified this session
 **Decision:** PENDING
 ```
@@ -564,7 +564,7 @@ for `/iai:auto`, and the rotation's twelve legs are **one** Task, not twelve.
 The human comments the approval. `gate:approved` is applied only after that
 comment exists — an agent may never write `**Decision:** APPROVED`.
 
-**Live execution.** `/iai:task-do 74` runs `trade/live-order` **once per leg**.
+**Live execution.** `/iai:task-do 944` runs `trade/live-order` **once per leg**.
 Twelve legs, twelve authorisations, over three sessions per the risk conditions.
 Each submission appends one line to `ORDERS/2026/orders.jsonl` carrying
 `mandate_sha: "a91c4f2"`, `risk_verdict: "PASS_WITH_CONDITIONS"` and
@@ -576,10 +576,10 @@ at entry, before any outcome is known.
 
 | Step | Effect |
 |------|--------|
-| `/iai:task-verify 74` | `POSITIONS.yaml` re-read from the broker and reconciled. `MSFT` now 3.6% (≤ 4.0), no sector above 25.0 — ISC-6 satisfied. Evidence written, `#74` closed explicitly |
-| *(automatic)* | All Tasks resolved → `#58` gains `status:resolved` |
-| `/iai:story-verify 58` | Full plan: 6/6 claims. `## iai-verdict PASS`. Integration PR `story/58-* → main` **of the private data repo**, carrying the thesis, the backtest outputs, the journal entries and the `POSITIONS.yaml` diff |
-| **human merges** | One `Closes #N` per line for `#58`, `#71`, `#72`, `#73`, `#74` |
+| `/iai:task-verify 944` | `POSITIONS.yaml` re-read from the broker and reconciled. `MSFT` now 3.6% (≤ 4.0), no sector above 25.0 — CLAIM-940.6 satisfied. Evidence written, `#944` closed explicitly |
+| *(automatic)* | All Tasks resolved → `#940` gains `status:resolved` |
+| `/iai:story-verify 940` | Full plan: 6/6 claims. `## iai-verdict PASS`. Integration PR `story/940-* → main` **of the private data repo**, carrying the thesis, the backtest outputs, the journal entries and the `POSITIONS.yaml` diff |
+| **human merges** | One `Closes #N` per line for `#940`, `#941`, `#942`, `#943`, `#944` |
 | `trade/post-mortem 58` | Ninety days later: thesis versus outcome, whether the invalidation trigger fired, whether it was honoured. Feeds `/iai:learn 9` and a `MEMORY/` entry |
 
 Nothing in this trace let an agent place an order on its own, and the mandate
@@ -593,8 +593,8 @@ seven-character string.
 | Failure mode | Symptom | Mitigation |
 |--------------|---------|------------|
 | **Look-ahead bias** | Backtest uses data unavailable at the bar it trades — same-bar close, restated fundamentals, a later index membership | A look-ahead audit is a **promotion requirement**, not a review nicety. Every signal declares its as-of lag; the audit re-runs the strategy with all inputs shifted one bar and requires the edge to survive. A strategy that collapses under the shift is refused |
-| **Survivorship bias** | Universe contains only names that still exist, so the backtest never buys anything that went to zero | `BarSource` must expose a delisted-symbol channel. `trade/backtest` refuses to run against a universe that reports zero delistings over a 10-year window. The universe is frozen in the ISA at design time and its membership is committed |
-| **Overfitting via repeated backtests** | Run 9 finally clears the thresholds; runs 1–8 are forgotten | Pre-registration plus a **backtest counter**: `backtests_run` in the ISA frontmatter, incremented every run, with a run log the human and `iai-critic` both see. Thresholds changed after a run close the Story and require a new one, logged as a deviation |
+| **Survivorship bias** | Universe contains only names that still exist, so the backtest never buys anything that went to zero | `BarSource` must expose a delisted-symbol channel. `trade/backtest` refuses to run against a universe that reports zero delistings over a 10-year window. The universe is frozen in the Design at design time and its membership is committed |
+| **Overfitting via repeated backtests** | Run 9 finally clears the thresholds; runs 1–8 are forgotten | Pre-registration plus a **backtest counter**: `backtests_run` in the Design frontmatter, incremented every run, with a run log the human and `iai-critic` both see. Thresholds changed after a run close the Story and require a new one, logged as a deviation |
 | **Broker API outage mid-order** | Submission times out; the system does not know whether the order exists | Never resubmit on timeout. Reconcile: query `positions()` and open orders, match against `orders.jsonl` by `broker_order_id`, and if the state is ambiguous, fire the kill switch and stop for a human. An unmatched fill is a broker anomaly and auto-halts |
 | **Partial fills** | Position size differs from the size the risk check approved | Fills append lines; they never edit them. After each fill the remaining book is re-checked against the mandate before the next leg. A partial that leaves the book outside `max_position_pct` blocks the remaining legs and raises a gate |
 | **Stale market data** | Decisions made on prices from an hour ago | Every provider stamps `asOf`; `autoDeny` refuses at >60s. A provider that cannot stamp staleness is treated as research-only. Stale is treated identically to absent |

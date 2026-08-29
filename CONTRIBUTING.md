@@ -122,6 +122,19 @@ both hosts ignore unknown fields silently and a typo would otherwise ship
 unnoticed. Also checks: description length under 300 characters, a Phase 0
 context-discovery section, and an Error Handling section.
 
+### claim-lint
+
+```bash
+bun run claim-lint
+```
+
+Passes when: exit code 0. Validates claim identifiers across `docs/`,
+`scripts/`, `.github/` and the root markdown set, per
+`docs/design/stories/194.md` — the retired identifier prefix appears nowhere
+outside the four allow-listed paths, every claim identifier is Story-qualified
+and unique, every anti-claim carries `NEVER-`, and no `anchors_to` reference is
+left dangling. Pass a directory to narrow the scan.
+
 ### install-dry
 
 ```bash
@@ -155,17 +168,17 @@ touches `main`.
 
 | Kind | Pattern | Branches from | Merges to | Example |
 |---|---|---|---|---|
-| **Story** | `story/{n}-{slug}` | `main` | `main`, via the **integration PR** | `story/57-apob-protocol` |
-| **Task** | `task/{n}-{slug}` | the **story branch** | the **story branch** | `task/61-baseline-lipid-panel` |
-| **Bug** | `bug/{n}-{slug}` | `main` | `main` | `bug/72-exporter-drops-labels` |
+| **Story** | `story/{n}-{slug}` | `main` | `main`, via the **integration PR** | `story/901-apob-protocol` |
+| **Task** | `task/{n}-{slug}` | the **story branch** | the **story branch** | `task/905-baseline-lipid-panel` |
+| **Bug** | `bug/{n}-{slug}` | `main` | `main` | `bug/913-exporter-drops-labels` |
 
 ```
 main
- ├─◀── integration PR   (story/57-apob-protocol → main)   ← the ONLY auto-closing PR
+ ├─◀── integration PR   (story/901-apob-protocol → main)   ← the ONLY auto-closing PR
  │
- └── story/57-apob-protocol
-      ├─◀── draft PR    (task/61-baseline-panel → story/57-apob-protocol)
-      └─◀── draft PR    (task/62-protocol-v2   → story/57-apob-protocol)
+ └── story/901-apob-protocol
+      ├─◀── draft PR    (task/905-baseline-panel → story/901-apob-protocol)
+      └─◀── draft PR    (task/906-protocol-v2   → story/901-apob-protocol)
 ```
 
 `{slug}` is the issue title, lowercased, non-alphanumerics collapsed to `-`,
@@ -183,10 +196,10 @@ tying a diff to a unit of work to a Story to a goal.
 ```
 
 ```
-#61: add baseline lipid panel importer with unit normalisation
+#905: add baseline lipid panel importer with unit normalisation
 
 Parses the Q4 panel PDF into USER/HEALTH/panels/2026-01-09.yaml and
-normalises mg/dL vs mmol/L per the ISA's ISC-2.
+normalises mg/dL vs mmol/L per the Design's CLAIM-901.2.
 
 Co-Authored-By: iAI <noreply@iai.dev>
 ```
@@ -320,8 +333,8 @@ missing something — fix the binding.
 | Rule | Detail |
 |---|---|
 | **Draft by default** | Every PR opens as a draft. It is marked ready only after its verification step passes with evidence read from disk |
-| **One `Closes #N` per line** | GitHub does **not** parse `Closes #57, #61, #62` — it closes `#57` and silently ignores the rest. One directive per line, always |
-| **`Closes` only on integration PRs** | Task PRs target the story branch, so `Closes` there would never fire (GitHub only auto-closes on merge to the default branch). Task PRs reference their issue with `Refs #61` |
+| **One `Closes #N` per line** | GitHub does **not** parse `Closes #901, #905, #906` — it closes `#901` and silently ignores the rest. One directive per line, always |
+| **`Closes` only on integration PRs** | Task PRs target the story branch, so `Closes` there would never fire (GitHub only auto-closes on merge to the default branch). Task PRs reference their issue with `Refs #905` |
 | **iAI never merges** | The system opens PRs, marks them ready, and stops. A human merges. This is the first of the three never-rules and it has no exception, no flag and no override |
 | **Evidence is linked, not pasted** | Link the committed artifact under `docs/evidence/`. The PR body carries the verdict and the link |
 | **Private domains, private repo** | A PR for a `health`, `wealth` or `trade` Story belongs in the private repo. Never paste a biomarker, balance or position into a public PR body |

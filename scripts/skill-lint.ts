@@ -55,7 +55,7 @@ export interface SkillViolation {
 // adding `argument-hint`, `allowed-tools` and `disable-model-invocation` as
 // Claude-Code-only fields. The human principal adjudicated this in favour of
 // the strict 5: the three extra keys are `field-unknown` errors here, full
-// stop. Reconciling the two design documents is routed to #14 under ISC-6 —
+// stop. Reconciling the two design documents is routed to #14 under CLAIM-9.6 —
 // do not soften this list or add an escape hatch pending that reconciliation.
 const ALLOWED_KEYS = new Set(["name", "description", "license", "compatibility", "metadata"]);
 const REQUIRED_KEYS: readonly string[] = ["name", "description"];

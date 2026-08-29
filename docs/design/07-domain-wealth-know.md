@@ -84,7 +84,7 @@ export const wealthBinding: DomainBinding = {
           "monetary fields are strings",
           "last_4 present and exactly 4 characters",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -96,7 +96,7 @@ export const wealthBinding: DomainBinding = {
           "closing balance difference is exactly 0.00",
           "no placeholder strings in any matched row",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -105,9 +105,9 @@ export const wealthBinding: DomainBinding = {
         entryCriteria: [
           ">= 3 reconciled periods",
           "obligations.yaml complete for the projection horizon",
-          "projection horizon stated in the ISA",
+          "projection horizon stated in the Design",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -118,7 +118,7 @@ export const wealthBinding: DomainBinding = {
           "the delta is measured against >= 1 reconciled period after",
           "human executed the change; iAI did not",
         ],
-        verifier: "attested",
+        verifier: "human-attested",
         reversible: false,
       },
     ],
@@ -185,7 +185,7 @@ recorded ──▶ reconciled ──▶ projected ──▶ optimised
 |------|----------------|---------------|
 | `recorded` | The object exists in the schema with its required fields, monetary values as strings, `last_4` exactly four characters, dates ISO 8601 | A statement imported covering the full period |
 | `reconciled` | Ledger matches statement **to the cent**. Closing difference is exactly `0.00`. Every unmatched line has a written explanation, not a rounding excuse | Three or more reconciled periods plus a complete `obligations.yaml` for the horizon |
-| `projected` | Forward cash flow over a stated horizon, built only from reconciled history and known obligations. No growth assumptions unless declared in the ISA | A named change with a quantified delta |
+| `projected` | Forward cash flow over a stated horizon, built only from reconciled history and known obligations. No growth assumptions unless declared in the Design | A named change with a quantified delta |
 | `optimised` | The proposed change was executed **by a human** and the delta was measured against at least one subsequent reconciled period | Nothing. Terminal, and `reversible: false` because a cancelled contract and a closed account do not come back |
 
 Reconciliation is deterministic on purpose. `0.00` or not — there is no
@@ -208,7 +208,7 @@ What iAI may do instead: **draft a transfer instruction for a human to execute.*
 ## iai-gate
 
 **Gate:** spend-threshold
-**Story:** #59
+**Story:** #960
 **Request:** cancel Adobe CC annual ($659.88/yr, obligation obl-adobe-cc)
 **Proposed by:** wealth-steward
 **Preconditions:**
@@ -318,26 +318,26 @@ All of `USER/FINANCES/` is `class:private` and hard-gated from cloud egress.
 
 ```
 Milestone 9  "Q4 Fixed-cost reduction"
- └── #59  [type:story][domain:wealth][class:private][rung:recorded]
+ └── #960  [type:story][domain:wealth][class:private][rung:recorded]
       │   "Cut fixed monthly outflow by $400"
-      │   ISA: docs/design/59-isa.md   (ISC-1 .. ISC-4)
-      │   Branch: story/59-cut-fixed-monthly-outflow-by-400
+      │   Design: docs/design/stories/960.md   (CLAIM-960.1 .. CLAIM-960.4)
+      │   Branch: story/960-cut-fixed-monthly-outflow-by-400
       │
-      ├── #75 [type:task] "Obligation audit"          → ISC-1
-      ├── #76 [type:task] "Vendor renegotiation list"  → ISC-3
-      └── #77 [type:task] "Reconcile Q3"               → ISC-2
+      ├── #961 [type:task] "Obligation audit"          → CLAIM-960.1
+      ├── #962 [type:task] "Vendor renegotiation list"  → CLAIM-960.3
+      └── #963 [type:task] "Reconcile Q3"               → CLAIM-960.2
 ```
 
 | Step | Command | Result |
 |------|---------|--------|
-| 1 | `/iai:task-do 77` | `wealth/reconcile` imports 3 statements. Chase `1847` closes at difference `0.00`; Amex `3009` leaves one $84.20 residual, explained as a pending authorisation → `rung:reconciled` |
-| 2 | `/iai:task-do 75` | `obligation-audit` reads `obligations.yaml`: 23 recurring obligations, $2,914/mo fixed. Six show price creep since first observation |
+| 1 | `/iai:task-do 963` | `wealth/reconcile` imports 3 statements. Chase `1847` closes at difference `0.00`; Amex `3009` leaves one $84.20 residual, explained as a pending authorisation → `rung:reconciled` |
+| 2 | `/iai:task-do 961` | `obligation-audit` reads `obligations.yaml`: 23 recurring obligations, $2,914/mo fixed. Six show price creep since first observation |
 | 3 | *(finding)* | Adobe CC $54.99 → $59.99/mo; storage tier $9.99 → $19.99/mo; two duplicate streaming obligations on different cards, both matched by `vendors.yaml` |
-| 4 | `/iai:task-do 76` | Renegotiation list: 4 cancellations ($188/mo), 2 downgrades ($97/mo), 1 rate renegotiation on the auto loan ($131/mo) = **$416/mo** → ISC-3 |
-| 5 | *(gate)* | `gate:pending` on `#59`. Each cancellation over the spend threshold gets a line in the `## iai-gate` comment with its cancellation window |
+| 4 | `/iai:task-do 962` | Renegotiation list: 4 cancellations ($188/mo), 2 downgrades ($97/mo), 1 rate renegotiation on the auto loan ($131/mo) = **$416/mo** → CLAIM-960.3 |
+| 5 | *(gate)* | `gate:pending` on `#960`. Each cancellation over the spend threshold gets a line in the `## iai-gate` comment with its cancellation window |
 | 6 | *(human)* | Human executes all seven changes. iAI touched nothing |
-| 7 | `/iai:task-verify 77` | Q4 reconciliation shows fixed outflow $2,914 → $2,498. Delta **$416**. `docs/evidence/77-20270115T1102Z.md` |
-| 8 | `/iai:story-verify 59` | Verdict `PASS`; `rung:optimised` attested. Integration PR opened against the private data repo, marked ready. **A human merges** |
+| 7 | `/iai:task-verify 963` | Q4 reconciliation shows fixed outflow $2,914 → $2,498. Delta **$416**. `docs/evidence/963-20270115T1102Z.md` |
+| 8 | `/iai:story-verify 960` | Verdict `PASS`; `rung:optimised` attested. Integration PR opened against the private data repo, marked ready. **A human merges** |
 
 ## 10. Failure modes and mitigations
 
@@ -345,7 +345,7 @@ Milestone 9  "Q4 Fixed-cost reduction"
 |--------------|-----------------|------------|
 | **Duplicate transactions on re-import** | The same CSV imported twice; September expenses double | Content-hash each statement line (`date + descriptor + amount + last_4`) and de-duplicate on import. Import is idempotent per statement period, per the pack-wide idempotency doctrine |
 | **A `match` substring catches the wrong rows** | `match: ["APPLE"]` swallows `APPLEBEES` and every App Store charge | Require substrings ≥ 8 characters or anchored to a statement prefix; `reconcile` reports match counts per vendor per period and flags any count that moves more than 50% against the prior period |
-| **Currency mixing** | A EUR charge lands in a USD ledger and the total is quietly wrong | Every monetary string carries its symbol; `reconcile` refuses a period containing more than one currency unless the ISA declares a rate source and an `as_of` date |
+| **Currency mixing** | A EUR charge lands in a USD ledger and the total is quietly wrong | Every monetary string carries its symbol; `reconcile` refuses a period containing more than one currency unless the Design declares a rate source and an `as_of` date |
 | **Placeholder strings reach an arithmetic path** | `"$X,XXX"` parses to `NaN`, or worse to `0`, and net worth is understated | Parse monetary strings through one strict function that throws on anything not matching `^\$?-?[\d,]+\.\d{2}$`. A placeholder is a **hard failure**, never a zero |
 | **`last_4` collision at one institution** | Two Chase accounts both ending `1847`; lines route to the wrong ledger | The reconciliation key is `institution + type + last_4`, and `/iai:init` fails on a duplicate key, forcing a disambiguating `nickname` before any import runs |
 
@@ -396,7 +396,7 @@ export const knowBinding: DomainBinding = {
           "provenance recorded: url, author, retrieved_at, sha256",
           "content wrapped in the external-content fence",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -407,7 +407,7 @@ export const knowBinding: DomainBinding = {
           "each claim carries >= 1 source with a locator",
           "confidence assigned: high | medium | low",
         ],
-        verifier: "judged",
+        verifier: "model-judged",
         reversible: true,
       },
       {
@@ -418,7 +418,7 @@ export const knowBinding: DomainBinding = {
           "at least one inbound or outbound link, or a written rationale " +
           "for why the claim stands alone",
         ],
-        verifier: "deterministic",
+        verifier: "tool-checked",
         reversible: true,
       },
       {
@@ -429,7 +429,7 @@ export const knowBinding: DomainBinding = {
           "zero unresolved conflicts with tier-A canon",
           "any conflict found has an open resolution Story",
         ],
-        verifier: "judged",
+        verifier: "model-judged",
         reversible: false,
       },
     ],
@@ -539,7 +539,7 @@ later reader sees that the corpus is not unanimous.
 | `know/capture` | `[url\|path] [--category Research]` | Snapshot a source with provenance (`url`, `author`, `retrieved_at`, `sha256`), wrap it in the external-content fence, write to `MEMORY/KNOWLEDGE/{Category}/{slug}.md` | No |
 | `know/distill` | `[entry] [--confidence medium]` | Extract falsifiable claims from a captured source, each with a locator into the snapshot. The `unitOfWork.leafSkill` | No |
 | `know/contradict` | `[claim\|entry]` | BM25 conflict detection across held claims. Emits `CLEAR`, `CONFLICT(tier-A)` or `TENSION`. Opens a resolution Story on conflict | **Yes** — a `CONFLICT(tier-A)` blocks promotion |
-| `know/cite` | `[claim] [--for 57]` | Resolve a claim to a citable reference for another domain's ISA; pin the snapshot by SHA permalink | **Yes** — promotion to tier A requires human authorisation |
+| `know/cite` | `[claim] [--for 950]` | Resolve a claim to a citable reference for another domain's Design; pin the snapshot by SHA permalink | **Yes** — promotion to tier A requires human authorisation |
 | `know/digest` | `[--since 2026-08-01]` | Periodic synthesis across recent captures; surfaces orphans, stale sources and uncited entries | No |
 
 ## 7. Data model
@@ -634,34 +634,34 @@ a prompt injection that escaped its wrapper.
 | Web fetch | `webfetch`, snapshotted to disk at capture | Manual paste. The `sha256` is computed over whatever was pasted, and provenance is marked `manual` |
 | PDF extraction | Local text extraction | Capture the PDF as a binary artifact plus a human-written abstract; claims must cite page numbers |
 | BM25 index | Computed on demand from `MEMORY/KNOWLEDGE/**` | It is always present, because it is derived from disk. There is no index to lose |
-| Other domain packs | One-way: they cite `know`, `know` never reads them | A `domain:trade` or `domain:health` ISA citing a tier-B or tier-C entry gets a warning at `story-design`; citing a missing entry is a hard failure |
+| Other domain packs | One-way: they cite `know`, `know` never reads them | A `domain:trade` or `domain:health` Design citing a tier-B or tier-C entry gets a warning at `story-design`; citing a missing entry is a hard failure |
 
 ## 9. Worked example
 
-Story `#60` exists to serve Story `#57` from
+Story `#970` exists to serve Story `#950` from
 [`06-domain-health.md`](06-domain-health.md).
 
 ```
 Milestone 8  "Q3 Lipid protocol"
- ├── #57  [domain:health] "Lower ApoB from 88 to under 60"
- │        ISC-2 cites → know entries below
- └── #60  [domain:know] "Establish the ApoB-vs-LDL-C evidence base"
-      ├── #78 [type:task] "Capture 4 primary sources"
-      ├── #79 [type:task] "Distill discordance claim"
-      └── #80 [type:task] "Contradiction check + promote"
+ ├── #950  [domain:health] "Lower ApoB from 88 to under 60"
+ │        CLAIM-950.2 cites → know entries below
+ └── #970  [domain:know] "Establish the ApoB-vs-LDL-C evidence base"
+      ├── #971 [type:task] "Capture 4 primary sources"
+      ├── #972 [type:task] "Distill discordance claim"
+      └── #973 [type:task] "Contradiction check + promote"
 ```
 
 | Step | Command | Result |
 |------|---------|--------|
-| 1 | `/iai:task-do 78` | `know/capture` snapshots 4 sources into `MEMORY/KNOWLEDGE/Research/`, each fenced, each with `sha256`. `rung:captured` |
-| 2 | `/iai:task-do 79` | `know/distill` extracts: *"At discordant ApoB/LDL-C values, ApoB predicts cardiovascular events better than LDL-C"*, `confidence: high`, locator `Table 3` → `rung:distilled` |
+| 1 | `/iai:task-do 971` | `know/capture` snapshots 4 sources into `MEMORY/KNOWLEDGE/Research/`, each fenced, each with `sha256`. `rung:captured` |
+| 2 | `/iai:task-do 972` | `know/distill` extracts: *"At discordant ApoB/LDL-C values, ApoB predicts cardiovascular events better than LDL-C"*, `confidence: high`, locator `Table 3` → `rung:distilled` |
 | 3 | *(cross-link)* | `related:` links to `[[ldl-c-measurement-error]]` and `[[lipoprotein-a-independent-risk]]`; both resolve → `rung:cross-linked` |
-| 4 | `/iai:task-do 80` | `know/contradict` returns `TENSION` against a tier-C 2016 entry asserting LDL-C sufficiency. Tier C does not block; the tension is recorded on both entries |
+| 4 | `/iai:task-do 973` | `know/contradict` returns `TENSION` against a tier-C 2016 entry asserting LDL-C sufficiency. Tier C does not block; the tension is recorded on both entries |
 | 5 | *(gate)* | `## iai-gate` posted: promotion to tier A. Human reviews the tension, comments `**Decision:** APPROVED` → `gate:approved`, `promoted: 2026-09-03` |
-| 6 | `/iai:cite --for 57` | The health ISA's ISC-2 gains a SHA-pinned citation to the snapshot. `#57` may now assert the ApoB-over-LDL-C premise as settled |
-| 7 | `/iai:story-verify 60` | Verdict `PASS`. The 2016 tier-C entry is demoted in the same PR with a note pointing at the new canon |
+| 6 | `/iai:cite --for 950` | The health Design's CLAIM-950.2 gains a SHA-pinned citation to the snapshot. `#950` may now assert the ApoB-over-LDL-C premise as settled |
+| 7 | `/iai:story-verify 970` | Verdict `PASS`. The 2016 tier-C entry is demoted in the same PR with a note pointing at the new canon |
 
-Without step 6, ISC-2 in `#57` is an unsourced assertion, and `story-design`
+Without step 6, CLAIM-950.2 in `#950` is an unsourced assertion, and `story-design`
 would have flagged it. That dependency is the whole reason `know` exists.
 
 ## 10. Failure modes and mitigations

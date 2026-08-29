@@ -5,7 +5,7 @@ import { checkCommitPrefix } from "../packages/core/src/index";
 // the commit message under construction (COMMIT_EDITMSG or equivalent).
 export function extractSubject(messageText: string): string {
   for (const rawLine of messageText.split("\n")) {
-    // Trim a trailing \r for CRLF safety, per the ISA.
+    // Trim a trailing \r for CRLF safety, per the Design.
     const line = rawLine.replace(/\r$/, "");
     // Deliberately NOT stripping lines starting with "#" as comments: git's
     // own comment character is "#", but our valid subjects also start with
@@ -37,7 +37,7 @@ export function runCommitMsgHook(messageFilePath: string | undefined): number {
     // Precedent: docs/design/09-security.md:131 writes the block message to
     // stderr.
     console.error(decision.message);
-    // Exit 1, not 2: ISC-3 and CONTRIBUTING.md:228 both say "non-zero". Exit
+    // Exit 1, not 2: CLAIM-9.3 and CONTRIBUTING.md:228 both say "non-zero". Exit
     // 2 is the Claude-Code PreToolUse convention (09-security.md:131) — a
     // different enforcement surface from this git hook.
     return 1;

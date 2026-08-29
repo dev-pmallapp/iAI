@@ -71,7 +71,7 @@ test proves a domain can be added without editing core. No package in
 | Feature | Description |
 |---------|-------------|
 | Kernel reference documents | The twelve `references/*.md` contract documents that skills cite rather than restate: context-discovery, gh-operations, gh-error-handling, verification, data-classification, model-routing, domain-binding, evidence-artifacts, branch-and-pr-model, workflow-states, isa-format and sizing-criteria. |
-| Planning skills | goal-create (TELOS goal to GitHub milestone), story-create (milestone feature table to Story issues), story-design (writes the ISA design document with pre-registered claims) and story-test-plan (ISA claims to a categorised verification plan). |
+| Planning skills | goal-create (Goals entry to GitHub milestone), story-create (milestone feature table to Story issues), story-design (writes the Design design document with pre-registered claims) and story-test-plan (Design claims to a categorised verification plan). |
 | Execution skills | task-create (one task sub-issue per unit of work, with Blocked-by dependency links and the parent checklist), task-do (branch, execute, draft PR, commit traceability) and task-verify (run the verification, mark the PR ready, resolve the task, roll up to the Story). |
 | Closure skills | story-verify (re-ground the plan on what was actually done, run it, open the integration PR, close the Story) and learn (extract learnings from a completed milestone, raise knowledge-base PRs, close the milestone). |
 | Continuity skills | checkpoint and resume for cross-session and cross-engineer handoff, plus status (six view modes with a local-only fallback), size (S/M/L/XL estimation) and replan (requirement-change detection and incremental update). |
@@ -143,7 +143,7 @@ in the emergency column of the anomaly table.
 |---------|-------------|
 | Trade binding and the risk mandate | The `trade` DomainBinding with a strategy or position change as its unit of work, plus the committed risk mandate defining position limits, sector caps, portfolio heat, drawdown halt and permitted instruments, amendable only by a human-reviewed pull request. |
 | Market data and broker adapter interfaces | Vendor-neutral provider interfaces for market data and brokerage, with PaperBroker as the default and only adapter enabled out of the box, and loud degradation to the research rung whenever a provider is absent rather than silent failure. |
-| Backtest engine and pre-registration | Backtesting with metrics for CAGR, maximum drawdown, Sharpe, hit rate, exposure and turnover, gated by the pre-registration rule that thresholds, sizing and exits are written into the ISA before the first run, with a logged backtest counter to expose overfitting by iteration. |
+| Backtest engine and pre-registration | Backtesting with metrics for CAGR, maximum drawdown, Sharpe, hit rate, exposure and turnover, gated by the pre-registration rule that thresholds, sizing and exits are written into the Design before the first run, with a logged backtest counter to expose overfitting by iteration. |
 | Risk officer, veto and kill switch | The risk-officer specialist spawned independently of the proposer, evaluating every order against the mandate, holding a veto that only the human principal may override with a logged reason, plus the armed kill switch that halts orders and demotes open trade Stories. |
 | Trade journal and audit trail | The append-only orders log pinning each order to the SHA of the mandate that authorised it, the daily journal, and the post-mortem skill that closes the loop from thesis through outcome. |
 | Live rung gating | The four-rung ladder enforced end to end, with the live rung requiring a written mandate, a per-order human authorisation, an armed kill switch, and a hard prohibition on any auto mode proceeding past the paper rung. |
@@ -172,7 +172,7 @@ Story rather than overwriting canon.
 | Feature | Description |
 |---------|-------------|
 | Dual-host installer | The installer that generates host-native agents and commands in each dialect, merges hook registrations without clobbering existing configuration, links the shared skill tree, and refuses to write anything without an explicit apply flag. |
-| Pulse read-only dashboard | The optional sidecar rendering GitHub state, the ISA tree and per-domain surfaces, which never writes and whose absence degrades cleanly to the text-mode status skill. |
+| Pulse read-only dashboard | The optional sidecar rendering GitHub state, the Design tree and per-domain surfaces, which never writes and whose absence degrades cleanly to the text-mode status skill. |
 | Release engineering and security audit | The leak scanner protecting the public/private repo split, the full irreversible-action audit, host compatibility testing on both Claude Code and opencode, documentation, and the v1.0 cut. |
 
 **Exit criteria.** A clean machine installs iAI on both hosts and completes one
@@ -183,7 +183,7 @@ full dev-domain milestone. The leak scanner passes. Zero telemetry ships.
 ## Task decomposition
 
 Tasks are created by `/iai:task-create <story>` from the Build Targets table in
-each Story's ISA. Indicative distribution:
+each Story's Design. Indicative distribution:
 
 | Milestone | Stories | Est. tasks | Dominant build targets |
 |-----------|---------|-----------|------------------------|
@@ -199,7 +199,7 @@ each Story's ISA. Indicative distribution:
 
 Per-story task tables live in `docs/milestones/M*.md`. Those tables are
 *indicative*: the authoritative task list for a Story is produced by
-`/iai:task-create <story>` from the Build Targets table in that Story's ISA, and
+`/iai:task-create <story>` from the Build Targets table in that Story's Design, and
 may differ once the design is written.
 
 ---
@@ -234,7 +234,7 @@ Then begin M1 story 1 (#9).
 Until M2 ships the Tier-1 skills there is no `/iai:` command to run, and forge is
 **not** used to stand in for one — it is a design input, already incorporated in
 `docs/design/00-synthesis.md`, never an installed plugin. For that window the
-loop in `docs/design/03-workflow.md` is executed **by hand**: the ISA lands at
-`docs/design/{issue}-isa.md`, evidence is posted behind `## iai-*` sentinels,
+loop in `docs/design/03-workflow.md` is executed **by hand**: the Design lands at
+`docs/design/stories/{issue}.md`, evidence is posted behind `## iai-*` sentinels,
 Stories carry a rung, and the three gates are honoured. From M3 onward `/iai:`
 drives its own construction. iAI is built by the system it generalises.
