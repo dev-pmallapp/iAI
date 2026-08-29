@@ -1017,7 +1017,7 @@ inference rather than from omo's source. Three of the six are load-bearing for
 | 380 | `:229-230` | Secrets in `.env` only; gitignored; CI leak scan and commit hook refuse a staged `.env` | yes | – | – | `confirmed` | `LifeOS/.gitignore` § Environment files; `SECURITY.md` § For Contributors |
 | 381 | `:231-233` | `.env` contents never enter a prompt; secrets never logged; read by code, not the model | yes | – | – | `confirmed` | `hooks/lib/egress-class-core.ts:31-35`; `LIFEOS_SYSTEM_PROMPT.md` rule 5 |
 | 382 | `:241-256` | The literal bash deny-list, plus `"env": deny` and `"printenv*": deny`, under `"*": allow` | yes | – | – | `corrected` | LifeOS's list (`install/settings.system.json:232-268`) covers `awk`/`cat`/`grep`/`head`/`less`/`od`/`rg`/`sed`/`tail`/`xxd` — but **contains no `env` or `printenv` entry**, and iAI silently drops `od` and `xxd` |
-| 383 | `:258-259` | Order matters: **the last matching rule wins in opencode**, so `"*": allow` is stated first | – | – | – | `original` | A host-behaviour claim attributed to no source and **not verifiable from omo** — searched `last matching`, `wildcard`, permission ordering across `packages/`, `docs/`, `assets/*.schema.json`. Repeated at `08-dual-target.md:266`. **If precedence is first-match or most-specific-match, every generated agent's deny rules are inert** |
+| 383 | `:258-259` | Order matters: **the last matching rule wins in opencode**, so `"*": allow` is stated first | – | – | – | `original` | A host-behaviour claim attributed to no source and not verifiable from omo's tree — searched `last matching`, `wildcard`, permission ordering across `packages/`, `docs/`, `assets/*.schema.json`. **Confirmed true against the shipped binary** by #198: `Permission.evaluate` resolves with `findLast((z) => g.match(j, z.permission) && g.match(J, z.pattern))`, and the bundle contains no first-match or specificity ranking. Key order is preserved by `fromConfig`, the unmatched default is `ask`, and `deny` short-circuits — so denials-last is load-bearing and the generated deny-lists, including the `.env` control, are effective. The verdict stays `original`: a binary is not one of the three sources. Repeated at `08-dual-target.md:266` |
 | 384 | `:261-263` | On CC the identical policy is a `PreToolUse` guard pattern-matching the command and exiting 2 | yes | – | – | `confirmed` | `PreToolGuard.hook.ts:45,129` "first block wins" |
 | 385 | `:276-280` | `.env.live` at mode `0400`, readable only when `live` is armed; kill switch un-arms in-process | – | – | – | `original` | No `.env.live`, rung arming or kill switch in any source. `00-synthesis.md:47` explicitly defers a secrets vault |
 | 386 | `:291`, `:293-312` | "Taken directly from LifeOS": public repo holds code; `USER/` is a **symlink** into a private repo | yes | – | – | `confirmed` | `LifeOS/SECURITY.md` § The Security Model — the symlink pattern is exactly LifeOS's |
@@ -1107,14 +1107,15 @@ The highest-value items, for whoever picks it up:
 | 314, 423, 515, 774 | `03-workflow.md:131` mandates one rung-colour ramp across every ladder. Three of five domain bindings use a different one |
 | 171, 466, 562 | The `{ts}` evidence timestamp has three formats across four documents |
 | 420, 546 | The evidence and order-ledger paths disagree between documents |
-| 383 | "The last matching rule wins in opencode" could not be verified in any source. If precedence is first-match or most-specific-match instead, **every generated agent's deny rules are inert.** This is a shipped-behaviour risk, not a documentation one |
+| 383 | ~~Precedence unverifiable; deny rules possibly inert.~~ **Resolved by #198 — no longer a risk.** Last-match-wins is confirmed against the shipped binary; `Permission.evaluate` uses `findLast` and nothing in the bundle ranks by first match or specificity. The generated deny-lists are effective and no edit to `09-security.md` or `08-dual-target.md` is required |
 | 305, 316, 338, 466, 482, 820 | Six deliberate divergences from forge with no rename-table row |
 | 356 | iAI fail-closes unknown data one class lower than LifeOS. Now recorded at the point of use, but not in `00-synthesis.md` |
 | 448, 410 | The design says tests are written from `ISC-N` and never from the code; forge says the opposite, twice, and calls reading the implementation the thing that makes tests real |
 | 460 | "Leaves are invoked by Tier-1 verbs, not by the user" contradicts forge's explicit "skills are never hidden behind agents" |
 | 473, 469, 471 | `## Commands` header is `Kind`; forge parses `Action`. `Type` is closed to three values; forge treats unknown values as `library`. `Source dirs` is required; forge tolerates its absence |
 
-Row 383 is the one worth acting on before M1 ships. The rest are documentation
+Row 383 was the one worth acting on before M1 ships, and #198 closed it: the
+claim is true, so the deny-lists it underwrites hold. The rest are documentation
 debt.
 
 ---
@@ -1135,6 +1136,18 @@ debt.
 | 3.8 · `08-dual-target.md` | 100 | 46 | 27 | 21 | 6 |
 | 3.9 · `09-security.md` | 50 | 27 | 5 | 18 | 0 |
 | **Total** | **807** | **380** | **152** | **227** | **24** |
+
+**783 of the 807 rows carry a verdict.** Section 2's 24 rows are the
+cross-document conflict register — internal contradictions between two places in
+`docs/design/`, not reconciliations against a source — so they carry no verdict
+in any of the four columns, which is why they show as `—` above. That is the
+whole of the difference: the `Rows` column sums to 807, the four verdict columns
+sum to 783, and both are correct because they count different things. Quote 807
+for the size of the pass and 783 for the number of verdicted assertions.
+
+Section 4.1 also holds 24 entries, and that is a coincidence rather than the same
+24: it is an index over the `invented` rows already counted in section 3, not an
+additional block of rows.
 
 Every file in `docs/design/` has been passed. Every `invented` row names the
 commit that corrected it.
@@ -1169,14 +1182,14 @@ cloned it, and it is the source `08-dual-target.md` describes.
 
 ### On the verdict counts
 
-`original` at 231 rows is 29% of the pass, and that is the honest number for a
-synthesis: the domain-binding seam, the rung ladders, the gate vocabulary, the
-risk officer and the entire trading pack are new work. `corrected` at 147 is
-larger than it should be, and most of it is the unrecorded-divergence debt in
-§4.3 rather than misstatement.
+`original` at 227 rows is 29% of the verdicted rows, and that is the honest
+number for a synthesis: the domain-binding seam, the rung ladders, the gate
+vocabulary, the risk officer and the entire trading pack are new work.
+`corrected` at 152 is larger than it should be, and most of it is the
+unrecorded-divergence debt in §4.3 rather than misstatement.
 
 The three-verdict vocabulary ISC-6 specifies could not express this. Forcing
-net-new design into `invented` would have demanded 231 deletion commits and
+net-new design into `invented` would have demanded 227 deletion commits and
 destroyed the project to satisfy a claim about documentation accuracy. The
 `original` verdict added in §Verdicts is the minimum change that makes the claim
 executable, and it narrows nothing: all 24 genuine false-provenance rows were
