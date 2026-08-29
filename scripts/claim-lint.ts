@@ -1,7 +1,8 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { join, relative, resolve, sep } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import {
   lintClaimDocs,
+  lintPathRefs,
   mapStory,
   formatClaimId,
   type ClaimDoc,
@@ -78,12 +79,78 @@ function toDocs(repoRoot: string, files: string[]): ClaimDoc[] {
   }));
 }
 
+// path-dangling (CLAIM path-dangling, issue #210) needs to know every path
+// that actually exists in the repo. `git ls-files` — not a recursive
+// readdir — is the source of truth here: tracked files only, so an
+// file that exists but is deliberately ignored -- USER/ is a symlink into a
+// private repo -- cannot make a cited path resolve.
+//
+// `--cached --others --exclude-standard` is tracked files PLUS untracked ones
+// git is not ignoring. Tracked-only was wrong: a path added in the same commit
+// as the document citing it is untracked until `git add`, so the guard failed
+// on correct work-in-progress and would have taught people to ignore it. In CI
+// everything is committed, so the two forms agree there.
+function buildKnownPaths(repoRoot: string): ReadonlySet<string> {
+  const proc = Bun.spawnSync(["git", "ls-files", "--cached", "--others", "--exclude-standard"], {
+    cwd: repoRoot,
+  });
+  if (proc.exitCode !== 0) {
+    console.error("claim-lint: `git ls-files` failed; is this a git working tree?");
+    process.exit(1);
+  }
+
+  const known = new Set<string>();
+  const stdout = proc.stdout.toString("utf8");
+  for (const rawLine of stdout.split("\n")) {
+    const file = rawLine.trim();
+    if (file.length === 0) continue;
+    known.add(file);
+
+    // A cited path can name a directory, not just a file (e.g.
+    // `packages/core/src/binding`), so every directory prefix of every
+    // tracked file must resolve too.
+    let dir = dirname(file);
+    while (dir !== "." && dir !== "/" && !known.has(dir)) {
+      known.add(dir);
+      dir = dirname(dir);
+    }
+  }
+  return known;
+}
+
+// path-dangling's exclusion 8: gitignored prefixes (e.g. `USER/`, a symlink
+// into a private repo, .gitignore:8) are never resolvable from a tree
+// listing and must not be treated as dangling. Only PLAIN directory
+// prefixes are picked up here — lines ending in `/` with no glob character
+// — which is exactly what .gitignore:8 is; anything glob-shaped is out of
+// scope for this simple prefix match.
+function buildIgnoredPrefixes(repoRoot: string): string[] {
+  const gitignorePath = join(repoRoot, ".gitignore");
+  if (!existsSync(gitignorePath)) return [];
+
+  const prefixes: string[] = [];
+  const lines = readFileSync(gitignorePath, "utf8").split("\n");
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (line.length === 0) continue;
+    if (line.startsWith("#")) continue;
+    if (line.startsWith("!")) continue;
+    if (!line.endsWith("/")) continue;
+    if (/[*?[]/.test(line)) continue;
+
+    const normalized = line.startsWith("/") ? line.slice(1) : line;
+    prefixes.push(normalized);
+  }
+  return prefixes;
+}
+
 const RULE_IDS: ClaimRuleId[] = [
   "isc-token",
   "identifier-malformed",
   "identifier-duplicate",
   "anticlaim-not-never",
   "anchor-dangling",
+  "path-dangling",
 ];
 
 function pluralize(count: number, singular: string, plural: string): string {
@@ -113,6 +180,7 @@ function printReport(violations: ClaimViolation[], fileCount: number): void {
     "identifier-duplicate": 0,
     "anticlaim-not-never": 0,
     "anchor-dangling": 0,
+    "path-dangling": 0,
   };
   for (const violation of violations) byRule[violation.rule] += 1;
 
@@ -166,6 +234,7 @@ function main(): void {
 
   const mapIndex = args.indexOf("--map");
   const mapValueIndex = mapIndex === -1 ? -1 : mapIndex + 1;
+  const pathsOnly = args.indexOf("--paths-only") !== -1;
   const positional = args.find((arg, index) => !arg.startsWith("--") && index !== mapValueIndex);
 
   if (positional !== undefined && !existsSync(resolve(positional))) {
@@ -187,7 +256,17 @@ function main(): void {
   }
 
   const docs = toDocs(repoRoot, files);
-  const violations = lintClaimDocs(docs);
+
+  // path-dangling (CLAIM path-dangling, issue #210) is scanned regardless of
+  // --paths-only, over the markdown subset of whatever scope was resolved
+  // above; --paths-only just suppresses the other, unrelated claim-lint
+  // rules from the report.
+  const knownPaths = buildKnownPaths(repoRoot);
+  const ignoredPrefixes = buildIgnoredPrefixes(repoRoot);
+  const markdownDocs = docs.filter((doc) => doc.path.endsWith(".md"));
+  const pathViolations = lintPathRefs(markdownDocs, { knownPaths, ignoredPrefixes });
+
+  const violations = pathsOnly ? pathViolations : [...lintClaimDocs(docs), ...pathViolations];
   printReport(violations, docs.length);
 
   const hasError = violations.some((v) => v.severity === "error");

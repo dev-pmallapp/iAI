@@ -15,3 +15,7 @@ export type {
   ClaimSeverity,
   ClaimViolation,
 } from "./claim-lint";
+export { PATH_ALLOW_LIST, isPathAllowed } from "./path-allowlist";
+export type { AllowReason, AllowedPath } from "./path-allowlist";
+export { extractPathRefs, lintPathRefs } from "./path-refs";
+export type { PathRefOptions } from "./path-refs";

@@ -135,6 +135,69 @@ describe("claim-lint --map", () => {
   });
 });
 
+describe("claim-lint path-dangling", () => {
+  // THE regression test for the pure rule wired in by issue #210. If this
+  // goes red, either the tree cited a path that no longer resolves, or the
+  // rule itself regressed.
+  test("the real tree passes with zero path-dangling violations", async () => {
+    const { stdout, code } = await run();
+    expect(code).toBe(0);
+    expect(stdout).toMatch(/path-dangling\s+0 violations/);
+  });
+
+  test("path-dangling appears in the printed rule summary", async () => {
+    const { stdout } = await run();
+    expect(stdout).toContain("path-dangling");
+  });
+
+  test("exits 1 and names the path and line for a dangling citation", async () => {
+    const dir = makeTempDir();
+    writeFileSync(
+      join(dir, "planted.md"),
+      ["# Planted", "", "See docs/design/stories/999.md for details.", ""].join("\n"),
+      "utf8",
+    );
+
+    const { stdout, stderr, code } = await run(dir);
+    expect(code).toBe(1);
+    const combined = stdout + stderr;
+    expect(combined).toContain("docs/design/stories/999.md");
+    expect(combined).toContain(":3");
+    expect(combined).toContain("path-dangling");
+  });
+
+  test("a citation of a path that DOES exist in the repo passes, regardless of scan directory", async () => {
+    const dir = makeTempDir();
+    writeFileSync(
+      join(dir, "existing.md"),
+      ["# Existing", "", "See README.md for details.", ""].join("\n"),
+      "utf8",
+    );
+
+    const { stdout, code } = await run(dir);
+    expect(code).toBe(0);
+    expect(stdout).toMatch(/path-dangling\s+0 violations/);
+  });
+
+  test("--paths-only exits 0 on the real tree", async () => {
+    const { code } = await run("--paths-only");
+    expect(code).toBe(0);
+  });
+
+  test("a citation with a trailing :LINE suffix on an existing path does not fire", async () => {
+    const dir = makeTempDir();
+    writeFileSync(
+      join(dir, "suffixed.md"),
+      ["# Suffixed", "", "See README.md:42 for details.", ""].join("\n"),
+      "utf8",
+    );
+
+    const { stdout, code } = await run(dir);
+    expect(code).toBe(0);
+    expect(stdout).toMatch(/path-dangling\s+0 violations/);
+  });
+});
+
 describe("CLAIM-194.1 allow-list closure over the real tree", () => {
   test("no file in scope carries the retired token outside the four allow-listed paths", async () => {
     // Asserted through the shipped guard rather than a hand-rolled grep, so the

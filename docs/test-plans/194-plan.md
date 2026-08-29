@@ -40,6 +40,7 @@ carries two anti-claim cases and the highest severity.
 | CLAIM-194.5 | 8, 18 | P1 |
 | NEVER-194.6 | 9, 10 | P0 |
 | NEVER-194.7 | 11, 19 | P0, P1 |
+| CLAIM-194.8 | 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32 | P0, P1 |
 
 ## Test Cases
 
@@ -87,6 +88,22 @@ carries two anti-claim cases and the highest severity.
 |---|------|------------|--------|----------|----------|---------|-------------|
 | 18 | Evidence documents remain resolvable via the mapping note | CLAIM-194.5 | iai-references | P1 | model-judged | read `docs/evidence/187-*.md` `Claims: ISC-4, ISC-9` | Both resolve through `stories/194.md` to `CLAIM-9.4` and `NEVER-9.9` |
 | 19 | A newly posted sentinel uses the renamed form | NEVER-194.7 | iai-references | P1 | human-attested | next Story's sentinel | Posted as `## iai-design`; nothing still greps `iai-isa` |
+
+### Path Guard (#210)
+
+| # | Case | anchors_to | Target | Priority | Verifier | Command | Passes when |
+|---|------|------------|--------|----------|----------|---------|-------------|
+| 22 | A citation of an existing repo-relative path passes | CLAIM-194.8 | iai-core | P0 | tool-checked | `bun run claim-lint` | Exit 0; no `path-dangling` violation |
+| 23 | A citation of a non-existent repo-relative path fails | CLAIM-194.8 | iai-core | P0 | tool-checked | plant `` `docs/design/stories/888.md` `` in a design doc, run `claim-lint` | Non-zero exit; `path-dangling` names the file and line of the citation |
+| 24 | The planted `docs/design/stories/999.md` fires | CLAIM-194.8 | iai-core | P0 | tool-checked | plant `` `docs/design/stories/999.md` `` in a design doc, run `claim-lint` | Non-zero exit; `path-dangling` names `docs/design/stories/999.md` |
+| 25 | Exclusion 1 — a citing file under `docs/evidence/` is skipped entirely | CLAIM-194.8 | iai-core | P1 | tool-checked | plant a dangling citation inside `docs/evidence/1-x.md`, run `claim-lint` | Exit 0; the evidence file is never scanned |
+| 26 | Exclusion 2 — a cited target under `docs/evidence/` is excluded | CLAIM-194.8 | iai-core | P1 | tool-checked | cite a nonexistent `docs/evidence/999-x.md` from a design doc, run `claim-lint` | Exit 0; no violation for the evidence-prefixed target |
+| 27 | Exclusion 3 — a `{}` or `<>` template placeholder is excluded | CLAIM-194.8 | iai-core | P1 | tool-checked | cite `docs/design/stories/{issue}.md` and `docs/design/NN-domain-<id>.md`, run `claim-lint` | Exit 0; neither placeholder is reported |
+| 28 | Exclusion 4 — a glob is excluded | CLAIM-194.8 | iai-core | P1 | tool-checked | cite `docs/milestones/M*.md`, run `claim-lint` | Exit 0; no violation |
+| 29 | Exclusion 5 — range notation is excluded | CLAIM-194.8 | iai-core | P1 | tool-checked | cite `docs/milestones/M1..M8.md`, run `claim-lint` | Exit 0; no violation |
+| 30 | Exclusion 6 — a SHA-pinned permalink target must NOT be reported | CLAIM-194.8 | iai-core | P0 | tool-checked | cite a nonexistent path trailing `/blob/<sha>/`, both a 40-hex and a 7-8-hex short SHA, run `claim-lint` | Exit 0 for both; the `{7,40}` contract (`docs/milestones/M1.md:170`) covers short SHAs too |
+| 31 | Exclusion 7 — citing file is `docs/design/verification-pass.md` | CLAIM-194.8 | iai-core | P1 | tool-checked | cite an ancestor-repo path from `verification-pass.md`, run `claim-lint` | Exit 0; that document's citations are never checked against this tree |
+| 32 | Exclusion 8 — a path under an `ignoredPrefixes` entry is excluded | CLAIM-194.8 | iai-core | P1 | tool-checked | cite `USER/GOALS/GOALS.md`, run `claim-lint` | Exit 0; no violation |
 
 ## Not applicable
 
