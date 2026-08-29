@@ -27,16 +27,42 @@ import {
 
 const SKIP_DIRS = new Set(["node_modules", "dist"]);
 
-function discoverDocFiles(dir: string): string[] {
+// The directories CLAIM-194.1 puts in scope: "No file under `docs/`,
+// `scripts/`, `.github/` or the root markdown set". Note the claim says *file*,
+// not *markdown file* — the retired token is banned from shell scripts and
+// workflow YAML too, which is where it had been hiding.
+const SCOPE_DIRS = ["docs", "scripts", ".github"];
+
+function discoverFiles(dir: string, markdownOnly: boolean): string[] {
   const files: string[] = [];
   const entries = readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {
     if (entry.isDirectory()) {
       if (SKIP_DIRS.has(entry.name)) continue;
-      files.push(...discoverDocFiles(join(dir, entry.name)));
+      files.push(...discoverFiles(join(dir, entry.name), markdownOnly));
       continue;
     }
-    if (entry.name.endsWith(".md")) files.push(join(dir, entry.name));
+    if (!markdownOnly || entry.name.endsWith(".md")) files.push(join(dir, entry.name));
+  }
+  return files;
+}
+
+/** Every file CLAIM-194.1 governs: the three scope directories in full, plus
+ *  markdown sitting at the repo root (README, CONTRIBUTING, PLAN, ARCHITECTURE).
+ *
+ *  Scanning only `docs/` — which is what this shim did when it shipped, and
+ *  what the CI job invoked — under-implements the claim by three quarters. It
+ *  also made the guard unable to see its own violation: the first thing the
+ *  widened scope caught was this file and CONTRIBUTING.md, both of which had
+ *  acquired the retired token while describing the rule that bans it. */
+function discoverScopeFiles(repoRoot: string): string[] {
+  const files: string[] = [];
+  for (const name of SCOPE_DIRS) {
+    const dir = join(repoRoot, name);
+    if (existsSync(dir)) files.push(...discoverFiles(dir, false));
+  }
+  for (const entry of readdirSync(repoRoot, { withFileTypes: true })) {
+    if (entry.isFile() && entry.name.endsWith(".md")) files.push(join(repoRoot, entry.name));
   }
   return files;
 }
@@ -45,8 +71,7 @@ function toRepoRelative(repoRoot: string, absoluteFile: string): string {
   return relative(repoRoot, absoluteFile).split(sep).join("/");
 }
 
-function loadDocs(repoRoot: string, targetDir: string): ClaimDoc[] {
-  const files = discoverDocFiles(targetDir);
+function toDocs(repoRoot: string, files: string[]): ClaimDoc[] {
   return files.map((file) => ({
     path: toRepoRelative(repoRoot, file),
     source: readFileSync(file, "utf8"),
@@ -106,14 +131,14 @@ function printReport(violations: ClaimViolation[], fileCount: number): void {
   );
 }
 
-function runMap(repoRoot: string, targetDir: string, storyArg: string | undefined): void {
+function runMap(repoRoot: string, files: string[], storyArg: string | undefined): void {
   const story = Number(storyArg);
   if (storyArg === undefined || !Number.isInteger(story) || story <= 0) {
     console.error(`claim-lint: --map requires a positive integer Story number, got "${storyArg}"`);
     process.exit(1);
   }
 
-  const docs = loadDocs(repoRoot, targetDir);
+  const docs = toDocs(repoRoot, files);
   const ids = mapStory(story, docs);
 
   if (ids.length === 0) {
@@ -121,9 +146,16 @@ function runMap(repoRoot: string, targetDir: string, storyArg: string | undefine
     process.exit(1);
   }
 
-  console.log(`claim-lint: Story ${story} — ${ids.length} identifiers`);
+  // The legacy number is printed bare, as `n=1`, rather than spelled with the
+  // retired prefix it used to carry. CLAIM-194.1 bans that token from every
+  // file under scripts/, and the allow-list is closed — "a fifth path is a
+  // violation" — so this file cannot be exempted to describe the thing it
+  // enforces. Same resolution #202 reached for M1.md: state the mapping
+  // without naming the retired token. The mapping note at
+  // docs/design/stories/194.md is where the old spelling legitimately lives.
+  console.log(`claim-lint: Story ${story} — ${ids.length} identifiers, legacy n preserved`);
   for (const id of ids) {
-    console.log(`claim-lint:   ISC-${id.n} -> ${formatClaimId(id)}`);
+    console.log(`claim-lint:   n=${id.n} -> ${formatClaimId(id)}`);
   }
   process.exit(0);
 }
@@ -135,19 +167,26 @@ function main(): void {
   const mapIndex = args.indexOf("--map");
   const mapValueIndex = mapIndex === -1 ? -1 : mapIndex + 1;
   const positional = args.find((arg, index) => !arg.startsWith("--") && index !== mapValueIndex);
-  const targetDir = positional ? resolve(positional) : join(repoRoot, "docs");
 
-  if (!existsSync(targetDir)) {
-    console.error("claim-lint: target directory does not exist: " + targetDir);
+  if (positional !== undefined && !existsSync(resolve(positional))) {
+    console.error("claim-lint: target directory does not exist: " + resolve(positional));
     process.exit(1);
   }
 
+  // With no positional argument the guard walks CLAIM-194.1's full scope, not
+  // just docs/. A positional argument narrows it, which is what test case 20
+  // (`claim-lint docs/milestones`) exercises.
+  const files =
+    positional === undefined
+      ? discoverScopeFiles(repoRoot)
+      : discoverFiles(resolve(positional), true);
+
   if (mapIndex !== -1) {
-    runMap(repoRoot, targetDir, args[mapIndex + 1]);
+    runMap(repoRoot, files, args[mapIndex + 1]);
     return;
   }
 
-  const docs = loadDocs(repoRoot, targetDir);
+  const docs = toDocs(repoRoot, files);
   const violations = lintClaimDocs(docs);
   printReport(violations, docs.length);
 
