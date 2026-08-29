@@ -27,7 +27,7 @@ created: 2026-08-25
 
 A clean checkout of iAI must install and build all ten `library` and `binary`
 targets named in the Build Targets table, and a pull request must report
-build, test, lint, typecheck and skill-lint as five separately named required
+build, test, lint, typecheck, skill-lint and claim-lint as six separately named required
 checks, with any one of them failing leaving the PR unmergeable. A malformed
 commit subject and a malformed skill frontmatter must each be rejected at the
 point of authorship, not later in CI. `docs/design/verification-pass.md` must
@@ -59,7 +59,7 @@ in `docs/design/` against LifeOS, forge and oh-my-opencode, with every
 |---|------|------------|--------|----------|----------|---------|-------------|
 | 1 | Clean install and workspace build produces an artifact for every library and binary target | CLAIM-9.1 | iai-core | P0 | tool-checked | `bun install && bun run build` | Exit code 0, no `error TS` line on stderr, and an artifact exists for each of the ten library/binary targets in the Design's Build Targets table |
 | 2 | A filtered build of `iai-core` alone succeeds, confirming the filter mechanism every other target's build depends on | CLAIM-9.1 | iai-core | P1 | tool-checked | `bun run build --filter iai-core` | Exit code 0, no `error TS` line on stderr, artifact produced for `packages/core` |
-| 3 | A pull request reports exactly five separately named required check contexts | CLAIM-9.2 | iai-core | P0 | tool-checked | `bash scripts/verify-required-checks.sh` | Exit code 0 and the script reports exactly 5 contexts named build, test, lint, typecheck, skill-lint |
+| 3 | A pull request reports exactly six separately named required check contexts | CLAIM-9.2 | iai-core | P0 | tool-checked | `bash scripts/verify-required-checks.sh` | Exit code 0 and the script reports exactly 6 contexts named build, test, lint, typecheck, skill-lint, claim-lint |
 | 4 | Lint exits clean on an unmodified `packages/core` tree | CLAIM-9.4 | iai-core | P1 | tool-checked | `bun run lint` | Exit code 0 with no errors reported against `packages/core` |
 | 5 | Skill-lint passes a docs-target `SKILL.md` whose frontmatter carries a valid `name` and `description` matching its directory | CLAIM-9.5 | iai-references | P1 | tool-checked | `bun run skill-lint skills/` | Exit code 0 |
 | 6 | Lint reports zero host-import and zero `process.cwd()` violations against an unmodified `packages/core` | NEVER-9.9 | iai-core | P1 | tool-checked | `bun run lint` | Exit code 0 and 0 violations reported for the host-import and `process.cwd()` rules |
@@ -91,7 +91,7 @@ in `docs/design/` against LifeOS, forge and oh-my-opencode, with every
 
 | # | Case | anchors_to | Target | Priority | Verifier | Command | Passes when |
 |---|------|------------|--------|----------|----------|---------|-------------|
-| 20 | The full local pipeline — install, build, test, lint, typecheck, skill-lint — runs to completion on a clean checkout | CLAIM-9.1, CLAIM-9.2 | iai-core | P0 | tool-checked | `bun install && bun run build && bun test && bun run lint && bun run typecheck && bun run skill-lint` | Exit code 0 for the whole chain, matching the five checks reported on a PR |
+| 20 | The full local pipeline — install, build, test, lint, typecheck, skill-lint — runs to completion on a clean checkout | CLAIM-9.1, CLAIM-9.2 | iai-core | P0 | tool-checked | `bun install && bun run build && bun test && bun run lint && bun run typecheck && bun run skill-lint` | Exit code 0 for the whole chain, matching the six checks reported on a PR |
 | 21 | `bun run typecheck` resolves all thirteen package entries in one pass via TypeScript project references | CLAIM-9.1 | iai-core | P1 | tool-checked | `bun run typecheck` | Exit code 0, `tsc` reports no diagnostics across the workspace |
 | 22 | A skill-lint rejection on a docs target correlates to a `corrected` verdict row in the reconciliation table citing the same fixing commit | CLAIM-9.5, CLAIM-9.6 | iai-references | P1 | model-judged | `bun run skill-lint skills/` | The linter's exit code transitions from non-zero to 0 after the fix, and the corresponding `docs/design/verification-pass.md` row reads `corrected` and cites the fixing commit |
 

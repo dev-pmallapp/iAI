@@ -9,15 +9,15 @@ trap '[[ -n "${http_body:-}" ]] && rm -f "${http_body}"' EXIT
 # verify-required-checks.sh — mechanically verify CLAIM-9.2 of docs/design/stories/9.md.
 #
 # CLAIM-9.2: "A pull request reports build, test, lint, typecheck and skill-lint
-# as five separately named required checks; failing any one leaves the PR
+# as six separately named required checks; failing any one leaves the PR
 # unmergeable."
 #
 # Two modes, matching docs/test-plans/9-plan.md:
 #
 #   Configuration mode (no --pr, case 3): read the branch protection rule for
-#   the target branch and assert SET EQUALITY against the five required
+#   the target branch and assert SET EQUALITY against the six required
 #   context names below. Both a missing context and a sixth, unexpected one
-#   are failures — "exactly five" is exact, not "at least".
+#   are failures — "exactly six" is exact, not "at least".
 #
 #   PR mode (--pr N, case 14): read that PR's mergeStateStatus and
 #   statusCheckRollup and report which contexts are blocking. The pass
@@ -37,7 +37,7 @@ REPO=""
 BRANCH="main"
 PR=""
 
-REQUIRED_CONTEXTS=(build test lint typecheck skill-lint)
+REQUIRED_CONTEXTS=(build test lint typecheck skill-lint claim-lint)
 
 if [[ -t 1 ]]; then
   C_RESET=$'\033[0m'
@@ -63,7 +63,7 @@ fail_line() { printf '%s%s FAIL%s %s\n' "${C_RED}${C_BOLD}" "$(printf '\xe2\x9c\
 
 usage() {
   cat <<EOF
-${SCRIPT_NAME} — verify CLAIM-9.2: exactly five named required checks.
+${SCRIPT_NAME} — verify CLAIM-9.2: exactly six named required checks.
 
 Configuration mode (default, no --pr): reads branch protection for --branch
 and asserts its required status checks are EXACTLY:
@@ -189,7 +189,7 @@ check_configuration() {
   GET /repos/${REPO}/branches/${BRANCH}/protection).
 
   CLAIM-9.2 (docs/design/stories/9.md) requires branch protection on '${BRANCH}' with
-  exactly these five required status check contexts:
+  exactly these six required status check contexts:
     ${REQUIRED_CONTEXTS[*]}
 
   Until branch protection is configured with required status checks, CLAIM-9.2
@@ -204,6 +204,7 @@ check_configuration() {
       -f 'required_status_checks.contexts[]=lint' \\
       -f 'required_status_checks.contexts[]=typecheck' \\
       -f 'required_status_checks.contexts[]=skill-lint' \\
+      -f 'required_status_checks.contexts[]=claim-lint' \\
       -f enforce_admins=true \\
       -f required_pull_request_reviews=null \\
       -f restrictions=null
@@ -236,7 +237,7 @@ EOF
   expected_sorted="$(printf '%s\n' "${REQUIRED_CONTEXTS[@]}" | sort -u)"
 
   printf '\n'
-  printf '%sExpected required contexts (5):%s\n' "${C_BOLD}" "${C_RESET}"
+  printf '%sExpected required contexts (6):%s\n' "${C_BOLD}" "${C_RESET}"
   printf '  %s\n' "${REQUIRED_CONTEXTS[@]}"
   printf '\n'
   printf '%sActual required contexts (%d):%s\n' "${C_BOLD}" "$(printf '%s\n' "${actual_json}" | sed '/^$/d' | wc -l | tr -d ' ')" "${C_RESET}"
@@ -248,7 +249,7 @@ EOF
   printf '\n'
 
   if [[ "${expected_sorted}" == "${actual_json}" ]]; then
-    pass_line "branch '${BRANCH}' requires exactly the five named contexts"
+    pass_line "branch '${BRANCH}' requires exactly the six named contexts"
     return 0
   fi
 
@@ -257,9 +258,9 @@ EOF
   extra="$(comm -13 <(printf '%s\n' "${expected_sorted}") <(printf '%s\n' "${actual_json}") 2>/dev/null || true)"
 
   [[ -z "${missing}" ]] || printf '%sMissing (required by CLAIM-9.2, absent from config):%s\n  %s\n\n' "${C_RED}" "${C_RESET}" "$(printf '%s ' ${missing})" >&2
-  [[ -z "${extra}" ]] || printf '%sUnexpected (present but not one of the five):%s\n  %s\n\n' "${C_RED}" "${C_RESET}" "$(printf '%s ' ${extra})" >&2
+  [[ -z "${extra}" ]] || printf '%sUnexpected (present but not one of the six):%s\n  %s\n\n' "${C_RED}" "${C_RESET}" "$(printf '%s ' ${extra})" >&2
 
-  fail_line "branch '${BRANCH}' does not require exactly the five named contexts"
+  fail_line "branch '${BRANCH}' does not require exactly the six named contexts"
   return 1
 }
 

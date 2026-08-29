@@ -15,14 +15,14 @@ set -euo pipefail
 #      which blocks forever rather than passing, but is just as broken).
 #
 # This script parses the workflow file and FAILS if:
-#   - any of the five required jobs (build, test, lint, typecheck,
+#   - any of the six required jobs (build, test, lint, typecheck,
 #     skill-lint) carries a job-level `if:` key,
 #   - the workflow-level `on:` block contains `paths`, `paths-ignore`,
 #     anywhere, or a `branches:` filter under `pull_request`,
-#   - any of the five required jobs carries `strategy:`/`matrix:` (a matrix
+#   - any of the six required jobs carries `strategy:`/`matrix:` (a matrix
 #     renames the reported context to "job (dim1, dim2)" and silently
 #     breaks branch protection, which is required by CLAIM-9.2),
-#   - any of the five required job names is missing from the workflow.
+#   - any of the six required job names is missing from the workflow.
 #
 # Prefers a real YAML parse via PyYAML. Falls back to a careful grep/awk
 # indentation-based scan if PyYAML is unavailable, and says so explicitly —
@@ -37,7 +37,7 @@ SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 
-REQUIRED_JOBS=(build test lint typecheck skill-lint)
+REQUIRED_JOBS=(build test lint typecheck skill-lint claim-lint)
 WORKFLOW_PATH="${REPO_ROOT}/.github/workflows/ci.yml"
 
 if [[ -t 1 ]]; then
@@ -117,7 +117,7 @@ import sys
 import yaml
 
 path = sys.argv[1]
-required = ["build", "test", "lint", "typecheck", "skill-lint"]
+required = ["build", "test", "lint", "typecheck", "skill-lint", "claim-lint"]
 
 with open(path) as f:
     doc = yaml.safe_load(f)
@@ -139,7 +139,7 @@ results = []
 
 missing_jobs = [j for j in required if j not in jobs]
 results.append((
-    "all five required jobs are present in the workflow",
+    "all six required jobs are present in the workflow",
     not missing_jobs,
     "all present" if not missing_jobs else f"missing: {', '.join(missing_jobs)}",
 ))
@@ -258,9 +258,9 @@ run_grep_fallback() {
     fi
   done
   if ((${#missing_jobs[@]} == 0)); then
-    echo "PASS|all five required jobs are present in the workflow|all present"
+    echo "PASS|all six required jobs are present in the workflow|all present"
   else
-    echo "FAIL|all five required jobs are present in the workflow|missing: $(
+    echo "FAIL|all six required jobs are present in the workflow|missing: $(
       IFS=,
       echo "${missing_jobs[*]}"
     )"

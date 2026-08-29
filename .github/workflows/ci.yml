@@ -1,6 +1,6 @@
 # This workflow implements CLAIM-9.2 and NEVER-9.8 from docs/design/stories/9.md.
 #
-# CLAIM-9.2: build, test, lint, typecheck and skill-lint must report as five
+# CLAIM-9.2: build, test, lint, typecheck, skill-lint and claim-lint must report as six
 # separately named required checks. Each is its own job below; do not merge
 # them into one job or add a matrix (a matrix renames the context to
 # "job (dim1, dim2)" and breaks branch protection).
@@ -11,7 +11,7 @@
 #
 #   1. A job skipped by an `if:` condition reports status "success" (GitHub's
 #      required-status-check docs list success, skipped and neutral as all
-#      counting as passing). Therefore none of the five required jobs below
+#      counting as passing). Therefore none of the six required jobs below
 #      may ever carry an `if:` key, for any reason.
 #   2. A workflow skipped entirely by `paths:`, `paths-ignore:` or a
 #      `branches:` filter on `pull_request` leaves its required checks stuck
