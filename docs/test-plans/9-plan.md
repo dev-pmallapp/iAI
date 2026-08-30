@@ -31,9 +31,10 @@ build, test, lint, typecheck, skill-lint and claim-lint as six separately named 
 checks, with any one of them failing leaving the PR unmergeable. A malformed
 commit subject and a malformed skill frontmatter must each be rejected at the
 point of authorship, not later in CI. `docs/design/verification-pass.md` must
-carry a verdict — `confirmed`, `corrected` or `invented` — for every assertion
-in `docs/design/` against LifeOS, forge and oh-my-opencode, with every
-`invented` row closed by a corrective commit before this story is done.
+carry a verdict — `confirmed`, `corrected`, `original` or `invented` — for every
+assertion in `docs/design/` against LifeOS, forge and oh-my-opencode, with every
+`invented` row closed by a corrective commit before this story is done. An
+`original` row is net-new design making no source claim, and closes no commit.
 
 ## Coverage
 
@@ -43,13 +44,14 @@ in `docs/design/` against LifeOS, forge and oh-my-opencode, with every
 | CLAIM-9.2 | 3, 14, 20 | P0 |
 | CLAIM-9.3 | 7, 9, 24 | P0, P1 |
 | CLAIM-9.4 | 4, 12, 13 | P0, P1 |
-| CLAIM-9.5 | 5, 10, 11, 22 | P0, P1 |
-| CLAIM-9.6 | 8, 19, 22 | P1, P2 |
+| CLAIM-9.5 | 5, 10, 11 | P0, P1 |
+| CLAIM-9.6 | 8, 19 | P1, P2 |
 | NEVER-9.7 | 16, 17 | P1, P2 |
 | NEVER-9.8 | 15 | P1 |
 | NEVER-9.9 | 6, 13 | P0, P1 |
 
-24 cases — 9 P0 / 13 P1 / 2 P2
+23 cases — 9 P0 / 12 P1 / 2 P2. Case 22 is retired; see **Retired cases**.
+Numbers are not reassigned, so 22 is absent and 23–24 keep their identities.
 
 ## Test Cases
 
@@ -64,7 +66,7 @@ in `docs/design/` against LifeOS, forge and oh-my-opencode, with every
 | 5 | Skill-lint passes a docs-target `SKILL.md` whose frontmatter carries a valid `name` and `description` matching its directory | CLAIM-9.5 | iai-references | P1 | tool-checked | `bun run skill-lint skills/` | Exit code 0 |
 | 6 | Lint reports zero host-import and zero `process.cwd()` violations against an unmodified `packages/core` | NEVER-9.9 | iai-core | P1 | tool-checked | `bun run lint` | Exit code 0 and 0 violations reported for the host-import and `process.cwd()` rules |
 | 7 | A well-formed commit subject (`#9: add workspace scaffold`) is accepted by `checkCommitPrefix` | CLAIM-9.3 | iai-core | P1 | tool-checked | `bun test packages/core -t "checkCommitPrefix"` | Exit code 0, summary reports `0 fail`, the well-formed fixture is accepted |
-| 8 | `docs/design/verification-pass.md` carries a verdict row for every assertion in `docs/design/` | CLAIM-9.6 | iai-references | P1 | model-judged | `review of docs/design/verification-pass.md against the three source repos` | 100% of assertion rows carry one of `confirmed`, `corrected` or `invented`; no row is blank |
+| 8 | `docs/design/verification-pass.md` carries a verdict row for every assertion in `docs/design/` | CLAIM-9.6 | iai-references | P1 | model-judged | `review of docs/design/verification-pass.md against the three source repos` | 100% of assertion rows carry exactly one of `confirmed`, `corrected`, `original` or `invented`; no row is blank |
 
 ### Negative
 
@@ -93,7 +95,6 @@ in `docs/design/` against LifeOS, forge and oh-my-opencode, with every
 |---|------|------------|--------|----------|----------|---------|-------------|
 | 20 | The full local pipeline — install, build, test, lint, typecheck, skill-lint — runs to completion on a clean checkout | CLAIM-9.1, CLAIM-9.2 | iai-core | P0 | tool-checked | `bun install && bun run build && bun test && bun run lint && bun run typecheck && bun run skill-lint` | Exit code 0 for the whole chain, matching the six checks reported on a PR |
 | 21 | `bun run typecheck` resolves all thirteen package entries in one pass via TypeScript project references | CLAIM-9.1 | iai-core | P1 | tool-checked | `bun run typecheck` | Exit code 0, `tsc` reports no diagnostics across the workspace |
-| 22 | A skill-lint rejection on a docs target correlates to a `corrected` verdict row in the reconciliation table citing the same fixing commit | CLAIM-9.5, CLAIM-9.6 | iai-references | P1 | model-judged | `bun run skill-lint skills/` | The linter's exit code transitions from non-zero to 0 after the fix, and the corresponding `docs/design/verification-pass.md` row reads `corrected` and cites the fixing commit |
 
 ### Error Recovery
 
@@ -101,6 +102,30 @@ in `docs/design/` against LifeOS, forge and oh-my-opencode, with every
 |---|------|------------|--------|----------|----------|---------|-------------|
 | 23 | A build failure in one target leaves the other nine targets buildable, and the tree is retryable after the break is fixed | CLAIM-9.1 | iai-installer | P1 | tool-checked | `bun run build --filter iai-installer` | After the introduced break is reverted, the command exits 0 with no `error TS` line and no artifact left in a partial state |
 | 24 | A commit rejected by the commit-msg hook leaves the working tree and staged changes untouched, and a corrected subject is accepted on immediate retry | CLAIM-9.3 | iai-core | P0 | tool-checked | `bun test packages/core -t "checkCommitPrefix"` | After rejection, the staged diff is unchanged; re-invoking with a corrected subject exits 0 |
+
+## Retired cases
+
+**Case 22** — *"A skill-lint rejection on a docs target correlates to a
+`corrected` verdict row in the reconciliation table citing the same fixing
+commit."* Retired by #197.
+
+The case was written against `docs/milestones/M1.md:62`, which described
+`skill-lint` as a linter for "the three docs targets". The shipped linter
+collects only files named `SKILL.md` (`scripts/skill-lint.ts`, `discoverSkillFiles`),
+matching the Design, `CONTRIBUTING.md` and `.github/workflows/ci.yml`. #197
+corrected `M1.md` to the shipped scope, which leaves this case with no premise:
+there is no input for which the linter's exit code transitions from non-zero to
+0 **on a docs target**, so the first half cannot execute in either direction.
+
+This was conflict row 19 of the reconciliation register, opened during #13 and
+adjudicated in favour of the `skills/`-only reading. The case was reported
+unexecutable on #13 and again on #14; it is retired here rather than restated,
+because the correction removes the wording it was derived from and no output of
+#14 could have satisfied it.
+
+The case's second half — that a `corrected` row cites its fixing commit — is
+satisfiable and remains covered by cases 8 and 19 against CLAIM-9.6. Retiring
+case 22 therefore leaves no claim uncovered.
 
 ## Not applicable
 
