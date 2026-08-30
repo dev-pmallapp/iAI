@@ -19,3 +19,6 @@ export { PATH_ALLOW_LIST, isPathAllowed } from "./path-allowlist";
 export type { AllowReason, AllowedPath } from "./path-allowlist";
 export { extractPathRefs, lintPathRefs } from "./path-refs";
 export type { PathRefOptions } from "./path-refs";
+export { checkSpend } from "./spend";
+export { checkRiskMandate } from "./risk-mandate";
+export type { Rung } from "./risk-mandate";
