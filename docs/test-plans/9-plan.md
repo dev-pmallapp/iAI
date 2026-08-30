@@ -31,9 +31,10 @@ build, test, lint, typecheck, skill-lint and claim-lint as six separately named 
 checks, with any one of them failing leaving the PR unmergeable. A malformed
 commit subject and a malformed skill frontmatter must each be rejected at the
 point of authorship, not later in CI. `docs/design/verification-pass.md` must
-carry a verdict — `confirmed`, `corrected` or `invented` — for every assertion
-in `docs/design/` against LifeOS, forge and oh-my-opencode, with every
-`invented` row closed by a corrective commit before this story is done.
+carry a verdict — `confirmed`, `corrected`, `original` or `invented` — for every
+assertion in `docs/design/` against LifeOS, forge and oh-my-opencode, with every
+`invented` row closed by a corrective commit before this story is done. An
+`original` row is net-new design making no source claim, and closes no commit.
 
 ## Coverage
 
@@ -65,7 +66,7 @@ Numbers are not reassigned, so 22 is absent and 23–24 keep their identities.
 | 5 | Skill-lint passes a docs-target `SKILL.md` whose frontmatter carries a valid `name` and `description` matching its directory | CLAIM-9.5 | iai-references | P1 | tool-checked | `bun run skill-lint skills/` | Exit code 0 |
 | 6 | Lint reports zero host-import and zero `process.cwd()` violations against an unmodified `packages/core` | NEVER-9.9 | iai-core | P1 | tool-checked | `bun run lint` | Exit code 0 and 0 violations reported for the host-import and `process.cwd()` rules |
 | 7 | A well-formed commit subject (`#9: add workspace scaffold`) is accepted by `checkCommitPrefix` | CLAIM-9.3 | iai-core | P1 | tool-checked | `bun test packages/core -t "checkCommitPrefix"` | Exit code 0, summary reports `0 fail`, the well-formed fixture is accepted |
-| 8 | `docs/design/verification-pass.md` carries a verdict row for every assertion in `docs/design/` | CLAIM-9.6 | iai-references | P1 | model-judged | `review of docs/design/verification-pass.md against the three source repos` | 100% of assertion rows carry one of `confirmed`, `corrected` or `invented`; no row is blank |
+| 8 | `docs/design/verification-pass.md` carries a verdict row for every assertion in `docs/design/` | CLAIM-9.6 | iai-references | P1 | model-judged | `review of docs/design/verification-pass.md against the three source repos` | 100% of assertion rows carry exactly one of `confirmed`, `corrected`, `original` or `invented`; no row is blank |
 
 ### Negative
 
