@@ -21,6 +21,25 @@ function isRung(value: string): value is Rung {
   return value === "research" || value === "paper" || value === "live";
 }
 
+// Labels are the source of truth for a Story's rung
+// (docs/design/03-workflow.md:96-98 and the ladder at :135), and they carry
+// the `rung:` prefix literally. A caller reading a label off an issue
+// therefore holds "rung:research", not "research". Accepting only the bare
+// form made a legitimate auto run at rung:research block — fail-closed, so
+// not dangerous, but wrong, and it announced itself only as a doubled prefix
+// in the failure message.
+//
+// At most ONE prefix is stripped, so "rung:rung:live" remains unrecognised
+// and still blocks.
+const RUNG_LABEL_PREFIX = "rung:";
+
+function normaliseRung(rung: unknown): string {
+  if (typeof rung !== "string") {
+    return "";
+  }
+  return rung.startsWith(RUNG_LABEL_PREFIX) ? rung.slice(RUNG_LABEL_PREFIX.length) : rung;
+}
+
 // Reproduces the hard-failure block at docs/design/03-workflow.md:498-504
 // verbatim. `story` is the caller-supplied Story identifier (e.g. the number
 // after "#" in "Story: #902"); `rung` is the Story's current rung, which may
@@ -44,12 +63,14 @@ function hardFailure(story: string | number, rung: string): string {
 // principle applied here: a rung this module has never heard of is never
 // treated as though it were research or paper.
 export function checkRiskMandate(story: string | number, rung: string): Decision {
-  if (isRung(rung) && AUTO_ALLOWED_RUNGS.has(rung)) {
+  const normalised = normaliseRung(rung);
+
+  if (isRung(normalised) && AUTO_ALLOWED_RUNGS.has(normalised)) {
     return decide(
       "allow",
-      `Story #${story} is at rung:${rung}; an /iai:auto run is permitted up to rung:paper`,
+      `Story #${story} is at rung:${normalised}; an /iai:auto run is permitted up to rung:paper`,
     );
   }
 
-  return decide("block", hardFailure(story, rung));
+  return decide("block", hardFailure(story, normalised));
 }

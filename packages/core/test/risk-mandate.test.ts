@@ -62,7 +62,12 @@ describe("checkRiskMandate — case 16 (P0, CLAIM-15.5): refuses an auto run at 
 });
 
 describe("checkRiskMandate — unrecognised rung fails closed", () => {
-  const unrecognised = ["", "RESEARCH", "Paper", "sandbox", "rung:paper", " paper", "paper ", "live "];
+  // "rung:paper" was previously listed here as unrecognised. It is not: it is
+  // the label form of a permitted rung, and treating it as unrecognised was
+  // the defect the regression block at the foot of this file now pins.
+  // Casing and whitespace variants stay unrecognised — normalisation strips
+  // one `rung:` prefix and nothing else.
+  const unrecognised = ["", "RESEARCH", "Paper", "sandbox", " paper", "paper ", "live "];
 
   for (const rung of unrecognised) {
     test(`blocks the unrecognised rung ${JSON.stringify(rung)}`, () => {
@@ -95,5 +100,54 @@ describe("checkRiskMandate purity and determinism", () => {
     const result = checkRiskMandate(902, "live");
     expect(result.action === "allow" || result.action === "block").toBe(true);
     expect(typeof result.message).toBe("string");
+  });
+});
+
+// Regression: labels are the source of truth for a Story's rung
+// (docs/design/03-workflow.md:96-98, :135) and carry the `rung:` prefix
+// literally, so a caller reading one off an issue holds "rung:research".
+// The first implementation accepted only the bare form, which turned a
+// legitimate auto run at rung:research into a block and showed itself only
+// as a doubled prefix in the failure message.
+describe("checkRiskMandate — case 8/16 regression: accepts the label form", () => {
+  test.each([
+    ["rung:research"],
+    ["rung:paper"],
+  ])("%s is permitted, exactly as its bare form is", (rung) => {
+    expect(checkRiskMandate(902, rung).action).toBe("allow");
+  });
+
+  test.each([
+    ["rung:live"],
+    ["rung:backtest"],
+    ["rung:rung:live"],
+  ])("%s is refused", (rung) => {
+    expect(checkRiskMandate(902, rung).action).toBe("block");
+  });
+
+  test("both spellings of a permitted rung agree", () => {
+    expect(checkRiskMandate(902, "rung:research")).toEqual(checkRiskMandate(902, "research"));
+    expect(checkRiskMandate(902, "rung:paper")).toEqual(checkRiskMandate(902, "paper"));
+  });
+
+  test("both spellings of the live rung agree", () => {
+    expect(checkRiskMandate(902, "rung:live")).toEqual(checkRiskMandate(902, "live"));
+  });
+
+  test("the failure message never doubles the rung prefix", () => {
+    const message = checkRiskMandate(902, "rung:live").message;
+    expect(message).toContain("- Found: rung:live");
+    expect(message).not.toContain("rung:rung:");
+  });
+
+  test("only one prefix is stripped, so rung:rung:live stays unrecognised", () => {
+    expect(checkRiskMandate(902, "rung:rung:live").message).toContain("- Found: rung:rung:live");
+  });
+
+  test("a non-string rung blocks and does not throw", () => {
+    for (const rung of [null, undefined, 42, {}, []]) {
+      expect(() => checkRiskMandate(902, rung as never)).not.toThrow();
+      expect(checkRiskMandate(902, rung as never).action).toBe("block");
+    }
   });
 });
