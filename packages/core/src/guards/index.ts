@@ -19,3 +19,5 @@ export { PATH_ALLOW_LIST, isPathAllowed } from "./path-allowlist";
 export type { AllowReason, AllowedPath } from "./path-allowlist";
 export { extractPathRefs, lintPathRefs } from "./path-refs";
 export type { PathRefOptions } from "./path-refs";
+export { CONSENT_WITHHELD, checkEgress } from "./egress";
+export type { Destination, EgressConsent } from "./egress";
