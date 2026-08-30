@@ -367,3 +367,56 @@ describe("checkEgress — the twelve-cell policy matrix, every branch documented
     }
   });
 });
+
+// Adjudicated at #18's implementation-review gate by @dev-pmallapp: a field
+// whose projection yields no information is dropped entirely rather than
+// emitted as a null husk. The security property is unchanged — the raw value
+// is absent either way — but an absent field cannot be mistaken for a measured
+// one, and an emitted null invites a consumer to reason about why it is null.
+describe("checkEgress — case 6 addendum: unprojectable fields are dropped, not nulled", () => {
+  const cloud = { vendor: "anthropic", locality: "cloud" } as const;
+  const granted = { granted: true } as const;
+  const redactedOf = (payload: unknown) => {
+    const decision = checkEgress(payload, cloud, granted);
+    return decision.action === "allow" ? decision.redacted : undefined;
+  };
+
+  test("a biomarker with no reference range is absent, not null-valued", () => {
+    expect(redactedOf({ apob: 88 })).toEqual({});
+  });
+
+  test("a biomarker with a reference range still projects", () => {
+    expect(redactedOf({ apob: 88, reference_range: "40-100" })).toEqual({
+      apob: { in_range: true, direction: "within" },
+    });
+  });
+
+  test("an unparseable account number is absent rather than last_4 null", () => {
+    expect(redactedOf({ account_number: "12" })).toEqual({});
+  });
+
+  test("an unparseable timestamp is absent rather than null", () => {
+    expect(redactedOf({ timestamp: "not-a-date" })).toEqual({});
+  });
+
+  test("a non-numeric magnitude field is absent rather than magnitude unknown", () => {
+    expect(redactedOf({ balance: "not-a-number" })).toEqual({});
+  });
+
+  test("no null husk survives anywhere in the projection", () => {
+    const serialised = JSON.stringify(redactedOf({ apob: 88, mrn: "MRN-X", timestamp: "nope" }));
+    expect(serialised).not.toContain("null");
+    expect(serialised).not.toContain("unknown");
+  });
+
+  test("a container whose every leaf is dropped is itself dropped", () => {
+    expect(redactedOf({ outer: { inner: { apob: 88 } } })).toEqual({});
+  });
+
+  test("dropping does not disturb fields that do project", () => {
+    expect(redactedOf({ ticker: "VFVA", apob: 88, mrn: "MRN-X", balance: 5000 })).toEqual({
+      ticker: "VFVA",
+      balance: { magnitude: "1e3" },
+    });
+  });
+});

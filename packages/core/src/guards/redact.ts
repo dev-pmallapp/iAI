@@ -68,25 +68,34 @@ const RULES: ReadonlyMap<string, Rule> = new Map<string, Rule>([
 
 const MAX_DEPTH = 32;
 
-function bucketMagnitude(value: unknown): string {
-  if (typeof value !== "number" || !Number.isFinite(value)) return "unknown";
+// A projection that yields no information is DROPPED rather than emitted as a
+// null husk. Adjudicated at #18's implementation-review gate by @dev-pmallapp:
+// a biomarker with no reference range in the payload used to project to
+// `{in_range: null, direction: null}`, which is a key carrying nothing. The
+// security property is identical either way — the raw value is gone in both —
+// but an absent field cannot be mistaken for a measured one, and an emitted
+// null invites a consumer to reason about why it is null.
+const DROP: unique symbol = Symbol("drop");
+
+function bucketMagnitude(value: unknown): string | typeof DROP {
+  if (typeof value !== "number" || !Number.isFinite(value)) return DROP;
   const abs = Math.abs(value);
   if (abs === 0) return "0";
   return `1e${Math.floor(Math.log10(abs))}`;
 }
 
-function last4(value: unknown): string | null {
-  if (typeof value !== "string") return null;
+function last4(value: unknown): string | typeof DROP {
+  if (typeof value !== "string") return DROP;
   const digitsOnly = value.replace(/\D/g, "");
-  if (digitsOnly.length < 4) return null;
+  if (digitsOnly.length < 4) return DROP;
   return digitsOnly.slice(-4);
 }
 
-function dayPrecision(value: unknown): string | null {
+function dayPrecision(value: unknown): string | typeof DROP {
   let date: Date | null = null;
   if (value instanceof Date) date = value;
   else if (typeof value === "string" || typeof value === "number") date = new Date(value);
-  if (date === null || Number.isNaN(date.getTime())) return null;
+  if (date === null || Number.isNaN(date.getTime())) return DROP;
   return date.toISOString().slice(0, 10);
 }
 
@@ -113,12 +122,12 @@ function parseRange(rangeRaw: unknown): { low: number; high: number } | null {
 function biomarkerProjection(
   value: unknown,
   rangeRaw: unknown,
-): { in_range: boolean | null; direction: "above" | "below" | "within" | null } {
+): { in_range: boolean; direction: "above" | "below" | "within" } | typeof DROP {
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    return { in_range: null, direction: null };
+    return DROP;
   }
   const range = parseRange(rangeRaw);
-  if (range === null) return { in_range: null, direction: null };
+  if (range === null) return DROP;
   if (value < range.low) return { in_range: false, direction: "below" };
   if (value > range.high) return { in_range: false, direction: "above" };
   return { in_range: true, direction: "within" };
@@ -146,69 +155,96 @@ function redactEntries(entries: [string, unknown][], depth: number, visited: Set
   const output: Record<string, unknown> = {};
   for (const [key, value] of entries) {
     const rule = RULES.get(normalizeKey(key));
+    let projected: unknown = DROP;
+
     switch (rule) {
       case "drop":
+        projected = DROP;
         break;
       case "retain":
-        output[key] = value !== null && typeof value === "object" ? redactChild(value, depth, visited) : value;
+        projected =
+          value !== null && typeof value === "object" ? redactChild(value, depth, visited) : value;
         break;
       case "last-4": {
         const tail = last4(value);
-        output[key] = { last_4: tail };
+        projected = tail === DROP ? DROP : { last_4: tail };
         break;
       }
-      case "magnitude":
-        output[key] = { magnitude: bucketMagnitude(value) };
+      case "magnitude": {
+        const magnitude = bucketMagnitude(value);
+        projected = magnitude === DROP ? DROP : { magnitude };
         break;
+      }
       case "day-precision":
-        output[key] = dayPrecision(value);
+        projected = dayPrecision(value);
         break;
       case "biomarker":
-        output[key] = biomarkerProjection(value, rangeRaw);
+        projected = biomarkerProjection(value, rangeRaw);
         break;
-      default: {
+      default:
         // Unrecognised field name. A container is walked in case a named
         // field is nested one level down; a bare unrecognised primitive has
         // no known-safe rewrite and is dropped rather than passed through
         // raw, per NEVER-15.9.
-        if (value !== null && typeof value === "object") {
-          output[key] = redactChild(value, depth, visited);
-        }
+        projected =
+          value !== null && typeof value === "object" ? redactChild(value, depth, visited) : DROP;
         break;
-      }
+    }
+
+    if (projected !== DROP) {
+      output[key] = projected;
     }
   }
   return output;
 }
 
-function redactChild(value: unknown, depth: number, visited: Set<object>): unknown {
-  if (depth > MAX_DEPTH) return null;
-  if (value === null || value === undefined) return null;
-  if (typeof value !== "object") return null;
+// An object or array that projects to nothing carries no information, so it is
+// dropped rather than emitted as an empty husk. Without this, dropping a leaf
+// would leave `{a: {b: {}}}` behind in place of the field it removed.
+function isEmptyProjection(value: unknown): boolean {
+  if (Array.isArray(value)) return value.length === 0;
+  if (value !== null && typeof value === "object" && !(value instanceof Date)) {
+    return Object.keys(value as Record<string, unknown>).length === 0;
+  }
+  return false;
+}
 
-  if (visited.has(value)) return null;
+function redactChild(value: unknown, depth: number, visited: Set<object>): unknown {
+  if (depth > MAX_DEPTH) return DROP;
+  if (value === null || value === undefined) return DROP;
+  if (typeof value !== "object") return DROP;
+
+  if (visited.has(value)) return DROP;
   visited.add(value);
 
   try {
+    let projected: unknown;
+
     if (Array.isArray(value)) {
-      return value.map((item) => redactChild(item, depth + 1, visited));
-    }
-    if (value instanceof Date) return dayPrecision(value);
-    if (value instanceof Map) {
+      projected = value
+        .map((item) => redactChild(item, depth + 1, visited))
+        .filter((item) => item !== DROP);
+    } else if (value instanceof Date) {
+      projected = dayPrecision(value);
+    } else if (value instanceof Map) {
       const entries: [string, unknown][] = [];
       for (const [mapKey, mapValue] of value.entries()) {
         if (typeof mapKey === "string") entries.push([mapKey, mapValue]);
       }
-      return redactEntries(entries, depth + 1, visited);
+      projected = redactEntries(entries, depth + 1, visited);
+    } else if (value instanceof Set) {
+      projected = Array.from(value.values())
+        .map((item) => redactChild(item, depth + 1, visited))
+        .filter((item) => item !== DROP);
+    } else {
+      const entries = safeOwnEntries(value);
+      if (entries === null) return DROP;
+      projected = redactEntries(entries, depth + 1, visited);
     }
-    if (value instanceof Set) {
-      return Array.from(value.values()).map((item) => redactChild(item, depth + 1, visited));
-    }
-    const entries = safeOwnEntries(value);
-    if (entries === null) return null;
-    return redactEntries(entries, depth + 1, visited);
+
+    return isEmptyProjection(projected) ? DROP : projected;
   } catch {
-    return null;
+    return DROP;
   }
 }
 
@@ -217,8 +253,9 @@ function redactChild(value: unknown, depth: number, visited: Set<object>): unkno
  *  throws. */
 export function deidentifyPrivatePayload(payload: unknown): unknown {
   try {
-    return redactChild(payload, 0, new Set<object>());
+    const projected = redactChild(payload, 0, new Set<object>());
+    return projected === DROP ? {} : projected;
   } catch {
-    return null;
+    return {};
   }
 }
