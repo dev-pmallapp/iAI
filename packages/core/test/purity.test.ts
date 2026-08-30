@@ -26,6 +26,22 @@
 // keep it that way). Instead only the three members CLAIM-15.6 cares about —
 // `cwd`, `env` and `exit` — are replaced with throwing stand-ins, and
 // restored in `afterAll` no matter what happened in between.
+//
+// PROCESS ISOLATION. `mock.module()` patches Bun's module registry for the
+// whole PROCESS, not for this file, and `mock.restore()` does not put the
+// real module back. Run in the same process as the rest of the suite, the
+// throwing `node:fs` therefore leaks into every sibling file — it broke
+// commit-prefix.test.ts's real-git integration case, which calls
+// `mkdtempSync`. That failure was invisible locally and only appeared in CI,
+// because whether it bites depends on the order Bun happens to load the test
+// files in: locally this file ran last, in CI it ran first.
+//
+// So the harness runs in a CHILD process. Without IAI_PURITY_CHILD set this
+// file spawns `bun test` on itself with the variable set, and asserts the
+// child passed; with it set, the real harness below runs, its global mocks
+// confined to a process that loads nothing else. The parent asserts the
+// child's arming step actually executed rather than merely that it exited 0,
+// so an empty or skipped child run cannot pass for a clean one.
 import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
 import * as realFs from "node:fs";
 import * as realNet from "node:net";
@@ -74,11 +90,40 @@ function throwingModuleFactory(moduleName: string, exportNames: readonly string[
 
 const SENTINEL_ERROR_FRAGMENT = "CLAIM-15.6";
 
+// Read once, before `process.env` is replaced with a throwing getter below.
+const IS_CHILD = Bun.env.IAI_PURITY_CHILD === "1";
+
+if (!IS_CHILD) {
+  describe("purity harness — case 25 (P0, CLAIM-15.6): runs isolated in a child process", () => {
+    test("the isolated harness passes, and its arming step provably ran", async () => {
+      const child = Bun.spawnSync({
+        cmd: ["bun", "test", "packages/core/test/purity.test.ts"],
+        env: { ...Bun.env, IAI_PURITY_CHILD: "1" },
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+
+      const output = `${child.stdout.toString()}${child.stderr.toString()}`;
+
+      // Not just exit 0: a child that collected no tests also exits 0. The
+      // arming step is the one test that proves the traps were live, so its
+      // presence is asserted explicitly.
+      expect(output).toContain("IAI-PURITY-ARMED");
+      expect(output).toContain("0 fail");
+      expect(output).not.toContain("(fail)");
+      expect(output).toMatch(/ [1-9]\d* pass/);
+      expect(child.exitCode).toBe(0);
+    }, 60_000);
+  });
+}
+
+
 let originalCwd: typeof process.cwd;
 let originalExit: typeof process.exit;
 let originalEnvDescriptor: PropertyDescriptor | undefined;
 
 beforeAll(() => {
+  if (!IS_CHILD) return;
   mock.module("node:fs", () => throwingModuleFactory("node:fs", FS_EXPORT_NAMES));
   mock.module("node:net", () => throwingModuleFactory("node:net", NET_EXPORT_NAMES));
 
@@ -113,6 +158,7 @@ beforeAll(() => {
 });
 
 afterAll(() => {
+  if (!IS_CHILD) return;
   mock.restore();
 
   Object.defineProperty(process, "cwd", { configurable: true, writable: true, value: originalCwd });
@@ -122,8 +168,14 @@ afterAll(() => {
   }
 });
 
-describe("purity harness — case 25 (P0, CLAIM-15.6): fs, net and process stubbed to throw", () => {
-  test("step 1/2 — the traps are armed: fs, net and process each throw when touched directly", async () => {
+describe.if(IS_CHILD)("purity harness — case 25 (P0, CLAIM-15.6): fs, net and process stubbed to throw", () => {
+  test("step 1/2 - the traps are armed: fs, net and process each throw when touched directly", async () => {
+    // Bun prints per-test names only on failure, so a passing child says
+    // nothing about WHICH tests ran. The parent needs to know this specific
+    // test executed — a child that skipped it would still report 0 fail — so
+    // it announces itself on stdout.
+    console.log("IAI-PURITY-ARMED");
+
     const fsStub = await import("node:fs");
     expect(() => (fsStub as unknown as { readFileSync: (p: string) => string }).readFileSync("/x")).toThrow(
       SENTINEL_ERROR_FRAGMENT,
@@ -149,7 +201,7 @@ describe("purity harness — case 25 (P0, CLAIM-15.6): fs, net and process stubb
     expect(() => process.env).toThrow(SENTINEL_ERROR_FRAGMENT);
   });
 
-  test("step 2/2 — classify() and classifyPath() still return correct results with the runtime trapped", () => {
+  test("step 2/2 - classify() and classifyPath() still return correct results with the runtime trapped", () => {
     const payload: Record<string, unknown> = {};
     for (let i = 0; i < 400; i += 1) payload[`ticker${i}`] = `SYM${i}`;
     payload.ldl = 130;
@@ -168,7 +220,7 @@ describe("purity harness — case 25 (P0, CLAIM-15.6): fs, net and process stubb
     expect(classifyPath("docs/design/09-security.md")).toBe("INTERNAL");
   });
 
-  test("step 2/2 — checkEgress still returns the correct verdict across the matrix and the hostile fixtures", () => {
+  test("step 2/2 - checkEgress still returns the correct verdict across the matrix and the hostile fixtures", () => {
     const onDevice: Destination = { vendor: "local", locality: "on-device" };
     const cloud: Destination = { vendor: "anthropic", locality: "cloud" };
     const granted: EgressConsent = { granted: true };
@@ -192,7 +244,7 @@ describe("purity harness — case 25 (P0, CLAIM-15.6): fs, net and process stubb
     expect(checkEgress({ ticker: "AAPL" }, undefined as unknown as Destination).action).toBe("block");
   });
 
-  test("step 2/2 — checkSpend still returns the correct verdict, including the equality boundary", () => {
+  test("step 2/2 - checkSpend still returns the correct verdict, including the equality boundary", () => {
     expect(checkSpend(0n, 100n).action).toBe("allow");
     expect(checkSpend(100n, 100n).action).toBe("allow");
     expect(checkSpend(101n, 100n).action).toBe("block");
@@ -200,7 +252,7 @@ describe("purity harness — case 25 (P0, CLAIM-15.6): fs, net and process stubb
     expect(checkSpend(0n, -1n).action).toBe("block");
   });
 
-  test("step 2/2 — checkRiskMandate still returns the correct verdict for every rung", () => {
+  test("step 2/2 - checkRiskMandate still returns the correct verdict for every rung", () => {
     expect(checkRiskMandate(902, "research").action).toBe("allow");
     expect(checkRiskMandate(902, "paper").action).toBe("allow");
     expect(checkRiskMandate(902, "live").action).toBe("block");
@@ -208,7 +260,7 @@ describe("purity harness — case 25 (P0, CLAIM-15.6): fs, net and process stubb
     expect(checkRiskMandate(902, "unrecognised").action).toBe("block");
   });
 
-  test("step 2/2 — checkCommitPrefix still returns the correct verdict", () => {
+  test("step 2/2 - checkCommitPrefix still returns the correct verdict", () => {
     expect(checkCommitPrefix("#9: add workspace scaffold").action).toBe("allow");
     expect(checkCommitPrefix("add workspace scaffold").action).toBe("block");
     expect(checkCommitPrefix('Revert "#9: add workspace scaffold"').action).toBe("allow");
