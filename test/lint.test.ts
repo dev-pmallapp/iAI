@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { lintSource, lintTree } from "../scripts/lint";
@@ -172,6 +172,117 @@ describe("lintSource", () => {
     expect(violations[0]?.line).toBe(2);
     expect(violations[0]?.column).toBe(10);
     expect(source.split("\n")[1]?.slice((violations[0]?.column ?? 1) - 1)).toStartWith("process.cwd(");
+  });
+});
+
+describe("lint — case 32 (P0, CLAIM-15.6): no-io-in-pure-modules", () => {
+  test("importing node:fs under core/src/classify/ is a no-io-in-pure-modules violation citing CLAIM-15.6", () => {
+    const source = `import { readFileSync } from "node:fs";\n`;
+    const filePath = writePackageFile(makeTempDir(), "core", "classify/bad.ts", source);
+    const violations = lintSource(filePath, source, "core");
+    expect(violations.length).toBe(1);
+    expect(violations[0]?.rule).toBe("no-io-in-pure-modules");
+    expect(violations[0]?.message).toContain("CLAIM-15.6");
+    expect(violations[0]?.message).toContain("node:fs");
+  });
+
+  test("requiring net under core/src/guards/ is a no-io-in-pure-modules violation", () => {
+    const source = `const net = require("net");\n`;
+    const filePath = writePackageFile(makeTempDir(), "core", "guards/bad.ts", source);
+    const violations = lintSource(filePath, source, "core");
+    expect(violations.length).toBe(1);
+    expect(violations[0]?.rule).toBe("no-io-in-pure-modules");
+    expect(violations[0]?.message).toContain("net");
+  });
+
+  test("importing every listed I/O specifier under core/src/classify/ is one violation each", () => {
+    const specifiers = [
+      "fs",
+      "node:fs",
+      "fs/promises",
+      "net",
+      "node:net",
+      "path",
+      "node:path",
+      "os",
+      "node:os",
+      "child_process",
+      "node:child_process",
+      "http",
+      "https",
+      "crypto",
+      "node:crypto",
+      "worker_threads",
+    ];
+    for (const specifier of specifiers) {
+      const source = `import x from "${specifier}";\n`;
+      const filePath = writePackageFile(makeTempDir(), "core", `classify/bad-${specifier.replace(/[/:]/g, "-")}.ts`, source);
+      const violations = lintSource(filePath, source, "core");
+      expect(violations.filter((v) => v.rule === "no-io-in-pure-modules").length).toBe(1);
+    }
+  });
+
+  test("process. member access under core/src/classify/ is a no-io-in-pure-modules violation", () => {
+    const source = "export function f(): string {\n  return process.cwd();\n}\n";
+    const filePath = writePackageFile(makeTempDir(), "core", "classify/bad.ts", source);
+    const violations = lintSource(filePath, source, "core");
+    expect(violations.filter((v) => v.rule === "no-io-in-pure-modules").length).toBe(1);
+    expect(violations.find((v) => v.rule === "no-io-in-pure-modules")?.message).toContain("process.cwd");
+  });
+
+  test("Bun. member access under core/src/guards/ is a no-io-in-pure-modules violation", () => {
+    const source = "export function f(): string {\n  return Bun.env.HOME ?? '';\n}\n";
+    const filePath = writePackageFile(makeTempDir(), "core", "guards/bad.ts", source);
+    const violations = lintSource(filePath, source, "core");
+    expect(violations.filter((v) => v.rule === "no-io-in-pure-modules").length).toBe(1);
+    expect(violations.find((v) => v.rule === "no-io-in-pure-modules")?.message).toContain("Bun.env");
+  });
+
+  test("fetch( under core/src/classify/ is a no-io-in-pure-modules violation", () => {
+    const source = "export async function f(): Promise<unknown> {\n  return fetch('https://example.com');\n}\n";
+    const filePath = writePackageFile(makeTempDir(), "core", "classify/bad.ts", source);
+    const violations = lintSource(filePath, source, "core");
+    expect(violations.filter((v) => v.rule === "no-io-in-pure-modules").length).toBe(1);
+  });
+
+  test("mentions of fs and process.cwd() inside comments under core/src/classify/ are 0 violations (the real classify/path.ts case)", () => {
+    const source = [
+      "// PURE STRING MATCHING ONLY -- no `fs`, no `path`, no `process.cwd()`, no",
+      "// resolving against a real filesystem, and no Bun.file() either.",
+      "export function classifyPath(path: string): string {",
+      "  return path;",
+      "}",
+      "",
+    ].join("\n");
+    const filePath = writePackageFile(makeTempDir(), "core", "classify/path.ts", source);
+    const violations = lintSource(filePath, source, "core");
+    expect(violations).toEqual([]);
+  });
+
+  test("the real packages/core/src/classify/path.ts has 0 no-io-in-pure-modules violations", () => {
+    const filePath = join(repoRoot, "packages", "core", "src", "classify", "path.ts");
+    const source = readFileSync(filePath, "utf8");
+    const violations = lintSource(filePath, source, "core");
+    expect(violations.filter((v) => v.rule === "no-io-in-pure-modules")).toEqual([]);
+  });
+
+  test("a fs import under core/src/decision.ts (outside classify/ and guards/) is not flagged by this rule", () => {
+    const source = `import { readFileSync } from "node:fs";\n`;
+    const filePath = writePackageFile(makeTempDir(), "core", "decision.ts", source);
+    const violations = lintSource(filePath, source, "core");
+    expect(violations.filter((v) => v.rule === "no-io-in-pure-modules")).toEqual([]);
+  });
+
+  test("a fs import under a guards/ directory of a non-core package is not flagged by this rule (scope is core-only)", () => {
+    const source = `import { readFileSync } from "node:fs";\n`;
+    const filePath = writePackageFile(makeTempDir(), "domain-dev", "guards/bad.ts", source);
+    const violations = lintSource(filePath, source, "domain-dev");
+    expect(violations.filter((v) => v.rule === "no-io-in-pure-modules")).toEqual([]);
+  });
+
+  test("the real repo's packages tree has 0 no-io-in-pure-modules violations", () => {
+    const violations = lintTree(join(repoRoot, "packages"));
+    expect(violations.filter((v) => v.rule === "no-io-in-pure-modules")).toEqual([]);
   });
 });
 

@@ -1,7 +1,11 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
-export type RuleId = "no-host-import" | "no-process-cwd" | "no-exec-template";
+export type RuleId =
+  | "no-host-import"
+  | "no-process-cwd"
+  | "no-exec-template"
+  | "no-io-in-pure-modules";
 
 export interface Violation {
   file: string;
@@ -271,6 +275,92 @@ function checkExecTemplate(filePath: string, masked: string, packageName: string
   return violations;
 }
 
+// CLAIM-15.6: no file under packages/core/src/classify or
+// packages/core/src/guards may perform I/O. `isPureModulePath` matches a
+// "classify" or "guards" path SEGMENT (not merely a substring), so a
+// hypothetical "src/guardsomething.ts" does not fall into scope by accident.
+function isPureModulePath(filePath: string): boolean {
+  const normalized = filePath.split(sep).join("/");
+  return /(^|\/)classify(\/|$)/.test(normalized) || /(^|\/)guards(\/|$)/.test(normalized);
+}
+
+// Runtime/I-O module specifiers banned from classify/ and guards/, per
+// CLAIM-15.6. Both the bare and "node:"-prefixed spellings are listed
+// because both resolve to the same module and either one is I/O.
+const IO_MODULE_SPECIFIERS: ReadonlySet<string> = new Set([
+  "fs",
+  "node:fs",
+  "fs/promises",
+  "node:fs/promises",
+  "net",
+  "node:net",
+  "path",
+  "node:path",
+  "os",
+  "node:os",
+  "child_process",
+  "node:child_process",
+  "http",
+  "node:http",
+  "https",
+  "node:https",
+  "crypto",
+  "node:crypto",
+  "worker_threads",
+  "node:worker_threads",
+]);
+
+const PROCESS_MEMBER_RE = /\bprocess\s*\.\s*[A-Za-z_$][\w$]*/g;
+const BUN_MEMBER_RE = /\bBun\s*\.\s*[A-Za-z_$][\w$]*/g;
+const FETCH_CALL_RE = /\bfetch\s*\(/g;
+
+function checkIoInPureModules(filePath: string, masked: string): Violation[] {
+  const locate = makeLocator(masked);
+  const violations: Violation[] = [];
+
+  const allMatches = [
+    ...collectSpecifiers(masked, IMPORT_FROM_RE),
+    ...collectSpecifiers(masked, EXPORT_FROM_RE),
+    ...collectSpecifiers(masked, IMPORT_BARE_RE),
+    ...collectSpecifiers(masked, DYNAMIC_IMPORT_RE),
+    ...collectSpecifiers(masked, REQUIRE_RE),
+  ];
+
+  for (const { specifier, index } of allMatches) {
+    if (!IO_MODULE_SPECIFIERS.has(specifier)) continue;
+    const { line, column } = locate(index);
+    violations.push({
+      file: filePath,
+      line,
+      column,
+      rule: "no-io-in-pure-modules",
+      message:
+        `CLAIM-15.6: classify/ and guards/ must perform no I/O; "${specifier}" is a ` +
+        "runtime/I-O module and must not be imported here",
+    });
+  }
+
+  for (const globalsRe of [PROCESS_MEMBER_RE, BUN_MEMBER_RE, FETCH_CALL_RE]) {
+    globalsRe.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = globalsRe.exec(masked)) !== null) {
+      const { line, column } = locate(m.index);
+      violations.push({
+        file: filePath,
+        line,
+        column,
+        rule: "no-io-in-pure-modules",
+        message:
+          `CLAIM-15.6: classify/ and guards/ must perform no I/O; "${m[0]}" touches a ` +
+          "runtime global and must not appear here",
+      });
+      if (m[0].length === 0) globalsRe.lastIndex += 1;
+    }
+  }
+
+  return violations;
+}
+
 export function lintSource(
   filePath: string,
   source: string,
@@ -287,6 +377,9 @@ export function lintSource(
     violations.push(...checkProcessCwd(filePath, masked, packageName));
   }
   violations.push(...checkExecTemplate(filePath, masked, packageName));
+  if (packageName === "core" && isPureModulePath(filePath)) {
+    violations.push(...checkIoInPureModules(filePath, masked));
+  }
 
   return violations;
 }
@@ -329,6 +422,7 @@ const RULE_SCOPES: Record<RuleId, string> = {
   "no-host-import": "core",
   "no-process-cwd": "core, adapter-opencode",
   "no-exec-template": "all packages",
+  "no-io-in-pure-modules": "core/src/classify, core/src/guards",
 };
 
 function countFiles(packagesDir: string): number {
@@ -362,10 +456,16 @@ function printReport(violations: Violation[], dir: string): void {
     "no-host-import": 0,
     "no-process-cwd": 0,
     "no-exec-template": 0,
+    "no-io-in-pure-modules": 0,
   };
   for (const violation of violations) byRule[violation.rule] += 1;
 
-  const ruleIds: RuleId[] = ["no-host-import", "no-process-cwd", "no-exec-template"];
+  const ruleIds: RuleId[] = [
+    "no-host-import",
+    "no-process-cwd",
+    "no-exec-template",
+    "no-io-in-pure-modules",
+  ];
   const padded = Math.max(...ruleIds.map((id) => id.length));
   for (const ruleId of ruleIds) {
     const count = byRule[ruleId];
