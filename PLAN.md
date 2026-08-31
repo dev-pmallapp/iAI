@@ -126,11 +126,11 @@ exists anywhere in `packages/core` or the Tier-1 skills.
 | Health binding and rungs | The `health` DomainBinding with a protocol or tracked marker as its unit of work, and the observe, trend, flag and clinician-review rungs, where nothing promotes past clinician-review automatically. |
 | Trend and anomaly engine | Trend computation over pre-declared windows with per-result reference ranges stored alongside each value, so an assay change mid-series cannot corrupt the trend, plus anomaly flagging against those ranges rather than against a global constant. |
 | Clinician brief and emergency short-circuit | Generation of a locally-rendered clinician brief containing observations, trends and questions but never conclusions, and the emergency classifier that short-circuits the entire pipeline and instructs the user to seek immediate care. |
-| Health privacy enforcement | All health data classified `class:private`, trend and flag computation performed locally on structured data, and only derived de-identified summaries permitted to reach a cloud model, and then only on an explicit per-session opt-in. |
+| Health privacy enforcement | All health data classified `class:private`, trend and flag computation performed locally on structured data, and no health payload — de-identified or raw — ever reaches a cloud model; the de-identified projection is retained solely for the locally-rendered clinician brief. |
 
 **Exit criteria.** A test proves raw biomarker values cannot reach a cloud model
-without the opt-in. The emergency classifier halts the pipeline on every fixture
-in the emergency column of the anomaly table.
+under any consent value, per #243. The emergency classifier halts the pipeline
+on every fixture in the emergency column of the anomaly table.
 
 ---
 
