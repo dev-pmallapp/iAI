@@ -115,6 +115,13 @@ caller.
    place. The search excludes `docs/evidence/**` and the annotation, and any
    further exclusion is a finding rather than a search adjustment.
 
+   **One further exclusion was found, and is recorded rather than waved
+   through.** `docs/test-plans/15-plan.md` case 6 asserts the removed behaviour,
+   because it is the case that verified `CLAIM-15.4`. It receives the same
+   treatment as the claim — text intact, superseded annotation beside it, number
+   not freed — and is documented in that plan's `## Superseded cases` section.
+   Case 1's search therefore excludes exactly three things, all named.
+
 3. **No P2 tier, for the same reason as S1.2.** Every case either proves a leak
    path is closed or proves the record stayed honest. Nothing here is cosmetic.
 
