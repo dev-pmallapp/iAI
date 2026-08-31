@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { CONSENT_WITHHELD, checkEgress, type Destination, type EgressConsent } from "../src/guards/egress";
+import { deidentifyPrivatePayload } from "../src/guards/index";
 
 const ON_DEVICE: Destination = { vendor: "local", locality: "on-device" };
 const CLOUD: Destination = { vendor: "anthropic", locality: "cloud" };
@@ -49,66 +52,70 @@ describe("checkEgress — case 5 (P1, NEVER-15.7): PRIVATE on-device allows the 
   });
 });
 
-describe("checkEgress — case 6 (P0, CLAIM-15.4): PRIVATE to cloud with opt-in allows and de-identifies", () => {
+// Was "case 6 (P0, CLAIM-15.4): PRIVATE to cloud with opt-in allows and
+// de-identifies" under S1.2. #243 removed that cell: this is now the single
+// behavioural change the Story makes, so the assertion flips from allow to
+// block. The detailed shape assertions this test used to make about the
+// redacted projection now live under case 8 below, exercised directly
+// against `deidentifyPrivatePayload` rather than through `checkEgress` —
+// there is no longer any path from this guard to that projection.
+describe("checkEgress — case 3 (P0, CLAIM-243.2): PRIVATE to cloud blocks with consent granted (the changed cell)", () => {
   const payload = {
     account_number: "4147 2093 8871 3009",
     balance: 184209.44,
-    position: 300,
     ldl: 130,
-    reference_range: "40-100",
-    date_of_birth: "1985-03-12",
     mrn: "MRN-SENTINEL-99",
     patient_name: "Jane Sentinel Doe",
-    timestamp: "2026-09-14T13:41:02Z",
-    ticker: "VFVA",
-    broker: "Schwab",
   };
 
-  test("action is allow and redacted is present", () => {
+  test("action is block, not allow, even though consent is granted", () => {
     const result = checkEgress(payload, CLOUD, CONSENT_GRANTED);
-    expect(result.action).toBe("allow");
-    expect((result as { redacted?: unknown }).redacted).toBeDefined();
+    expect(result.action).toBe("block");
   });
 
-  test("the raw record is absent from the redacted projection", () => {
+  test("the block carries no redacted continuation", () => {
     const result = checkEgress(payload, CLOUD, CONSENT_GRANTED);
-    const redacted = (result as { redacted?: unknown }).redacted;
-    const serialised = JSON.stringify(redacted);
+    expect("redacted" in result).toBe(false);
+  });
 
+  test("the block message names the required reroute to a local model, and names no specific model", () => {
+    const result = checkEgress(payload, CLOUD, CONSENT_GRANTED);
+    expect(result.message.toLowerCase()).toContain("local model");
+    expect(result.message.toLowerCase()).toContain("on-device");
+    // No model is named anywhere in the repo (Decision 3 of
+    // docs/design/stories/243.md; the absence is a blocking dependency on
+    // M5, tracked as #247). These are the vendor/model names in circulation
+    // elsewhere in the design tree; none may appear in this message.
+    for (const name of ["gpt", "claude", "gemini", "llama", "mistral", "phi-3", "qwen"]) {
+      expect(result.message.toLowerCase()).not.toContain(name);
+    }
+  });
+
+  test("no raw field value from the payload appears anywhere in the decision", () => {
+    const serialised = JSON.stringify(checkEgress(payload, CLOUD, CONSENT_GRANTED));
     expect(serialised).not.toContain("4147 2093 8871 3009");
     expect(serialised).not.toContain("184209.44");
     expect(serialised).not.toContain("MRN-SENTINEL-99");
     expect(serialised).not.toContain("Jane Sentinel Doe");
-    expect(serialised).not.toContain("1985-03-12");
-    expect(serialised).not.toContain("40-100");
-    expect(serialised).not.toContain("130");
-
-    expect(redacted).toMatchObject({
-      account_number: { last_4: "3009" },
-      balance: { magnitude: "1e5" },
-      position: { magnitude: "1e2" },
-      ldl: { in_range: false },
-      timestamp: "2026-09-14",
-      ticker: "VFVA",
-      broker: "Schwab",
-    });
-    expect(redacted).not.toHaveProperty("date_of_birth");
-    expect(redacted).not.toHaveProperty("mrn");
-    expect(redacted).not.toHaveProperty("patient_name");
-    expect(redacted).not.toHaveProperty("reference_range");
   });
 });
 
-describe("checkEgress — case 9 (P0, CLAIM-15.4): PRIVATE to cloud with no opt-in blocks", () => {
-  test("action is block and the message names the required reroute", () => {
+describe("checkEgress — case 4 (P0, CLAIM-243.2): PRIVATE to cloud blocks with consent withheld and omitted", () => {
+  test("action is block with consent explicitly withheld, and the message names the required reroute", () => {
     const result = checkEgress(PRIVATE_PAYLOAD, CLOUD, CONSENT_WITHHELD);
     expect(result.action).toBe("block");
     expect(result.message.toLowerCase()).toContain("on-device");
   });
 
-  test("blocks even when consent is omitted entirely", () => {
+  test("action is block when consent is omitted entirely", () => {
     const result = checkEgress(PRIVATE_PAYLOAD, CLOUD);
     expect(result.action).toBe("block");
+  });
+
+  test("withheld and omitted produce the identical decision", () => {
+    const withheld = checkEgress(PRIVATE_PAYLOAD, CLOUD, CONSENT_WITHHELD);
+    const omitted = checkEgress(PRIVATE_PAYLOAD, CLOUD);
+    expect(omitted).toEqual(withheld);
   });
 });
 
@@ -297,9 +304,14 @@ describe("checkEgress — case 29 (P0, NEVER-15.9): no raw PRIVATE/SECRET value 
     expect(serialised).not.toContain(SENTINEL_BALANCE);
   });
 
-  test("a PRIVATE allow to cloud with opt-in redacts every sentinel field value out of the projection", () => {
+  // Was "a PRIVATE allow to cloud with opt-in redacts every sentinel field
+  // value out of the projection" under S1.2 (CLAIM-15.4). Post-#243 this
+  // cell is a block, so there is no projection to check here at all — the
+  // relevant assertion is simply that the block itself names no sentinel
+  // value, same as the withheld case above.
+  test("a PRIVATE block to cloud with opt-in granted never names any sentinel field value", () => {
     const result = checkEgress(privatePayload, CLOUD, CONSENT_GRANTED);
-    expect(result.action).toBe("allow");
+    expect(result.action).toBe("block");
     const serialised = serialiseDecision(result);
     expect(serialised).not.toContain(SENTINEL_ACCOUNT);
     expect(serialised).not.toContain(SENTINEL_MRN);
@@ -320,7 +332,7 @@ describe("checkEgress — case 29 (P0, NEVER-15.9): no raw PRIVATE/SECRET value 
   });
 });
 
-describe("checkEgress — the twelve-cell policy matrix, every branch documented and driven from one table", () => {
+describe("checkEgress — case 5 (P0, CLAIM-243.2): the full twelve-cell matrix returns the documented action", () => {
   const MATRIX: Array<{
     dataClass: string;
     payload: unknown;
@@ -339,7 +351,9 @@ describe("checkEgress — the twelve-cell policy matrix, every branch documented
 
     { dataClass: "PRIVATE", payload: PRIVATE_PAYLOAD, destination: ON_DEVICE, consent: undefined, expected: "allow", expectRedacted: false },
     { dataClass: "PRIVATE", payload: PRIVATE_PAYLOAD, destination: CLOUD, consent: CONSENT_WITHHELD, expected: "block", expectRedacted: false },
-    { dataClass: "PRIVATE", payload: PRIVATE_PAYLOAD, destination: CLOUD, consent: CONSENT_GRANTED, expected: "allow", expectRedacted: true },
+    // The changed cell (#243): was "allow", redacted, under S1.2. Every
+    // other cell in this table is unchanged from CLAIM-15.3/15.4.
+    { dataClass: "PRIVATE", payload: PRIVATE_PAYLOAD, destination: CLOUD, consent: CONSENT_GRANTED, expected: "block", expectRedacted: false },
 
     { dataClass: "SECRET", payload: SECRET_PAYLOAD, destination: ON_DEVICE, consent: undefined, expected: "block", expectRedacted: false },
     { dataClass: "SECRET", payload: SECRET_PAYLOAD, destination: CLOUD, consent: CONSENT_WITHHELD, expected: "block", expectRedacted: false },
@@ -368,18 +382,61 @@ describe("checkEgress — the twelve-cell policy matrix, every branch documented
   });
 });
 
-// Adjudicated at #18's implementation-review gate by @dev-pmallapp: a field
-// whose projection yields no information is dropped entirely rather than
-// emitted as a null husk. The security property is unchanged — the raw value
-// is absent either way — but an absent field cannot be mistaken for a measured
-// one, and an emitted null invites a consumer to reason about why it is null.
-describe("checkEgress — case 6 addendum: unprojectable fields are dropped, not nulled", () => {
-  const cloud = { vendor: "anthropic", locality: "cloud" } as const;
-  const granted = { granted: true } as const;
-  const redactedOf = (payload: unknown) => {
-    const decision = checkEgress(payload, cloud, granted);
-    return decision.action === "allow" ? decision.redacted : undefined;
-  };
+// Case 8 (P0, CLAIM-243.4): `deidentifyPrivatePayload` remains exported and
+// under test. Decision 1 of docs/design/stories/243.md retains it for M5's
+// locally-rendered clinician brief, which is rendered on-device and never
+// egresses — so these assertions, INHERITED UNCHANGED from what used to be
+// "case 6" and its addendum (S1.2, CLAIM-15.4), now call the projection
+// directly rather than through `checkEgress`. There is no longer any path
+// from `checkEgress` to this function at all (case 9 below proves that from
+// the source); the projection's own behaviour is exactly as it was.
+describe("checkEgress — case 8 (P0, CLAIM-243.4): deidentifyPrivatePayload remains exported and under test", () => {
+  test("resolves as a function from the guards barrel", () => {
+    expect(typeof deidentifyPrivatePayload).toBe("function");
+  });
+
+  test("de-identifies a full PRIVATE record the same way it did before #243", () => {
+    const payload = {
+      account_number: "4147 2093 8871 3009",
+      balance: 184209.44,
+      position: 300,
+      ldl: 130,
+      reference_range: "40-100",
+      date_of_birth: "1985-03-12",
+      mrn: "MRN-SENTINEL-99",
+      patient_name: "Jane Sentinel Doe",
+      timestamp: "2026-09-14T13:41:02Z",
+      ticker: "VFVA",
+      broker: "Schwab",
+    };
+
+    const redacted = deidentifyPrivatePayload(payload);
+    const serialised = JSON.stringify(redacted);
+
+    expect(serialised).not.toContain("4147 2093 8871 3009");
+    expect(serialised).not.toContain("184209.44");
+    expect(serialised).not.toContain("MRN-SENTINEL-99");
+    expect(serialised).not.toContain("Jane Sentinel Doe");
+    expect(serialised).not.toContain("1985-03-12");
+    expect(serialised).not.toContain("40-100");
+    expect(serialised).not.toContain("130");
+
+    expect(redacted).toMatchObject({
+      account_number: { last_4: "3009" },
+      balance: { magnitude: "1e5" },
+      position: { magnitude: "1e2" },
+      ldl: { in_range: false },
+      timestamp: "2026-09-14",
+      ticker: "VFVA",
+      broker: "Schwab",
+    });
+    expect(redacted).not.toHaveProperty("date_of_birth");
+    expect(redacted).not.toHaveProperty("mrn");
+    expect(redacted).not.toHaveProperty("patient_name");
+    expect(redacted).not.toHaveProperty("reference_range");
+  });
+
+  const redactedOf = (payload: unknown) => deidentifyPrivatePayload(payload);
 
   test("a biomarker with no reference range is absent, not null-valued", () => {
     expect(redactedOf({ apob: 88 })).toEqual({});
@@ -418,5 +475,119 @@ describe("checkEgress — case 6 addendum: unprojectable fields are dropped, not
       ticker: "VFVA",
       balance: { magnitude: "1e3" },
     });
+  });
+});
+
+describe("checkEgress — case 9 (P1, CLAIM-243.4): deidentifyPrivatePayload has no caller on any egress path", () => {
+  const egressSource = readFileSync(join(import.meta.dir, "../src/guards/egress.ts"), "utf8");
+
+  test("egress.ts does not reference deidentifyPrivatePayload anywhere, import or call", () => {
+    expect(egressSource).not.toContain("deidentifyPrivatePayload");
+  });
+
+  test("egress.ts does not import from ./redact at all", () => {
+    expect(egressSource).not.toMatch(/from\s+["']\.\/redact["']/);
+  });
+});
+
+// Case 11 (P0, NEVER-243.6). NAMED DELIBERATELY: if you are reading this
+// because you are re-enabling cloud egress for PRIVATE data and this test
+// just failed, stop. Decision 2 of docs/design/stories/243.md ruled that no
+// consent value may ever produce an allow here again, and NEVER-243.6 is
+// what makes that ruling enforceable rather than a comment someone can miss.
+// Narrowing or deleting this test is the one commit #243 exists to prevent.
+describe("checkEgress — case 11 (P0, NEVER-243.6): a granted consent must never be made to allow PRIVATE egress to cloud — read this before you touch it", () => {
+  test("consent: { granted: true } still blocks", () => {
+    const result = checkEgress(PRIVATE_PAYLOAD, CLOUD, { granted: true });
+    expect(result.action).toBe("block");
+  });
+});
+
+describe("checkEgress — case 12 (P0, NEVER-243.6): no consent value in the corpus produces an allow for PRIVATE to cloud", () => {
+  test("0 allows across the whole consent corpus", () => {
+    const throwingGetterConsent = {} as EgressConsent;
+    Object.defineProperty(throwingGetterConsent, "granted", {
+      enumerable: true,
+      get(): boolean {
+        throw new Error("boom");
+      },
+    });
+
+    const corpus: Array<[string, unknown]> = [
+      ["granted", { granted: true }],
+      ["withheld", CONSENT_WITHHELD],
+      ["omitted", undefined],
+      ["empty object", {}],
+      ["null", null],
+      ["undefined literal", undefined],
+      ["malformed granted value", { granted: "yes" }],
+      ["throwing getter", throwingGetterConsent],
+    ];
+
+    let allowCount = 0;
+    for (const [, consent] of corpus) {
+      const result = checkEgress(PRIVATE_PAYLOAD, CLOUD, consent as EgressConsent | undefined);
+      if (result.action === "allow") allowCount += 1;
+      expect(result.action).toBe("block");
+    }
+    expect(allowCount).toBe(0);
+  });
+});
+
+// Case 13 (P0, NEVER-243.6) — THE STRONGEST FORM. Per Note 1 of
+// docs/test-plans/243-plan.md: asserting that a granted consent blocks
+// (case 11) only proves the one cell. Asserting DEEP EQUALITY between the
+// granted-consent decision and the withheld-consent decision, across every
+// class and every locality, proves consent cannot influence the decision at
+// all — which is the property that makes retaining the parameter (Decision 2
+// of docs/design/stories/243.md) safe. If consent is ever legitimately wired
+// to something else, THIS is the test that must be consciously narrowed.
+describe("checkEgress — case 13 (P0, NEVER-243.6): consent does not alter the decision for any class or locality", () => {
+  const cases: Array<[string, unknown, Destination]> = [
+    ["PUBLIC", PUBLIC_PAYLOAD, ON_DEVICE],
+    ["PUBLIC", PUBLIC_PAYLOAD, CLOUD],
+    ["INTERNAL", INTERNAL_PAYLOAD, ON_DEVICE],
+    ["INTERNAL", INTERNAL_PAYLOAD, CLOUD],
+    ["PRIVATE", PRIVATE_PAYLOAD, ON_DEVICE],
+    ["PRIVATE", PRIVATE_PAYLOAD, CLOUD],
+    ["SECRET", SECRET_PAYLOAD, ON_DEVICE],
+    ["SECRET", SECRET_PAYLOAD, CLOUD],
+  ];
+
+  test.each(cases)("%s against %s: granted deep-equals withheld", (_label, payload, destination) => {
+    const granted = checkEgress(payload, destination, CONSENT_GRANTED);
+    const withheld = checkEgress(payload, destination, CONSENT_WITHHELD);
+    expect(granted).toEqual(withheld);
+  });
+
+  test("all eight class/locality combinations pass, not merely the PRIVATE ones", () => {
+    expect(cases.length).toBe(8);
+    for (const [, payload, destination] of cases) {
+      const granted = checkEgress(payload, destination, CONSENT_GRANTED);
+      const withheld = checkEgress(payload, destination, CONSENT_WITHHELD);
+      expect(granted).toEqual(withheld);
+    }
+  });
+});
+
+describe("checkEgress — case 14 (P0, NEVER-243.6): SECRET remains inert to consent under both localities", () => {
+  test("on-device: granted deep-equals withheld", () => {
+    const granted = checkEgress(SECRET_PAYLOAD, ON_DEVICE, CONSENT_GRANTED);
+    const withheld = checkEgress(SECRET_PAYLOAD, ON_DEVICE, CONSENT_WITHHELD);
+    expect(granted).toEqual(withheld);
+    expect(granted.action).toBe("block");
+  });
+
+  test("cloud: granted deep-equals withheld", () => {
+    const granted = checkEgress(SECRET_PAYLOAD, CLOUD, CONSENT_GRANTED);
+    const withheld = checkEgress(SECRET_PAYLOAD, CLOUD, CONSENT_WITHHELD);
+    expect(granted).toEqual(withheld);
+    expect(granted.action).toBe("block");
+  });
+
+  test("locality itself is inert too: on-device and cloud produce the identical decision", () => {
+    const onDevice = checkEgress(SECRET_PAYLOAD, ON_DEVICE, CONSENT_GRANTED);
+    const cloud = checkEgress(SECRET_PAYLOAD, CLOUD, CONSENT_GRANTED);
+    expect(onDevice).toEqual(cloud);
   });
 });

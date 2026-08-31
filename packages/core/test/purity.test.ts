@@ -229,9 +229,11 @@ describe.if(IS_CHILD)("purity harness — case 25 (P0, CLAIM-15.6): fs, net and 
     expect(checkEgress({ ticker: "AAPL" }, cloud, CONSENT_WITHHELD).action).toBe("allow");
     expect(checkEgress({ ldl: 130 }, onDevice).action).toBe("allow");
     expect(checkEgress({ ldl: 130 }, cloud, CONSENT_WITHHELD).action).toBe("block");
-    const redactedResult = checkEgress({ ldl: 130, reference_range: "40-100" }, cloud, granted);
-    expect(redactedResult.action).toBe("allow");
-    expect((redactedResult as { redacted?: unknown }).redacted).toBeDefined();
+    // Post-#243: PRIVATE to cloud blocks even with consent granted — the
+    // matrix cell S1.2 shipped as "allow, redacted" no longer exists.
+    const grantedResult = checkEgress({ ldl: 130, reference_range: "40-100" }, cloud, granted);
+    expect(grantedResult.action).toBe("block");
+    expect("redacted" in grantedResult).toBe(false);
     expect(checkEgress({ api_key: "sk-abcdefgh12345678" }, onDevice).action).toBe("block");
     expect(checkEgress({ api_key: "sk-abcdefgh12345678" }, cloud, granted).action).toBe("block");
 
