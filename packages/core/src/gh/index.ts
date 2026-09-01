@@ -6,9 +6,8 @@
 // directory is: shared shapes first, then the repository parameter every
 // constructor takes, then one group per `gh` operation family.
 //
-// One family is absent on purpose and lands later in this Story: pull
-// requests (#24). CLAIM-21.1 counts six families, so this barrel is
-// incomplete until it merges.
+// Pull requests (#24) are the sixth and last family CLAIM-21.1 counts. With
+// this group the barrel is complete.
 export { ghFail, ghOk, isPositiveInteger, safeOwnString, safeOwnValue } from "./types";
 export type { Argv, GhPlan, GhResponse, GhResult } from "./types";
 
@@ -44,3 +43,16 @@ export type {
   SubIssueAttachPlan,
   SubIssueCapability,
 } from "./sub-issues";
+
+export {
+  branchSlug,
+  bugBranch,
+  prCreate,
+  prList,
+  prReady,
+  prView,
+  renderPrBody,
+  storyBranch,
+  taskBranch,
+} from "./pr";
+export type { PrBodyInput, PrCreateInput, PrListInput } from "./pr";
