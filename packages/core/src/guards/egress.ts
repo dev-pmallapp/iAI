@@ -10,20 +10,34 @@
 // per CLAIM-15.6 and NEVER-15.8's fail-closed constraint.
 //
 // The twelve-cell class-by-destination matrix, per Decision 3 of
-// docs/design/stories/15.md:
+// docs/design/stories/15.md as revised by Decision 2 of
+// docs/design/stories/243.md (#243, #245):
 //
 //   | class    | on-device | cloud, consent withheld | cloud, consent granted |
 //   |----------|-----------|--------------------------|-------------------------|
 //   | PUBLIC   | allow     | allow                    | allow                   |
 //   | INTERNAL | allow     | allow                    | allow                   |
-//   | PRIVATE  | allow     | block                    | allow + redacted        |
+//   | PRIVATE  | allow     | block                    | block                   |
 //   | SECRET   | block     | block                    | block                   |
 //
-// `locality` is inert for SECRET (Decision 5): the on-device and cloud
-// columns are identical, and consent changes nothing either. A SECRET block
-// carries no `redacted` continuation — `EgressDecision` (decision.ts) makes
-// that unrepresentable at the type level, so `blockEgress` is the only call
-// this file ever makes for that row.
+// PRIVATE/cloud/granted used to be "allow + redacted" (S1.2, CLAIM-15.4). It
+// is now "block", unconditionally. #243 ruled that no PRIVATE data reaches a
+// cloud vendor, ever — not de-identified, not under a per-session opt-in, not
+// under any condition. See the WHY block above `EgressConsent` below for
+// what that means for the retained `consent` parameter.
+//
+// `locality` is inert for SECRET (Decision 5 of stories/15.md): the
+// on-device and cloud columns are identical, and consent changes nothing
+// either. A SECRET block carries no `redacted` continuation —
+// `EgressDecision` (decision.ts) makes that unrepresentable at the type
+// level, so `blockEgress` is the only call this file ever makes for that
+// row. PRIVATE/cloud now shares that same shape: every cloud cell for
+// PRIVATE is a plain `blockEgress`, with no `redacted` continuation either,
+// because this module no longer hands any PRIVATE payload to the
+// de-identification projection in guards/redact.ts before reaching a cloud
+// destination — see CLAIM-243.4, verified by grep rather than by reading
+// this comment: nothing in this file, including this sentence, spells out
+// that projection's export name.
 //
 // Any `locality` outside "on-device" and "cloud" blocks before the class is
 // even consulted, per NEVER-15.8 — an unrecognised destination never falls
@@ -35,7 +49,6 @@
 // mirroring classify.ts's rationale for reading only own keys.
 import { classify } from "../classify/index";
 import { allowEgress, blockEgress, type EgressDecision } from "../decision";
-import { deidentifyPrivatePayload } from "./redact";
 
 export interface Destination {
   vendor: string;
@@ -43,14 +56,41 @@ export interface Destination {
   region?: string;
 }
 
-// The per-session consent snapshot (Decision 1). A VALUE handed in by the
-// caller, never a lookup: `checkEgress` cannot go and ask a config layer or
-// a store whether consent was granted, because that would be I/O, which
-// CLAIM-15.6 forbids this module from performing. `granted` is the only
-// field the matrix needs; there is no scope, expiry or vendor-specificity
-// here because Decision 1 only requires ONE opt-in axis (cloud, this
-// session) and inventing more would be a config layer this guard cannot
-// have.
+// The per-session consent snapshot (Decision 1 of stories/15.md). A VALUE
+// handed in by the caller, never a lookup: `checkEgress` cannot go and ask a
+// config layer or a store whether consent was granted, because that would be
+// I/O, which CLAIM-15.6 forbids this module from performing. `granted` is
+// the only field the matrix needs; there is no scope, expiry or
+// vendor-specificity here because Decision 1 only requires ONE opt-in axis
+// (cloud, this session) and inventing more would be a config layer this
+// guard cannot have.
+//
+// WHY THIS TYPE, `CONSENT_WITHHELD` AND THE THIRD PARAMETER ARE STILL HERE,
+// EVEN THOUGH NOTHING IN THIS FILE NOW BRANCHES ON `granted`:
+//
+// Decision 2 of docs/design/stories/243.md ruled to retain the consent
+// mechanism rather than delete it, and to make it PROVABLY INERT instead.
+// Under the strict posture #243 adopted, no consent value — granted,
+// withheld, omitted, or malformed — can change `checkEgress`'s verdict for a
+// PRIVATE payload against a cloud destination. It is `block`, full stop.
+//
+// That is deliberately more dangerous than deletion would have been. A
+// future maintainer who reads `consent: EgressConsent` still threaded
+// through this module's signature will reasonably infer that granting it
+// does something. It does not, and it must never be made to again: the
+// moment a `consent`-gated branch reappears on the PRIVATE/cloud cell, this
+// module has reopened the exact leak path #243 closed. `NEVER-243.6`
+// (see packages/core/test/egress.test.ts, case 13 especially) asserts
+// inertness over the whole consent corpus for exactly this reason — so that
+// re-enabling this path fails a test that says in plain terms why it must
+// not be re-enabled, rather than failing silently or not at all.
+//
+// The parameter earns its keep for the classes it was never gating in the
+// first place (PUBLIC and INTERNAL allow regardless of consent, same as
+// before) and for whatever consent may legitimately affect later; it is kept
+// so that signature remains stable for that future, honest use. It buys
+// nothing for PRIVATE, on purpose, forever, unless a later Story explicitly
+// revisits Decision 2.
 export interface EgressConsent {
   readonly granted: boolean;
 }
@@ -58,7 +98,11 @@ export interface EgressConsent {
 // The default a caller gets for free by omitting the third argument. A
 // forgotten consent argument must deny, never allow — this is the whole
 // point of NEVER-15.8, and the reason the default lives in the signature
-// (case 26 below) rather than in caller discipline.
+// (case 26 below) rather than in caller discipline. Since #243, "deny" is
+// the only outcome PRIVATE/cloud ever has anyway, but PUBLIC and INTERNAL
+// still allow regardless, so the default keeps mattering for what it always
+// meant: an omitted consent is never treated as more permissive than an
+// explicit withheld one.
 export const CONSENT_WITHHELD: EgressConsent = Object.freeze({ granted: false });
 
 const LOCALITY_BLOCK_MESSAGE =
@@ -76,11 +120,16 @@ const SECRET_BLOCK_MESSAGE =
   "included, with or without consent; keep it in .env or the OS keychain and " +
   "remove it from the payload before retrying";
 
-const PRIVATE_CLOUD_WITHHELD_MESSAGE =
-  "egress blocked: this payload contains PRIVATE-class data and this destination " +
-  "is a cloud destination with no per-session opt-in on record; route this " +
-  "request through an on-device destination instead, or obtain the per-session " +
-  "cloud opt-in first";
+// Per Decision 2 and Decision 3 of docs/design/stories/243.md: PRIVATE data
+// never reaches a cloud vendor, so this message no longer offers "or obtain
+// the opt-in" as an alternative — there is no consent value that changes
+// this outcome. The only route named is a reroute to a local model; no
+// specific model is named because none has been chosen yet (Decision 3
+// files that absence as a blocking dependency on M5, tracked as #247).
+const PRIVATE_CLOUD_BLOCK_MESSAGE =
+  "egress blocked: this payload contains PRIVATE-class data, which may never " +
+  "reach a cloud vendor, de-identified or not, under any consent state; route " +
+  "this request through an on-device destination running a local model instead";
 
 function safeOwnString(destination: unknown, key: string): string | undefined {
   try {
@@ -94,18 +143,13 @@ function safeOwnString(destination: unknown, key: string): string | undefined {
   }
 }
 
-function isConsentGranted(consent: EgressConsent): boolean {
-  try {
-    return consent !== null && typeof consent === "object" && consent.granted === true;
-  } catch {
-    return false;
-  }
-}
-
 function checkEgressInternal(
   payload: unknown,
   destination: Destination,
-  consent: EgressConsent,
+  // Deliberately unused. See the WHY block above `EgressConsent` for why
+  // this parameter is retained but must never gate an outcome here — this
+  // signature is the one place a maintainer could quietly wire it back in.
+  _consent: EgressConsent,
 ): EgressDecision {
   const locality = safeOwnString(destination, "locality");
   if (locality !== "on-device" && locality !== "cloud") {
@@ -127,20 +171,16 @@ function checkEgressInternal(
     return allowEgress(`egress allowed: ${dataClass} data may reach any destination`);
   }
 
-  // dataClass === "PRIVATE" from here on.
+  // dataClass === "PRIVATE" from here on. `locality === "cloud"` blocks
+  // unconditionally here — `_consent` is never consulted, per Decision 2 of
+  // docs/design/stories/243.md. See NEVER-243.6 (packages/core/test/
+  // egress.test.ts) for the tests that make this inertness provable rather
+  // than merely stated.
   if (locality === "on-device") {
     return allowEgress("egress allowed: PRIVATE data may reach an on-device destination unredacted");
   }
 
-  if (!isConsentGranted(consent)) {
-    return blockEgress(PRIVATE_CLOUD_WITHHELD_MESSAGE);
-  }
-
-  const redacted = deidentifyPrivatePayload(payload);
-  return allowEgress(
-    "egress allowed: PRIVATE data de-identified for a cloud destination under the granted per-session opt-in",
-    redacted,
-  );
+  return blockEgress(PRIVATE_CLOUD_BLOCK_MESSAGE);
 }
 
 export function checkEgress(
