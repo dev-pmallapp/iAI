@@ -6,9 +6,9 @@
 // directory is: shared shapes first, then the repository parameter every
 // constructor takes, then one group per `gh` operation family.
 //
-// Two families are absent on purpose and land later in this Story:
-// sub-issues (#23) and pull requests (#24). CLAIM-21.1 counts six families, so
-// this barrel is incomplete until both merge.
+// One family is absent on purpose and lands later in this Story: pull
+// requests (#24). CLAIM-21.1 counts six families, so this barrel is
+// incomplete until it merges.
 export { ghFail, ghOk, isPositiveInteger, safeOwnString, safeOwnValue } from "./types";
 export type { Argv, GhPlan, GhResponse, GhResult } from "./types";
 
@@ -25,3 +25,22 @@ export { milestoneCreate, milestoneList, milestoneUpdate } from "./milestones";
 export type { MilestoneCreateInput } from "./milestones";
 
 export { commentCreate, commentEdit, commentList } from "./comments";
+
+export {
+  SUB_ISSUE_FEATURE_HEADER,
+  TASKS_HEADING,
+  findParentInBody,
+  issueNodeId,
+  parentBodyLine,
+  planSubIssueAttach,
+  subIssueCapabilityProbe,
+  subIssueLink,
+  tasksChecklist,
+  withParentLine,
+} from "./sub-issues";
+export type {
+  ChecklistItem,
+  SubIssueAttachInput,
+  SubIssueAttachPlan,
+  SubIssueCapability,
+} from "./sub-issues";
