@@ -479,16 +479,17 @@ a skill.
 This is one level below where LifeOS puts it. LifeOS classifies
 `LIFEOS/USER/HEALTH/**` as `RESTRICTED`, its top class and the fail-closed
 default — which under iAI's renamed levels (`00-synthesis.md:52`) is `SECRET`,
-not `PRIVATE`. iAI places health data at `PRIVATE` deliberately: `SECRET`
-admits no opt-in at all, under any circumstance, and a pack that can never
-send a de-identified summary to a model even with explicit per-session consent
-would be unusable for trend and flag review.
+not `PRIVATE`. iAI places health data at `PRIVATE` rather than `SECRET` for a
+narrower reason than opt-in ever was: `SECRET` forbids the de-identified
+projection from being rendered anywhere, and trend and flag review needs that
+projection to exist **locally** even though, per #243, it may never leave the
+device.
 
 | Rule | Mechanism |
 |------|-----------|
-| Hard-gated from cloud-model egress | `guards/checkEgress`. Default is **deny**, not ask — per the gate table's *Egress of PRIVATE data* row |
+| Hard-gated from cloud-model egress | `guards/checkEgress`. **No condition allows it** — per the gate table's *Egress of PRIVATE data* row and the strict posture in `09-security.md` §2 |
 | Trend and flag compute **locally** | The computation is arithmetic over `Biomarker[]` and `DayFile.metrics`. It does not need a model, so it does not get one |
-| Only derived, de-identified summaries may reach a model | And only when the user explicitly opts in, **per session**. The opt-in does not persist across sessions and cannot be set in config |
+| Derived, de-identified summaries stay local | The projection exists for the locally-rendered clinician brief. No consent value, session or otherwise, routes it to a cloud model |
 | The clinician brief is generated locally | It contains named markers, dates, doses and a provider name. It is the single most identifying artifact in the system |
 | Raw day files never enter a prompt | The issue carries a pointer behind a sentinel; the payload stays on disk. This is the 60000-char budget doing double duty as a privacy control |
 
@@ -607,7 +608,7 @@ instruction, and the instruction never left the process.
 | **Timezone day-boundary bug** | A 02:00 sync lands in the previous day; sleep appears twice on one date and zero on the next | Resolve `LIFEOS_HEALTH_TZ → TZ → host → fallback`, record which one won in the day file, and make `ingest` idempotent per resolved local date so a re-run overwrites rather than duplicating |
 | **Correlation mistaken for causation** | ApoB fell during the protocol; the protocol gets the credit, and the 22% training-load drop is ignored | CLAIM-950.4-style confounder claims are mandatory: every marker Task names its confounders and reports their series in the same evidence artifact. The brief states association, never mechanism |
 | **Model over-interprets a single value** | One hs-CRP at 1.4 mg/L becomes a paragraph about inflammation | `binding.gate.autoDeny` includes *"single out-of-range value with no prior series"*, and `flag` requires persistence across ≥ 2 consecutive measurements |
-| **PRIVATE data leaks into a cloud prompt** | A day file is pasted into a summarisation request | `class:private` on every issue, `guards/checkEgress` defaults to **deny**, trend/flag compute locally without a model, and only de-identified derived summaries are eligible even after a per-session opt-in |
+| **PRIVATE data leaks into a cloud prompt** | A day file is pasted into a summarisation request | `class:private` on every issue, `guards/checkEgress` blocks under every consent value, trend/flag compute locally without a model, and de-identified derived summaries never egress — the projection is retained for local rendering only |
 | **Stale source silently reports `ok`** | Eight Sleep stopped syncing on 2026-06-02; `current.json` still says `ok` because the last successful fetch is cached | `SourceStatus` is computed from `fetched_at` freshness against a per-source expected cadence, not from the last HTTP result. Past the cadence window the status is `stale`, and `status` surfaces every non-`ok` source before any rung is evaluated |
 | **A brief becomes an instruction** | "Consider raising the dose" survives into `BRIEFS/` | The clinician-boundary gate lints for imperative mood and prescription nouns before write, holds the output, and regenerates it as a numbered question. The blocked text is discarded, not surfaced |
 | **Emergency signal treated as an anomaly** | SpO2 84% flows into the trend pipeline and produces a chart | The emergency predicate is deterministic, runs **first** in `health/anomaly`, and halts the pipeline with a fixed notice the model cannot paraphrase |
