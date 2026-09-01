@@ -122,6 +122,31 @@ continuation rules that hang off them.
 - **Rate limiting and network failure.** No case in this Story touches a network;
   CLAIM-15.6 makes that structural.
 
+## Superseded cases
+
+**Case 6** — *"`PRIVATE` to a `cloud` destination with the per-session opt-in
+present returns `allow` carrying a de-identified `redacted` payload"* — superseded
+by #243, 2026-08-31.
+
+@dev-pmallapp ruled that no `PRIVATE` data reaches a cloud vendor under any
+condition. `checkEgress` now blocks that cell for every consent value, so the
+behaviour this case asserts no longer exists.
+
+**The case text above is left exactly as written, and the row is left in its
+table.** `docs/evidence/15-*.md` records a PASS taken against this case, and
+rewriting it would leave that evidence asserting something the plan no longer
+says. This is the same treatment `CLAIM-15.4` receives in
+`docs/design/stories/15.md`, and for the same reason: the record of what was
+verified is not edited to match a later decision.
+
+The case is not retired and its number is not freed. Retirement means a case was
+never executable; this one executed and passed against the code as it then stood.
+It is superseded, which is a different thing and is recorded differently.
+
+`CLAIM-15.4`'s remaining coverage — cases 9 and 23, the block path and the
+adapter mapping — is unaffected and still passes, because blocking `PRIVATE` to
+cloud without consent was always the behaviour.
+
 ## Notes
 
 1. **Two claims moved from assertion to type.** The Q2 ruling at the
@@ -167,5 +192,10 @@ continuation rules that hang off them.
    pure prefix logic on a caller-supplied string. That makes both a false
    negative and a false positive cheap to introduce, and the case covers both
    directions rather than only the leak direction.
+
+4. **Case 6 is superseded, not retired.** See `## Superseded cases`. It is the
+   second of the two places in this repository where the retired permissive
+   phrasing survives on purpose, the first being `CLAIM-15.4`'s annotation in
+   `docs/design/stories/15.md`.
 
 <sub>Written by iAI, hand-executed. `/iai:story-test-plan` lands in M2.</sub>

@@ -48,7 +48,7 @@ containing one biomarker value is `PRIVATE` in its entirety.
 |---|---|---|---|
 | **PUBLIC** | Ticker symbols, market prices, published papers and their DOIs, open-source code, public GitHub issues, general medical literature | **Yes**, unrestricted | The public repo. Cacheable. Citable |
 | **INTERNAL** | Project code and design docs, test plans, evidence artifacts, Designs, work state, Goals entry *titles* | **Yes** | The public repo. Not published, but not sensitive |
-| **PRIVATE** | Health data and lab results, biomarker values, wearable streams, **open positions and quantities**, account balances, transaction history, statement PDFs, clinician notes | **No — by default.** Requires an explicit **per-session opt-in**, and is **de-identified by default** even then | `USER/` only, which is a symlink into the private repo. Never in the public repo, never in a commit |
+| **PRIVATE** | Health data and lab results, biomarker values, wearable streams, **open positions and quantities**, account balances, transaction history, statement PDFs, clinician notes | **Never. Under any condition.** No opt-in, per-session or otherwise, admits it, and de-identification does not either — the de-identified projection is retained for **local** rendering only, never as a cloud-egress path | `USER/` only, which is a symlink into the private repo. Never in the public repo, never in a commit |
 | **SECRET** | API keys, broker credentials, OAuth tokens, session cookies, `.env` contents, private keys | **Never. Under any circumstance. There is no opt-in** | `.env` on the local filesystem, or the OS keychain. Never read into a model context, never logged, never echoed |
 
 Two rules, stated as absolutes because they are enforced as absolutes:
@@ -57,10 +57,11 @@ Two rules, stated as absolutes because they are enforced as absolutes:
 > once". A guard that finds a SECRET-shaped payload in an egress path blocks
 > and does not offer a continuation.
 
-> **PRIVATE requires an explicit per-session opt-in, and is de-identified by
-> default.** Per-*session*, not per-project and not remembered: the consent
-> dies when the session does. The default posture even after opt-in is the
-> de-identified projection, not the raw record.
+> **PRIVATE never reaches a cloud model. No opt-in, no consent value, no
+> de-identified form.** A guard that finds a `PRIVATE`-classed payload bound
+> for a cloud destination blocks regardless of the consent parameter it is
+> handed — consent is retained for other purposes but is inert on this path.
+> `PRIVATE` work stays on-device, on a local model, full stop.
 
 Classification is carried three ways so it survives every path:
 
