@@ -275,13 +275,29 @@ function checkExecTemplate(filePath: string, masked: string, packageName: string
   return violations;
 }
 
-// CLAIM-15.6: no file under packages/core/src/classify or
-// packages/core/src/guards may perform I/O. `isPureModulePath` matches a
-// "classify" or "guards" path SEGMENT (not merely a substring), so a
-// hypothetical "src/guardsomething.ts" does not fall into scope by accident.
+// Two claims share this rule, and both are load-bearing:
+//
+//   CLAIM-15.6 — no file under packages/core/src/classify or
+//   packages/core/src/guards may perform I/O.
+//
+//   CLAIM-21.1 — no file under packages/core/src/gh may reference
+//   child_process, Bun.$ or fetch. ARCHITECTURE.md:90 puts it plainly: the
+//   gh layer "never shells out itself". Those three banned tokens map
+//   one-for-one onto detections this rule already implements
+//   (IO_MODULE_SPECIFIERS, BUN_MEMBER_RE, FETCH_CALL_RE), so #253 widened the
+//   SCOPE rather than adding a rule.
+//
+// `isPureModulePath` matches a path SEGMENT, never a substring, so
+// "src/guardsomething.ts" and "src/ghost.ts" do not fall into scope by
+// accident. That distinction is the whole reason these are anchored regexes
+// and not `includes()`.
 function isPureModulePath(filePath: string): boolean {
   const normalized = filePath.split(sep).join("/");
-  return /(^|\/)classify(\/|$)/.test(normalized) || /(^|\/)guards(\/|$)/.test(normalized);
+  return (
+    /(^|\/)classify(\/|$)/.test(normalized) ||
+    /(^|\/)guards(\/|$)/.test(normalized) ||
+    /(^|\/)gh(\/|$)/.test(normalized)
+  );
 }
 
 // Runtime/I-O module specifiers banned from classify/ and guards/, per
@@ -422,7 +438,7 @@ const RULE_SCOPES: Record<RuleId, string> = {
   "no-host-import": "core",
   "no-process-cwd": "core, adapter-opencode",
   "no-exec-template": "all packages",
-  "no-io-in-pure-modules": "core/src/classify, core/src/guards",
+  "no-io-in-pure-modules": "core/src/classify, core/src/guards, core/src/gh",
 };
 
 function countFiles(packagesDir: string): number {

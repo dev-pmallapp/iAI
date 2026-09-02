@@ -1,5 +1,5 @@
 // The stubbed-runtime harness for CLAIM-15.6 (test case 25): no file under
-// classify/ or guards/ performs I/O, proved by running the whole predicate
+// classify/, guards/ or gh/ performs I/O, proved by running the whole predicate
 // surface with `fs`, `net` and `process` unable to do anything but throw.
 //
 // A harness whose stubs silently fail to install passes vacuously — it would
@@ -55,6 +55,16 @@ import {
   type Destination,
   type EgressConsent,
 } from "../src/guards/index";
+import {
+  classifyExitCode,
+  commentCreate,
+  issueCreate,
+  labelCreate,
+  milestoneList,
+  planLabelTransition,
+  prCreate,
+  subIssueLink,
+} from "../src/gh/index";
 
 // The real export names, captured before either module is mocked, so the
 // stub mirrors the actual API surface rather than a hand-picked subset that
@@ -266,5 +276,47 @@ describe.if(IS_CHILD)("purity harness — case 25 (P0, CLAIM-15.6): fs, net and 
     expect(checkCommitPrefix("#9: add workspace scaffold").action).toBe("allow");
     expect(checkCommitPrefix("add workspace scaffold").action).toBe("block");
     expect(checkCommitPrefix('Revert "#9: add workspace scaffold"').action).toBe("allow");
+  });
+
+});
+
+// Case 19 (P0, NEVER-21.9). The gh layer entered this rule's scope in #253,
+// but scope only proves a file WOULD be checked. This exercises the surface
+// with fs, net and process armed to throw, so an actual I/O call on an actual
+// code path fails here rather than in production.
+//
+// One constructor per family named by CLAIM-21.1, plus the response-side
+// functions, because a constructor that never runs proves nothing about a
+// parser that does.
+describe.if(IS_CHILD)("purity harness — case 19 (P0, NEVER-21.9): the gh layer runs with the runtime trapped", () => {
+  test("every gh family constructs, and the response side classifies, with fs/net/process throwing", () => {
+    const repo = { owner: "dev-pmallapp", name: "iAI" };
+
+    const created = issueCreate(repo, { title: "T", body: "B" });
+    expect(created.ok).toBe(true);
+    expect(milestoneList(repo).ok).toBe(true);
+    expect(labelCreate(repo, { name: "iai", color: "24292f" }).ok).toBe(true);
+    expect(commentCreate(repo, 21, "b").ok).toBe(true);
+    expect(subIssueLink("I_parentNode", "I_childNode").ok).toBe(true);
+    expect(
+      prCreate(repo, {
+        base: "story/21-s",
+        head: "task/22-c",
+        title: "T",
+        body: "B",
+        defaultBranch: "main",
+      }).ok,
+    ).toBe(true);
+
+    // The response side: classification reads a supplied envelope and must not
+    // reach for the process, the network or the filesystem to do it.
+    expect(classifyExitCode(1).classification).toBe("fatal");
+    expect(classifyExitCode(9999).provenance).toBe("unmapped");
+
+    const transition = planLabelTransition(repo, 21, {
+      add: "status:resolved",
+      current: ["status:in-progress"],
+    });
+    expect(transition.ok).toBe(true);
   });
 });
