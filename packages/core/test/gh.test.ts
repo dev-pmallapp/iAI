@@ -12,6 +12,8 @@ import {
   milestoneList,
   parseRepo,
   planLabelTransition,
+  prCreate,
+  subIssueLink,
   type GhRepo,
 } from "../src/gh/index";
 
@@ -93,15 +95,32 @@ describe("gh — case 1 (P0, CLAIM-21.1): each operation family has a constructo
     }
   });
 
-  // CLAIM-21.1 counts SIX families. Four are constructible here; sub-issues
-  // are #23 and pull requests are #24, so this case is complete only when both
-  // merge. Recording the arithmetic in the suite means the gap is visible
-  // rather than assumed closed at story-verify.
-  test("four of six families ship in this task; sub-issues and PRs are #23 and #24", () => {
-    const shipped = ["issues", "milestones", "labels", "comments"];
-    const pending = ["sub-issues", "pull-requests"];
-    expect(shipped.length + pending.length).toBe(6);
-    expect(shipped.length).toBe(4);
+  // CLAIM-21.1 counts SIX families. Four shipped in #22, sub-issues in #23 and
+  // pull requests in #24. This asserts each is actually CONSTRUCTIBLE by
+  // calling one constructor per family — a list of six names would only assert
+  // that six names were typed.
+  test("all six families named by CLAIM-21.1 are constructible", () => {
+    const families: Record<string, () => { ok: boolean }> = {
+      issues: () => issueCreate(REPO, { title: "T", body: "B" }),
+      milestones: () => milestoneList(REPO),
+      labels: () => labelCreate(REPO, { name: "iai", color: "24292f" }),
+      comments: () => commentCreate(REPO, 21, "b"),
+      "sub-issues": () => subIssueLink("I_parentNode", "I_childNode"),
+      "pull-requests": () =>
+        prCreate(REPO, {
+          base: "story/21-s",
+          head: "task/22-c",
+          title: "T",
+          body: "B",
+          defaultBranch: "main",
+        }),
+    };
+    const names = Object.keys(families);
+    expect(names.length).toBe(6);
+    for (const name of names) {
+      const result = families[name]!();
+      expect(result.ok).toBe(true);
+    }
   });
 });
 
