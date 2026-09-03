@@ -67,8 +67,18 @@ export const ARTIFACT_BEARING_SENTINELS: readonly SentinelName[] = [
   "evidence",
 ];
 
+// Total over hostile input. This is called from MESSAGE BUILDERS, so a
+// non-string reaching it would throw while constructing the very failure value
+// that was supposed to replace a throw -- a Symbol cannot be concatenated and a
+// hostile `toString` runs arbitrary code. Found by NEVER-26.8's sweep in #261.
 export function sentinelFor(name: SentinelName): string {
-  return SENTINEL_NAMESPACE_PREFIX + name;
+  return SENTINEL_NAMESPACE_PREFIX + safeSentinelLabel(name);
+}
+
+// A printable stand-in for a value that should have been a sentinel name.
+// Never invokes `toString` on the input.
+export function safeSentinelLabel(name: unknown): string {
+  return typeof name === "string" ? name : "<invalid>";
 }
 
 export function isKnownSentinelName(value: unknown): value is SentinelName {
@@ -97,11 +107,27 @@ export function isSentinelNamespace(value: unknown): boolean {
 // tenth name is added by someone who is not reading this file. Case 1 calls
 // this, so the guard fails at the moment the namespace gains a bad member
 // rather than at the moment a comment is mis-attributed.
+// TOTAL OVER HOSTILE INPUT, and the guard is not decoration.
+//
+// Found by NEVER-26.8's reflective sweep in #261: this function is exported,
+// so a caller can pass anything. Handed a 200,000-character STRING instead of
+// an array, `for (const a of names)` iterates 200,000 CHARACTERS and the nested
+// loop runs 4e10 comparisons. That is not a throw the corpus would have caught
+// — it is a hang, which is strictly worse, because a guard that never returns
+// stalls every turn (CONTRIBUTING.md's 50 ms rule for guards exists for this
+// class of failure).
+//
+// A non-array yields `false` rather than a throw: the question "is this
+// namespace prefix-free" has no true answer for a non-namespace, and
+// NEVER-26.8 requires a value rather than an exception.
 export function sentinelNamesArePrefixFree(
   names: readonly string[] = SENTINEL_NAMES,
 ): boolean {
-  for (const a of names) {
-    for (const b of names) {
+  if (!Array.isArray(names)) return false;
+  const strings = names.filter((n): n is string => typeof n === "string");
+  if (strings.length !== names.length) return false;
+  for (const a of strings) {
+    for (const b of strings) {
       if (a !== b && b.startsWith(a)) return false;
     }
   }

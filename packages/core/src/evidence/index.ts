@@ -12,6 +12,7 @@ export {
   matchSentinelLine,
   SENTINEL_NAMES,
   SENTINEL_NAMESPACE_PREFIX,
+  safeSentinelLabel,
   sentinelFor,
   sentinelLinePayload,
   sentinelNamesArePrefixFree,

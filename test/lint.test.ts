@@ -355,9 +355,18 @@ describe("no-io-in-pure-modules — case 18 (P0, NEVER-21.9): the rule covers pa
     expect(violations.filter((v) => v.rule === "no-io-in-pure-modules").length).toBeGreaterThan(0);
   });
 
+  // Asserts that the scope string NAMES core/src/gh, which is what the test
+  // title claims and what NEVER-21.9 needs. It previously asserted the whole
+  // literal, which meant any legitimate widening of the rule broke a Story-21
+  // test for no reason -- #261 widening the scope to core/src/evidence is
+  // exactly that. Over-specifying a fixture turns every future extension into
+  // a false failure.
   test("the printed scope string names core/src/gh, since it is the user-visible contract", () => {
     const source = readFileSync(join(repoRoot, "scripts", "lint.ts"), "utf8");
-    expect(source).toContain('"no-io-in-pure-modules": "core/src/classify, core/src/guards, core/src/gh"');
+    const scopeLine = /"no-io-in-pure-modules": "([^"]+)"/.exec(source)?.[1] ?? "";
+    expect(scopeLine).toContain("core/src/classify");
+    expect(scopeLine).toContain("core/src/guards");
+    expect(scopeLine).toContain("core/src/gh");
   });
 
   // The scope predicate matches a path SEGMENT, never a substring. "ghost" and
@@ -450,5 +459,114 @@ describe("no-io-in-pure-modules — case 2 (P0, CLAIM-21.1): no file under core/
     expect(
       lintSource(callFile, call, "core").filter((v) => v.rule === "no-io-in-pure-modules").length,
     ).toBeGreaterThan(0);
+  });
+});
+
+// NEVER-26.7 carries three cases for the same reason NEVER-21.9 did. Case 19
+// proves the directory is in SCOPE, case 20 (in packages/core/test/purity.test.ts)
+// proves the code RUNS with the runtime trapped, and case 21 proves the rule
+// FIRES. Neither of the first two would catch a rule that silently matched
+// nothing.
+describe("no-io-in-pure-modules — case 19 (P0, NEVER-26.7): the rule covers packages/core/src/evidence", () => {
+  test("a file under core/src/evidence is in scope for the rule", () => {
+    const source = `import { readFileSync } from "node:fs";\n`;
+    const filePath = writePackageFile(makeTempDir(), "core", "evidence/render.ts", source);
+    const violations = lintSource(filePath, source, "core");
+    expect(violations.filter((v) => v.rule === "no-io-in-pure-modules").length).toBeGreaterThan(0);
+  });
+
+  test("the printed scope string names core/src/evidence, since it is the user-visible contract", () => {
+    const source = readFileSync(join(repoRoot, "scripts", "lint.ts"), "utf8");
+    expect(source).toContain(
+      '"no-io-in-pure-modules": "core/src/classify, core/src/guards, core/src/gh, core/src/evidence"',
+    );
+  });
+
+  // ASSERT THE DENOMINATOR. #253's first attempt passed while scanning ZERO
+  // files: lintTree expects a directory whose CHILDREN are packages, and
+  // packages/core/src/gh has no subdirectories, so it returned [] inside the
+  // very case written to prevent vacuous passes. This lints each real file and
+  // checks the count first.
+  test("every real file under packages/core/src/evidence has 0 violations, over a non-zero denominator", () => {
+    const dir = join(repoRoot, "packages", "core", "src", "evidence");
+    const files = readdirSync(dir, { withFileTypes: true })
+      .filter((e) => e.isFile() && e.name.endsWith(".ts"))
+      .map((e) => join(dir, e.name));
+
+    // If this ever drops below the module count the rest of the test proves nothing.
+    expect(files.length).toBeGreaterThanOrEqual(6);
+
+    const violations = files.flatMap((filePath) =>
+      lintSource(filePath, readFileSync(filePath, "utf8"), "core"),
+    );
+    expect(violations.filter((v) => v.rule === "no-io-in-pure-modules")).toEqual([]);
+  });
+
+  // The scope predicate matches a path SEGMENT, never a substring. Widening it
+  // must not pull "evidences/" or "evidence-store/" into a rule forbidding I/O.
+  test("a directory merely starting with evidence is not pulled into scope", () => {
+    const source = `import { readFileSync } from "node:fs";\n`;
+    for (const rel of ["evidences/thing.ts", "evidence-store/thing.ts"]) {
+      const filePath = writePackageFile(makeTempDir(), "core", rel, source);
+      const violations = lintSource(filePath, source, "core");
+      expect(violations.filter((v) => v.rule === "no-io-in-pure-modules")).toEqual([]);
+    }
+  });
+
+  // A violation under evidence/ that cited CLAIM-15.6 would send the reader to
+  // the wrong Story. Same defect class as one generic message for five distinct
+  // rules — see case 3.
+  test("a violation names the claim that owns the directory it was found in", () => {
+    const io = `import { readFileSync } from "node:fs";\n`;
+    const cases: Array<[string, string, string]> = [
+      ["evidence/render.ts", "NEVER-26.7", "evidence/"],
+      ["gh/issues.ts", "CLAIM-21.1", "gh/"],
+      ["classify/classify.ts", "CLAIM-15.6", "classify/ and guards/"],
+      ["guards/egress.ts", "CLAIM-15.6", "classify/ and guards/"],
+    ];
+    for (const [rel, claim, scope] of cases) {
+      const filePath = writePackageFile(makeTempDir(), "core", rel, io);
+      const violations = lintSource(filePath, io, "core").filter(
+        (v) => v.rule === "no-io-in-pure-modules",
+      );
+      expect(violations.length).toBeGreaterThan(0);
+      expect(violations[0]?.message).toContain(claim);
+      expect(violations[0]?.message).toContain(scope);
+    }
+  });
+});
+
+// CASE 21 IS THE ONE THAT MATTERS. Cases 19 and 20 prove the directory is in
+// scope and is exercised. NEITHER PROVES THE RULE FIRES.
+//
+// skill-lint is required in CI, reports success on every run, and scans zero
+// files because skills/ is empty. A purity rule that silently matched nothing
+// would be the same failure with far worse consequences — it would certify a
+// directory as pure while checking none of it.
+describe("no-io-in-pure-modules — case 21 (P0, NEVER-26.7): an I/O call introduced under core/src/evidence is actually caught", () => {
+  test("an fs import and a fetch call are both reported when mutated in", () => {
+    const mutations: Array<[string, string]> = [
+      ["node:fs import", `import { readFileSync } from "node:fs";\n`],
+      ["bare fs import", `import { readFileSync } from "fs";\n`],
+      ["fetch call", `export const run = () => fetch("https://api.github.com");\n`],
+      ["Bun.$ shell call", `export const run = () => Bun.$\`gh issue list\`;\n`],
+      ["node:child_process import", `import { execFile } from "node:child_process";\n`],
+      ["process.cwd read", `export const here = () => process.cwd();\n`],
+    ];
+    for (const [label, source] of mutations) {
+      const filePath = writePackageFile(makeTempDir(), "core", "evidence/mutated.ts", source);
+      const violations = lintSource(filePath, source, "core").filter(
+        (v) => v.rule === "no-io-in-pure-modules",
+      );
+      expect(violations.length, `${label} must be reported`).toBeGreaterThan(0);
+      expect(violations[0]?.message).toContain("NEVER-26.7");
+    }
+  });
+
+  test("reverting the mutation restores 0 violations", () => {
+    const clean = `export const sentinelFor = (n: string): string => "## iai-" + n;\n`;
+    const filePath = writePackageFile(makeTempDir(), "core", "evidence/clean.ts", clean);
+    const violations = lintSource(filePath, clean, "core");
+    expect(violations.filter((v) => v.rule === "no-io-in-pure-modules")).toEqual([]);
   });
 });

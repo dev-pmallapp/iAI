@@ -114,18 +114,26 @@ export function applyUpsert(
   newId: number,
   createdAt: string,
 ): readonly SentinelComment[] {
+  // Total over hostile input (NEVER-26.8). A non-array `comments` reached
+  // `.map` and threw before #261's sweep; a malformed `action` reached
+  // `.action` on undefined. Both now degrade to "no change" rather than
+  // throwing, because this models an adapter effect and an adapter handed
+  // garbage should produce no change, not an exception mid-batch.
+  const list: readonly SentinelComment[] = Array.isArray(comments) ? comments : [];
+  if (action === null || typeof action !== "object") return list;
   if (action.action === "create") {
-    return [...comments, { id: newId, createdAt, body: action.body }];
+    return [...list, { id: newId, createdAt, body: action.body }];
   }
-  return comments.map((c) =>
-    c.id === action.commentId ? { id: c.id, createdAt: c.createdAt, body: action.body } : c,
+  if (action.action !== "edit") return list;
+  const target = action.commentId;
+  const body = action.body;
+  return list.map((c) =>
+    c !== null && typeof c === "object" && c.id === target
+      ? { id: c.id, createdAt: c.createdAt, body }
+      : c,
   );
 }
 
-// Uses isKnownSentinelName rather than a local list. Restating the nine names
-// here would be a second definition of the namespace, and the first edit to
-// SENTINEL_NAMES would silently desynchronise them -- the same drift hazard
-// BLOB_SHA_PATTERN carries against guards/path-refs.ts.
 function readSentinel(input: unknown): SentinelName | undefined {
   try {
     if (input === null || typeof input !== "object") return undefined;
