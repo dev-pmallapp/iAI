@@ -51,3 +51,15 @@ export {
   renderSentinelComment,
 } from "./render";
 export type { EvidenceCommentInput, RenderedComment, RenderStrategy } from "./render";
+
+// Path templating and the idempotent upsert (#30).
+export {
+  formatCompactUtcTimestamp,
+  isCompactUtcTimestamp,
+  renderPathTemplate,
+  TEMPLATE_PLACEHOLDERS,
+} from "./template";
+export type { TemplateValues } from "./template";
+
+export { applyUpsert, planCommentUpsert } from "./upsert";
+export type { UpsertAction, UpsertInput } from "./upsert";
