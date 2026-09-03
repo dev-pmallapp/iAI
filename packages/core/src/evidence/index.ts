@@ -25,3 +25,29 @@ export type { SentinelRuleId, SentinelViolation } from "./lint";
 // and turn absence of a required sentinel into a hard-failure `Decision`.
 export { findSentinelComments, requireSentinelComment, selectSentinelComment } from "./consumer";
 export type { RequiredSentinelResult, SentinelComment, SentinelMatch } from "./consumer";
+
+// Budget, rendering and permalinks (#29).
+// `safeOwnValue`/`safeOwnString` are deliberately NOT re-exported: gh/index
+// already exports names of its own with the same spelling, and the root barrel
+// re-exports both directories with `export *`. They are internal readers, not
+// part of this directory's surface.
+export { evFail, evOk } from "./types";
+export type { EvidenceResult } from "./types";
+
+export {
+  BLOB_SHA_PATTERN,
+  isShaPinnedPermalink,
+  makePermalink,
+  requireShaPinnedPermalink,
+} from "./permalink";
+export type { PermalinkInput } from "./permalink";
+
+export {
+  bodyPermalinksArePinned,
+  BUDGET_CHARS,
+  chooseStrategy,
+  ENVELOPE_BUDGET_CHARS,
+  HARD_LIMIT_CHARS,
+  renderSentinelComment,
+} from "./render";
+export type { EvidenceCommentInput, RenderedComment, RenderStrategy } from "./render";
