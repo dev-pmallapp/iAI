@@ -20,3 +20,8 @@ export type { SentinelName } from "./sentinel";
 
 export { isWellFormedSentinelComment, lintSentinelComment, SENTINEL_RULE_IDS } from "./lint";
 export type { SentinelRuleId, SentinelViolation } from "./lint";
+
+// The consumer half (#28): query a comment list, disambiguate by `createdAt`,
+// and turn absence of a required sentinel into a hard-failure `Decision`.
+export { findSentinelComments, requireSentinelComment, selectSentinelComment } from "./consumer";
+export type { RequiredSentinelResult, SentinelComment, SentinelMatch } from "./consumer";
