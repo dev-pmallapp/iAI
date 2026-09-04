@@ -22,3 +22,9 @@ export type {
   UnitSpec,
   VerifySpec,
 } from "./domain";
+
+// The validator and the registry (#33). CLAIM-31.4 and CLAIM-31.5 are enforced
+// at registration per Decision 11, so resolution is a lookup.
+export { domainLabelFor, validateBinding } from "./validate";
+export { createRegistry, registeredDomainIds, resolveBinding } from "./registry";
+export type { Registry, ResolveResult } from "./registry";
