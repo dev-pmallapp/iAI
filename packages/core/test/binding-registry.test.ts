@@ -201,6 +201,26 @@ describe("binding — case 8 (P0, CLAIM-31.4): rungs[0].reversible false is reje
     }
   });
 
+  test("a malformed id is rejected by the id rule, not by a rule downstream of it", () => {
+    // MUTATION TESTING ADDED THIS. Deleting the id SHAPE check broke no test,
+    // because the only malformed-id fixture in this file also had a
+    // `labels.namespace` that disagreed with it — so the agreement rule caught
+    // it and the shape rule was never the reason for the rejection.
+    //
+    // This is the survivor class #261 named: A GUARD SHADOWED BY ANOTHER GUARD.
+    // The namespace here is built to AGREE with the bad id, so the only rule
+    // left that can reject it is the one under test.
+    for (const badId of ["Not A Domain", "Dev", "9lives", "-leading", "has_underscore", ""]) {
+      const candidate = validBinding({
+        id: badId,
+        labels: { namespace: `domain:${badId}`, extra: [] },
+      });
+      const result = validateBinding(candidate);
+      expect(`${badId}: ${String(result.ok)}`).toBe(`${badId}: false`);
+      if (!result.ok) expect(result.reason).toContain("binding.id");
+    }
+  });
+
   test("a later rung being irreversible is fine, because every real ladder ends that way", () => {
     // All five documented ladders have `reversible: false` on rung 4 —
     // 04-domain-dev.md:100, 05-domain-trading.md:110, 06-domain-health.md:124,
@@ -237,13 +257,51 @@ describe("binding — case 9 (P0, CLAIM-31.4): evidenceRequired not true is reje
 });
 
 describe("binding — case 10 (P0, CLAIM-31.5): a sentinel outside the namespace is rejected", () => {
-  test("four forms outside the namespace are each rejected", () => {
+  test("six forms outside the namespace are each rejected", () => {
     for (const bad of ["## evidence", "iai-evidence", "## iai-", "", "# iai-evidence", 42]) {
       const candidate = validBinding();
       (candidate.evidence as Record<string, unknown>).sentinel = bad;
       const result = validateBinding(candidate);
       expect(`${String(bad)}: ${String(result.ok)}`).toBe(`${String(bad)}: false`);
       if (!result.ok) expect(result.reason).toContain("evidence.sentinel");
+    }
+  });
+
+  test("the namespace rule and the known-name rule are distinguishable, not one rule twice", () => {
+    // MUTATION TESTING ADDED THIS. Deleting the `isSentinelNamespace` check
+    // broke NO test: every fixture above is also caught by the known-name rule
+    // that follows it, because a value outside the namespace can never match a
+    // known name either. The rule was redundant AGAINST THE CORPUS while still
+    // being the only one that says the right thing to whoever tripped it.
+    //
+    // CLAIM-31.5 is four rules and each must name itself — the same argument
+    // case 3 of docs/test-plans/26-plan.md makes for the five producer rules,
+    // and the same reason case 5 exists for the four resolution failures.
+    const outside = validBinding();
+    (outside.evidence as Record<string, unknown>).sentinel = "## evidence";
+    const invented = validBinding();
+    (invented.evidence as Record<string, unknown>).sentinel = "## iai-audit";
+
+    const a = validateBinding(outside);
+    const b = validateBinding(invented);
+    expect(a.ok).toBe(false);
+    expect(b.ok).toBe(false);
+    if (!a.ok && !b.ok) {
+      // DISTINCTNESS MUST BE ABOUT THE RULE, NOT THE INPUT — and the first
+      // version of this assertion was not. It compared whole messages and
+      // required each to contain "namespace"; with the namespace check deleted
+      // both fixtures fell through to the known-name rule, whose message also
+      // contains the word "namespace" and quotes the offending sentinel, so the
+      // two messages still differed and the assertion still passed. Two
+      // messages that differ only in the value they quote are ONE message.
+      //
+      // Each assertion below names a phrase that belongs to exactly one rule,
+      // and the negative assertions are what make the pair exclusive.
+      expect(a.reason).not.toBe(b.reason);
+      expect(a.reason).toContain("must fall inside");
+      expect(a.reason).not.toContain("not one of the nine");
+      expect(b.reason).toContain("not one of the nine");
+      expect(b.reason).not.toContain("must fall inside");
     }
   });
 });
@@ -377,20 +435,55 @@ describe("binding — case 19 (P0, NEVER-31.9): a rejected binding is never reso
     // "registered with warnings": if any candidate fails, no Registry is
     // produced, so there is no object on which a rejected binding could be
     // looked up.
-    const invalidFixtures: Array<[string, Record<string, unknown>]> = [
-      ["bad id", validBinding({ id: "Not A Domain" })],
-      ["bad sentinel", withEvidence(validBinding(), "sentinel", "## nope")],
-      ["invented sentinel", withEvidence(validBinding(), "sentinel", "## iai-audit")],
-      ["over budget", withEvidence(validBinding(), "budgetChars", 60001)],
-      ["namespace mismatch", validBinding({ labels: { namespace: "domain:other", extra: [] } })],
+    // EVERY FIXTURE CARRIES A DISTINCT ID, AND MUTATION TESTING IS WHY.
+    //
+    // The first version of this case built each invalid fixture from
+    // `validBinding()` without changing the id, and registered it alongside
+    // another `validBinding()`. Both then had `id: "null"`, so the DUPLICATE-ID
+    // rule rejected every pair before the defect under test was ever reached —
+    // the case passed five times for a reason that had nothing to do with the
+    // five defects it names. Deleting the namespace-agreement rule broke
+    // nothing, which is how it was found.
+    //
+    // Second instance in two Stories of the survivor class #261 named: a guard
+    // shadowed by another guard. The reason is now asserted, not just the
+    // verdict, so a fixture rejected for the wrong reason fails here.
+    const invalidFixtures: Array<[string, Record<string, unknown>, string]> = [
+      [
+        "bad id",
+        validBinding({ id: "Not A Domain", labels: { namespace: "domain:Not A Domain", extra: [] } }),
+        "binding.id",
+      ],
+      [
+        "bad sentinel",
+        withEvidence(validBinding({ id: "a", labels: { namespace: "domain:a", extra: [] } }), "sentinel", "## nope"),
+        "namespace",
+      ],
+      [
+        "invented sentinel",
+        withEvidence(validBinding({ id: "b", labels: { namespace: "domain:b", extra: [] } }), "sentinel", "## iai-audit"),
+        "not one of the nine",
+      ],
+      [
+        "over budget",
+        withEvidence(validBinding({ id: "c", labels: { namespace: "domain:c", extra: [] } }), "budgetChars", 60001),
+        "exceeds the working budget",
+      ],
+      [
+        "namespace mismatch",
+        validBinding({ id: "d", labels: { namespace: "domain:other", extra: [] } }),
+        "labels.namespace",
+      ],
     ];
 
-    for (const [label, invalid] of invalidFixtures) {
+    for (const [label, invalid, expectedReason] of invalidFixtures) {
       const result = createRegistry([validBinding(), invalid]);
       expect(`${label}: ${String(result.ok)}`).toBe(`${label}: false`);
       // Not merely "the invalid one is absent" — the VALID one is unreachable
       // too, because no registry was built at all.
       expect(`${label}: ${String("value" in result)}`).toBe(`${label}: false`);
+      // And it must be rejected for the reason the fixture is named after.
+      if (!result.ok) expect(`${label}: ${result.reason}`).toContain(expectedReason);
     }
   });
 
