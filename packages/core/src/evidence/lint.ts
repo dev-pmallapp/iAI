@@ -27,6 +27,7 @@
 // same class of defect as a check that passes while scanning nothing.
 import {
   matchSentinelLine,
+  safeSentinelLabel,
   SENTINEL_NAMESPACE_PREFIX,
   type SentinelName,
 } from "./sentinel";
@@ -209,8 +210,9 @@ export function lintSentinelComment(
         violation(
           "exact",
           first === undefined ? 0 : first.line,
-          `exact: expected the "${SENTINEL_NAMESPACE_PREFIX}${expected}" sentinel but ` +
-            `the body carries "${SENTINEL_NAMESPACE_PREFIX}${String(actual)}"`,
+          `exact: expected the "${SENTINEL_NAMESPACE_PREFIX}${safeSentinelLabel(expected)}" ` +
+            `sentinel but the body carries ` +
+            `"${SENTINEL_NAMESPACE_PREFIX}${safeSentinelLabel(actual)}"`,
         ),
       );
     }

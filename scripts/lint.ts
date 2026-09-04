@@ -287,6 +287,17 @@ function checkExecTemplate(filePath: string, masked: string, packageName: string
 //   (IO_MODULE_SPECIFIERS, BUN_MEMBER_RE, FETCH_CALL_RE), so #253 widened the
 //   SCOPE rather than adding a rule.
 //
+//   NEVER-26.7 — no module under packages/core/src/evidence performs I/O.
+//   Same widening again, in #261. S1.4 carried this task from the START rather
+//   than discovering the gap mid-Story, which is what forced #253 into
+//   existence net-new against M1.md's four-row table for S1.3.
+//
+// THE VIOLATION MESSAGE NAMES THE OWNING CLAIM. A violation under evidence/
+// reporting "CLAIM-15.6: classify/ and guards/ must perform no I/O" would send
+// the reader to the wrong Story — the same defect class as one generic message
+// standing in for five distinct rules, which case 3 of
+// docs/test-plans/26-plan.md exists to exclude.
+//
 // `isPureModulePath` matches a path SEGMENT, never a substring, so
 // "src/guardsomething.ts" and "src/ghost.ts" do not fall into scope by
 // accident. That distinction is the whole reason these are anchored regexes
@@ -296,8 +307,23 @@ function isPureModulePath(filePath: string): boolean {
   return (
     /(^|\/)classify(\/|$)/.test(normalized) ||
     /(^|\/)guards(\/|$)/.test(normalized) ||
-    /(^|\/)gh(\/|$)/.test(normalized)
+    /(^|\/)gh(\/|$)/.test(normalized) ||
+    /(^|\/)evidence(\/|$)/.test(normalized)
   );
+}
+
+// The claim that owns the directory a violation was found in, and the
+// human-readable scope to name alongside it. The four directories are
+// disjoint, so order is not load-bearing; stating it makes that explicit.
+function pureModuleOwner(filePath: string): { claim: string; scope: string } {
+  const normalized = filePath.split(sep).join("/");
+  if (/(^|\/)evidence(\/|$)/.test(normalized)) {
+    return { claim: "NEVER-26.7", scope: "evidence/" };
+  }
+  if (/(^|\/)gh(\/|$)/.test(normalized)) {
+    return { claim: "CLAIM-21.1", scope: "gh/" };
+  }
+  return { claim: "CLAIM-15.6", scope: "classify/ and guards/" };
 }
 
 // Runtime/I-O module specifiers banned from classify/ and guards/, per
@@ -332,6 +358,7 @@ const FETCH_CALL_RE = /\bfetch\s*\(/g;
 
 function checkIoInPureModules(filePath: string, masked: string): Violation[] {
   const locate = makeLocator(masked);
+  const owner = pureModuleOwner(filePath);
   const violations: Violation[] = [];
 
   const allMatches = [
@@ -351,7 +378,7 @@ function checkIoInPureModules(filePath: string, masked: string): Violation[] {
       column,
       rule: "no-io-in-pure-modules",
       message:
-        `CLAIM-15.6: classify/ and guards/ must perform no I/O; "${specifier}" is a ` +
+        `${owner.claim}: ${owner.scope} must perform no I/O; "${specifier}" is a ` +
         "runtime/I-O module and must not be imported here",
     });
   }
@@ -367,7 +394,7 @@ function checkIoInPureModules(filePath: string, masked: string): Violation[] {
         column,
         rule: "no-io-in-pure-modules",
         message:
-          `CLAIM-15.6: classify/ and guards/ must perform no I/O; "${m[0]}" touches a ` +
+          `${owner.claim}: ${owner.scope} must perform no I/O; "${m[0]}" touches a ` +
           "runtime global and must not appear here",
       });
       if (m[0].length === 0) globalsRe.lastIndex += 1;
@@ -438,7 +465,7 @@ const RULE_SCOPES: Record<RuleId, string> = {
   "no-host-import": "core",
   "no-process-cwd": "core, adapter-opencode",
   "no-exec-template": "all packages",
-  "no-io-in-pure-modules": "core/src/classify, core/src/guards, core/src/gh",
+  "no-io-in-pure-modules": "core/src/classify, core/src/guards, core/src/gh, core/src/evidence",
 };
 
 function countFiles(packagesDir: string): number {
