@@ -65,6 +65,18 @@ import {
   prCreate,
   subIssueLink,
 } from "../src/gh/index";
+import {
+  chooseStrategy,
+  formatCompactUtcTimestamp,
+  lintSentinelComment,
+  makePermalink,
+  matchSentinelLine,
+  planCommentUpsert,
+  renderPathTemplate,
+  renderSentinelComment,
+  requireSentinelComment,
+  selectSentinelComment,
+} from "../src/evidence/index";
 
 // The real export names, captured before either module is mocked, so the
 // stub mirrors the actual API surface rather than a hand-picked subset that
@@ -318,5 +330,74 @@ describe.if(IS_CHILD)("purity harness — case 19 (P0, NEVER-21.9): the gh layer
       current: ["status:in-progress"],
     });
     expect(transition.ok).toBe(true);
+  });
+});
+
+// NEVER-26.7 — no module under packages/core/src/evidence performs I/O.
+//
+// The second half of the claim. The lint rule of case 19 proves the directory
+// is IN SCOPE; this proves the code actually RUNS with the runtime trapped, so
+// an I/O call on a real code path fails here rather than in production. Neither
+// alone is sufficient, and case 21's mutation test is what proves the rule
+// fires at all.
+//
+// One entry point per module the barrel exports, because a function that never
+// runs proves nothing about the module beside it.
+describe.if(IS_CHILD)("purity harness — case 20 (P0, NEVER-26.7): the evidence layer runs with the runtime trapped", () => {
+  test("every evidence module executes with fs, net and process throwing", () => {
+    // sentinel.ts
+    expect(matchSentinelLine("## iai-evidence")).toBe("evidence");
+
+    // lint.ts
+    expect(lintSentinelComment("## iai-evidence\n\nbody")).toEqual([]);
+    expect(lintSentinelComment("### iai-evidence\n\nbody").length).toBeGreaterThan(0);
+
+    // consumer.ts
+    const comments = [
+      { id: 1, createdAt: "2026-09-01T00:00:00Z", body: "## iai-evidence\n\nold" },
+      { id: 2, createdAt: "2026-09-02T00:00:00Z", body: "## iai-evidence\n\nnew" },
+    ];
+    expect(selectSentinelComment(comments, "evidence")?.comment.id).toBe(2);
+    expect(requireSentinelComment([], "evidence").decision.action).toBe("block");
+
+    // permalink.ts
+    const link = makePermalink({
+      owner: "dev-pmallapp",
+      repo: "iAI",
+      sha: "47004e5379c78abb8a62cc39bcf23507d97fee23",
+      path: "docs/evidence/27.md",
+    });
+    expect(link.ok).toBe(true);
+
+    // render.ts
+    expect(chooseStrategy(60_000)).toBe("inline");
+    const rendered = renderSentinelComment({
+      sentinel: "evidence",
+      artifact: "body text",
+      story: 26,
+      run: "2026-09-03T09:00:00Z",
+      verdict: "PASS",
+    });
+    expect(rendered.ok).toBe(true);
+
+    // template.ts -- formatCompactUtcTimestamp takes a Date rather than
+    // reading a clock, which is exactly why it is callable here at all.
+    expect(
+      renderPathTemplate("docs/evidence/{issue}-{ts}.md", {
+        issue: 26,
+        ts: "20260825T141207Z",
+      }).ok,
+    ).toBe(true);
+    const ts = formatCompactUtcTimestamp(new Date(0));
+    expect(ts.ok).toBe(true);
+
+    // upsert.ts
+    const plan = planCommentUpsert({
+      sentinel: "evidence",
+      body: "## iai-evidence\n\nx",
+      comments,
+    });
+    expect(plan.ok).toBe(true);
+    if (plan.ok) expect(plan.value.action).toBe("edit");
   });
 });
