@@ -11,7 +11,7 @@
 //
 // Every entry is derived by measurement (`git grep -n <path>` against the
 // citing docs, then again against docs/milestones/ for the owning
-// milestone), not copied from the issue text. Seven families, 34 entries.
+// milestone), not copied from the issue text. Seven families, 29 entries.
 //
 // THE COUNT ABOVE IS TESTED, NOT PROSE. It said "Six families, 38 entries"
 // while the list held 43 across 7 sections — a comment nothing checked, drifting
@@ -45,29 +45,11 @@ export interface AllowedPath {
 }
 
 export const PATH_ALLOW_LIST: readonly AllowedPath[] = [
-  // --- references/*.md — 9 paths, planned, M2. -----------------------
+  // --- references/*.md — 4 paths, planned, M2. -----------------------
   // docs/milestones/M2.md:19 names "the twelve" explicitly and M2.md:36
   // claims "All twelve files exist at references/<name>.md". This is the
   // authority for the exact twelve names; do not add or drop one without
   // re-reading S2.1's acceptance criteria.
-  {
-    path: "references/verification.md",
-    reason: "planned",
-    milestone: "M2",
-    note: "docs/milestones/M2.md:19,36",
-  },
-  {
-    path: "references/data-classification.md",
-    reason: "planned",
-    milestone: "M2",
-    note: "docs/milestones/M2.md:19,36",
-  },
-  {
-    path: "references/model-routing.md",
-    reason: "planned",
-    milestone: "M2",
-    note: "docs/milestones/M2.md:19,36,45 — CLAIM-35.3 names this one specifically as the only file outside packages/core/src/routing permitted a literal model ID",
-  },
   {
     path: "references/domain-binding.md",
     reason: "planned",
@@ -76,18 +58,6 @@ export const PATH_ALLOW_LIST: readonly AllowedPath[] = [
   },
   {
     path: "references/evidence-artifacts.md",
-    reason: "planned",
-    milestone: "M2",
-    note: "docs/milestones/M2.md:19,36",
-  },
-  {
-    path: "references/branch-and-pr-model.md",
-    reason: "planned",
-    milestone: "M2",
-    note: "docs/milestones/M2.md:19,36",
-  },
-  {
-    path: "references/workflow-states.md",
     reason: "planned",
     milestone: "M2",
     note: "docs/milestones/M2.md:19,36",
