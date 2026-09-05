@@ -1,5 +1,5 @@
 {
-  "name": "iai-core",
+  "name": "iai-domain-null",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -15,7 +15,7 @@
   "scripts": {
     "build": "tsc -b tsconfig.json"
   },
-  "devDependencies": {
-    "iai-domain-null": "workspace:*"
+  "dependencies": {
+    "iai-core": "workspace:*"
   }
 }
