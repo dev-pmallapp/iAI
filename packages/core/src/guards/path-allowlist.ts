@@ -162,7 +162,13 @@ export const PATH_ALLOW_LIST: readonly AllowedPath[] = [
     note: "cited at docs/design/06-domain-health.md:533,559; reserved 900-block, Decision 8 at docs/design/stories/194.md:179,193",
   },
 
-  // --- packages/** — 8 paths, planned. ---------------------------------
+  // --- packages/** — 9 paths, planned. ---------------------------------
+  {
+    path: "packages/domain-null",
+    reason: "planned",
+    milestone: "M1",
+    note: "docs/design/stories/31.md Build Targets and Decision 12 (S1.5). CLAIM-31.3 (docs/milestones/M1.md:209-211) requires the conformance suite to register a binding from a package OUTSIDE packages/core, so the fixture cannot live under packages/core/test; the milestone names the fixture (`nullBinding`) but not the package that holds it",
+  },
   {
     path: "packages/core/src/binding",
     reason: "planned",

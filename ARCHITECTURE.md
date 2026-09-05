@@ -64,6 +64,7 @@ iAI. Only hooks, agents and commands need per-host generation.
 | iai-domain-health | library | packages/domain-health/package.json | packages/domain-health/src |
 | iai-domain-wealth | library | packages/domain-wealth/package.json | packages/domain-wealth/src |
 | iai-domain-know | library | packages/domain-know/package.json | packages/domain-know/src |
+| iai-domain-null | library | packages/domain-null/package.json | packages/domain-null/src |
 | iai-pulse | binary | packages/pulse/package.json | packages/pulse/src |
 | iai-skills | docs | — | skills |
 | iai-agents | docs | — | agents |

@@ -26,6 +26,9 @@
     "packages/core": {
       "name": "iai-core",
       "version": "0.0.0",
+      "devDependencies": {
+        "iai-domain-null": "workspace:*",
+      },
     },
     "packages/domain-dev": {
       "name": "iai-domain-dev",
@@ -38,6 +41,13 @@
     "packages/domain-know": {
       "name": "iai-domain-know",
       "version": "0.0.0",
+    },
+    "packages/domain-null": {
+      "name": "iai-domain-null",
+      "version": "0.0.0",
+      "dependencies": {
+        "iai-core": "workspace:*",
+      },
     },
     "packages/domain-trade": {
       "name": "iai-domain-trade",
@@ -120,6 +130,8 @@
     "iai-domain-health": ["iai-domain-health@workspace:packages/domain-health"],
 
     "iai-domain-know": ["iai-domain-know@workspace:packages/domain-know"],
+
+    "iai-domain-null": ["iai-domain-null@workspace:packages/domain-null"],
 
     "iai-domain-trade": ["iai-domain-trade@workspace:packages/domain-trade"],
 

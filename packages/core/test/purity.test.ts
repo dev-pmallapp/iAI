@@ -401,3 +401,124 @@ describe.if(IS_CHILD)("purity harness — case 20 (P0, NEVER-26.7): the evidence
     if (plan.ok) expect(plan.value.action).toBe("edit");
   });
 });
+
+// NEVER-31.7 — no module under packages/core/src/binding performs I/O.
+//
+// The second leg of the three-case pattern, for the third Story running. Case
+// 15 (test/lint.test.ts) proves the directory is IN SCOPE; this proves the code
+// actually RUNS with the runtime trapped; case 17 proves the rule FIRES.
+//
+// NONE OF THE THREE IS REDUNDANT, AND #261 IS THE PROOF. Its mutation 6 hid a
+// `process.env` read behind `globalThis["pro" + "cess"]`. `bun run lint`
+// reported exit 0 with zero violations — the rule scans for `\bprocess\s*\.`
+// and there is no such token — while this harness failed. A static rule
+// certifies only the source it can read (docs/evidence/261-20260904T040110Z.md).
+//
+// One entry point per module the barrel exports, because a function that never
+// runs proves nothing about the module beside it. `domain.ts` exports no
+// function at all — only the `KNOWN_DOMAIN_IDS` const and types — so the const
+// is asserted instead, which is the only runtime surface it has.
+//
+// THE BARREL IS IMPORTED DYNAMICALLY, INSIDE THE TEST, AND THAT CLOSES A REAL
+// GAP THIS TASK'S MUTATION RUN FOUND.
+//
+// Every other layer here is imported statically at the top of the file. ESM
+// evaluates those imports BEFORE any test body runs — therefore before
+// `beforeAll` installs the traps — so I/O performed at MODULE EVALUATION time,
+// as opposed to inside a function the harness later calls, happens while the
+// runtime is still real. Mutation A6 proved it: an obfuscated
+// `globalThis["pro" + "cess"].env` read at the top level of `registry.ts`
+// survived BOTH defences — `bun run lint` is blind to it because there is no
+// `process.` token to match, and the harness was already past module load by
+// the time it armed anything. The same read inside a function body is caught
+// immediately.
+//
+// `await import()` defers evaluation until after `beforeAll`, so the module
+// body itself executes under the trapped runtime. This works only because the
+// static import was removed: a cached module is not re-evaluated.
+//
+// The identical gap remains for classify/, guards/, gh/ and evidence/, which
+// are still statically imported. Closing it there is a change to three other
+// Stories' cases and is recorded in the evidence artifact rather than done here.
+describe.if(IS_CHILD)("purity harness — case 16 (P0, NEVER-31.7): the binding layer runs with the runtime trapped", () => {
+  test("every binding module executes with fs, net and process throwing", async () => {
+    // Evaluated HERE, with fs, net and process already armed to throw.
+    const {
+      KNOWN_DOMAIN_IDS,
+      bindingFail,
+      bindingOk,
+      createRegistry,
+      domainLabelFor,
+      registeredDomainIds,
+      resolveBinding,
+      validateBinding,
+    } = await import("../src/binding/index");
+
+    // types.ts
+    expect(bindingOk(1)).toEqual({ ok: true, value: 1 });
+    expect(bindingFail<number>("nope")).toEqual({ ok: false, reason: "nope" });
+
+    // domain.ts -- no exported function; the const is the whole runtime surface.
+    expect(Array.isArray(KNOWN_DOMAIN_IDS)).toBe(true);
+    expect(KNOWN_DOMAIN_IDS).toHaveLength(5);
+
+    // validate.ts
+    expect(domainLabelFor("null")).toBe("domain:null");
+    const validated = validateBinding(trappedNullBinding());
+    expect(validated.ok).toBe(true);
+    // The negative arm too: a rejection must be reachable without I/O, since
+    // building the failure message is where #261 found a throw.
+    expect(validateBinding(null).ok).toBe(false);
+
+    // registry.ts
+    const built = createRegistry([trappedNullBinding()]);
+    expect(built.ok).toBe(true);
+    if (!built.ok) throw new Error(built.reason);
+    expect(registeredDomainIds(built.value)).toEqual(["null"]);
+    expect(resolveBinding(built.value, "domain:null").decision.action).toBe("allow");
+    expect(resolveBinding(built.value, "domain:absent").decision.action).toBe("block");
+  });
+});
+
+// A binding literal built INLINE rather than imported from iai-domain-null.
+//
+// The fixture package would resolve here, but importing it would make
+// packages/core/test/purity.test.ts a second core-to-pack edge for no gain —
+// this case is about the binding layer's purity, not about package boundaries,
+// which is case 6's job. Keeping the literal local also means the harness has
+// no dependency that could itself perform I/O on import.
+function trappedNullBinding(): unknown {
+  return {
+    id: "null",
+    unitOfWork: {
+      noun: "nothing",
+      description: "d",
+      minSize: "s",
+      maxSize: "l",
+      leafSkill: "iai-null-noop",
+    },
+    verify: {
+      rungs: [
+        {
+          id: "none",
+          name: "No verification",
+          entryCriteria: ["never entered"],
+          verifier: "tool-checked",
+          reversible: true,
+        },
+      ],
+      defaultRung: "none",
+      passing: "none",
+      evidenceRequired: true,
+    },
+    gate: { irreversibleAction: "none", authoriser: "human", autoDeny: [] },
+    evidence: {
+      kind: "none",
+      sentinel: "## iai-evidence",
+      pathTemplate: "",
+      budgetChars: 1000,
+      pinned: true,
+    },
+    labels: { namespace: "domain:null", extra: [] },
+  };
+}
