@@ -26,24 +26,24 @@ when* column.
 Twelve markdown files and three lint rules. The documents themselves are prose
 and cannot be unit-tested; **everything testable here is a property of the
 population, the tooling, or the boundary between them.** That makes this plan
-unusually enforcement-heavy: 9 of 21 cases are mutations or denominator
+unusually enforcement-heavy: 11 of 23 cases are mutations or denominator
 assertions, because almost every claim in this Story can pass vacuously.
 
 Six things carry the weight.
 
 **The first is that the tool named in the Test Strategy cannot currently see the
-files it is asked to scan.** This is the headline finding of this plan and it is
-not in the Design. `scripts/skill-lint.ts:386-397`'s `discoverSkillFiles` matches
+files it is asked to scan.** This was the headline finding of this plan and is
+now **Decision 11**, added after the gate on a human decision. `scripts/skill-lint.ts:386-397`'s `discoverSkillFiles` matches
 **`SKILL.md` by exact basename only**; `main()` defaults its target to `skills/`;
 and `.github/workflows/ci.yml:107` pins the invocation to `bun run skill-lint
 skills/`. Running `bun scripts/skill-lint.ts references` today reports
 *"0 SKILL.md files scanned"*. `CLAIM-35.3` and `NEVER-35.7` both name
 `bun run skill-lint` as their tool and both require scanning `references/`.
-**Neither can pass honestly without a second discovery path and a changed CI
-invocation, and the Design's Build Targets list neither.** Case 21 exists to
-fail until that is fixed, and cases 8 and 15 assert non-zero denominators so the
-rules cannot report success over an empty file set — the exact shape `skill-lint`
-itself has demonstrated daily since S1.3.
+Neither could pass honestly without a second discovery path and a changed CI
+invocation. **Decision 11 supplies both**, and the Build Targets now carry them.
+Cases 21–23 verify the widening; cases 8 and 15 assert non-zero denominators so
+the rules cannot report success over an empty file set — the exact shape
+`skill-lint` itself has demonstrated daily since S1.3.
 
 **The second is that this scope was already adjudicated the other way.**
 `docs/design/verification-pass.md:142` (conflict row 19) records skill-lint as
@@ -52,9 +52,12 @@ not skills'; `agents/` must omit `name` on opencode. One schema cannot span all
 three."* `docs/milestones/M1.md:62` says the linter *"does not sweep the docs
 targets"*, and `references/` is a docs target. That adjudication is about the
 **frontmatter schema**, and the three new rules are **body** rules, so they are
-not strictly in conflict — but the distinction has never been written down, and
-the mechanism, the CI line and the CONTRIBUTING line all still say `skills/`.
-Case 21 pins the reconciliation.
+not strictly in conflict. **Decision 11 writes that distinction down for the
+first time and scopes row 19 rather than reversing it**: the frontmatter
+adjudication stands untouched, and only body rules cross the boundary. Verified,
+not assumed — running a reference body through `lintSkillSource` today yields
+`frontmatter-missing`, which is exactly what row 19 was protecting against.
+Cases 21–23 pin it.
 
 **The third is that a body rule merged against an empty `skills/` is vacuous.**
 `skills/` stays empty through this entire Story; S2.2 is the first to put a
@@ -102,9 +105,14 @@ that while banning the literal.
 | CLAIM-35.6 | 14 | P0 |
 | NEVER-35.7 | 15, 16 | P0 |
 | NEVER-35.8 | 17, 18, 19 | P0 |
-| cross-cutting | 20 (P1), 21 | P1, P0 |
+| cross-cutting | 20 (P1), 21, 22, 23 | P1, P0, P0, P0 |
 
-21 cases — 20 P0 / 1 P1 / 0 P2.
+23 cases — 22 P0 / 1 P1 / 0 P2.
+
+**Cases 21–23 were added after Decision 11**, the post-gate human decision to widen
+`skill-lint` to two populations. Case 21 originally read *"fails today and is
+expected to"*; it is now a deliverable with a Decision behind it, and cases 22
+and 23 pin the two ways a careless widening breaks.
 
 ## Standing checks
 
@@ -145,7 +153,7 @@ Not anchored to a claim, and not optional. Run at story-verify.
 |---|------|------------|--------|----------|----------|---------|-------------|
 | 2 | `references/` holds exactly the twelve, and nothing else | CLAIM-35.1 | iai-references | P0 | tool-checked | `bun test` | The set of `.md` files under `references/` equals the twelve parsed names **by set equality in both directions**. A thirteenth file, a misspelling, or a leftover `isa-format.md` each fail. "Each of the twelve exists" alone would pass with a stray file present, which is how a rename leaves a corpse behind |
 | 7 | `model-routing.md` is exempt, and the exemption is shape-based, not positional | CLAIM-35.3 | iai-core | P0 | tool-checked | `bun run skill-lint` | `references/model-routing.md` may contain model IDs with 0 violations, and the exemption is expressed as **an exact path match**, not a line range and not a prefix. `docs/evidence/34-...md` recorded a surviving mutation where a **range-based** exemption admitted an inserted declaration that fit inside the range: *an exemption expressed as a line range admits anything that fits inside it.* A prefix match would additionally exempt a hypothetical `model-routing-notes.md` |
-| 12 | The citation cap rejects four references and accepts three, using the imported constant | CLAIM-35.5 | iai-core | P0 | tool-checked | `bun run skill-lint` | A fixture citing **4** references fails; one citing **3** passes; one citing **0** passes. The cap is read from the exported constant, and **no file implementing the rule contains a bare `3`** as the threshold — Decision 11 of `docs/design/stories/26.md` exists to stop a second copy of a constant. `derived:` — the live count over real skills is `CLAIM-41.x`'s, in S2.2, because S2.1 authors zero skills |
+| 12 | The citation cap rejects four references and accepts three, using the imported constant | CLAIM-35.5 | iai-core | P0 | tool-checked | `bun run skill-lint` | A fixture citing **4** references fails; one citing **3** passes; one citing **0** passes. The cap is read from the exported constant, and **no file implementing the rule contains a bare `3`** as the threshold — Decision 11 **of `docs/design/stories/26.md`** — not this Story's Decision 11 — exists to stop a second copy of a constant. `derived:` — the live count over real skills is `CLAIM-41.x`'s, in S2.2, because S2.1 authors zero skills |
 | 18 | Retiring the family does not break the two fixtures `claim-lint` cannot see | NEVER-35.8 | iai-core | P0 | tool-checked | `bun test packages/core/test/path-refs.test.ts` | 63 pass, 0 fail. **This was exercised on `0c37649` and reverted.** Two fixtures break on retirement and `claim-lint` stays green through both: `path-refs.test.ts:201` uses `references/gh-operations.md` as its canonical `planned` fixture, which the retirement deletes — re-point it at a surviving `planned` entry such as `skills/dev/domain.md`; and `path-refs.test.ts:300` asserts `PATH_ALLOW_LIST.length > 30`, which **25** fails. **The floor must not simply be lowered.** It is an anti-vacuity guard in direct conflict with the shrink mandate in `path-allowlist.ts`'s own header, and a literal floor cannot express "non-empty" over a list designed to drain. Express it relative to the surviving family count, or record why the new number is right. Expect `expect()` to move 2598 → 2562 |
 
 ### Enforcement
@@ -158,7 +166,9 @@ Not anchored to a claim, and not optional. Run at story-verify.
 | 13 | The citation-count rule actually fires | CLAIM-35.5 | iai-core | P0 | tool-checked | mutation test | Deleting the count comparison makes the 4-reference fixture pass; reverting restores the failure. Additionally, changing the cap constant from 3 to 4 must make the 4-fixture pass — proving the rule reads the constant rather than a hard-coded literal |
 | 15 | No reference restates any constant `packages/core` exports, over a non-zero constant set | NEVER-35.7 | iai-core | P0 | tool-checked | `bun run skill-lint` | 0 restatements across the twelve, and the set of constants checked is asserted **non-empty and ≥ 4** — at minimum `SENTINEL_NAMESPACE_PREFIX`, the commit-prefix regex, the 65536 hard limit and the 60000 working budget. A no-restatement rule with an empty constant list is a rule that cannot fail |
 | 19 | Reintroducing a retired allow-list entry is caught | NEVER-35.8 | iai-core | P0 | tool-checked | mutation test | Re-adding one retired `references/` entry is reported by `allowlist-stale` **and** by the three count assertions in `path-refs.test.ts`. `docs/evidence/277-...md` records this guard as **over-determined** — no mutation survived — so this case confirms the property holds after the family is removed, not that it exists |
-| 21 | The three new rules reach `references/` and `agents/`, in the CLI and in CI | cross-cutting | iai-core | P0 | tool-checked | `bun run skill-lint`, `bash scripts/verify-workflow-hygiene.sh` | **This case fails today and is expected to, until the scope is widened.** `scripts/skill-lint.ts:386-397` matches `SKILL.md` by exact basename; `main()` defaults to `skills/`; `.github/workflows/ci.yml:107` pins `bun run skill-lint skills/`; `CONTRIBUTING.md:113` states the same. Passes when the CI invocation, the CONTRIBUTING command and the default target all cover the three authored directories, **and** `docs/design/verification-pass.md:142` (row 19, "shipped `skills/`-only") plus `docs/milestones/M1.md:62` ("does not sweep the docs targets") are reconciled in writing — the distinction being that row 19 adjudicated the **frontmatter schema**, not body rules. **This reconciliation is a Build Target the Design does not list** |
+| 21 | The three new rules reach `references/` and `agents/`, in the CLI and in CI | cross-cutting | iai-core | P0 | tool-checked | `bun run skill-lint`, `bash scripts/verify-workflow-hygiene.sh` | **Resolved by Decision 11**, added after the gate on a human decision. `bun run skill-lint` reports **two populations with two counts** — `SKILL.md` files under `skills/`, and `.md` files under `references/` and `agents/` — and the second is **≥ 12**. `.github/workflows/ci.yml:107` and `CONTRIBUTING.md:113` both carry the widened invocation; `docs/milestones/M1.md:62` ("does not sweep the docs targets") is **annotated, not falsified**. `docs/design/verification-pass.md:142` row 19 is **annotated, not edited** — its verdict rows are immutable by Decision 9 |
+| 22 | No frontmatter rule fires outside `skills/`, and no body rule is skipped inside it | cross-cutting | iai-core | P0 | tool-checked | `bun test`, `bun run skill-lint` | **Both directions, because a one-directional check passes while the other leaks.** All twelve references produce **0** frontmatter violations — verified today against the real function, a reference body run through `lintSkillSource` yields `frontmatter-missing`, so this is the live failure mode Decision 11 exists to prevent, not a hypothetical. And a `SKILL.md` under `skills/` still produces **both** frontmatter and body violations. `discoverSkillFiles` keeps its exact-basename contract: a test asserts it still returns 0 for `references/`, so the second population is a **new** function rather than a loosening of the old one |
+| 23 | The report distinguishes the two populations and cannot hide a zero in either | cross-cutting | iai-core | P0 | tool-checked | `bun run skill-lint` | Two separate scanned-counts are printed. A single conflated total fails this case. `skill-lint: 0 SKILL.md files scanned, 0 errors` is the repository's standing example of a check that passes while checking nothing; a widened linter printing one number would let `references/` go to zero unnoticed the moment a path changed |
 
 ### Model-judged
 
