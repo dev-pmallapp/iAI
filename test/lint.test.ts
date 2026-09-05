@@ -475,11 +475,20 @@ describe("no-io-in-pure-modules — case 19 (P0, NEVER-26.7): the rule covers pa
     expect(violations.filter((v) => v.rule === "no-io-in-pure-modules").length).toBeGreaterThan(0);
   });
 
+  // DE-BRITTLED IN #272, AND THE REASON IS ON RECORD TWICE NOW. This asserted
+  // the WHOLE scope literal, so widening the rule to core/src/binding broke a
+  // Story-26 test that has nothing to do with binding. That is the same
+  // over-specification #253's analogue at :364-370 was already corrected for,
+  // with the comment "over-specifying a fixture turns every future extension
+  // into a false failure" — reintroduced one describe block later.
+  //
+  // Extract the scope string and assert it NAMES this directory. A widening
+  // appends and cannot break it; a deletion still fails, because the default
+  // `?? ""` contains nothing.
   test("the printed scope string names core/src/evidence, since it is the user-visible contract", () => {
     const source = readFileSync(join(repoRoot, "scripts", "lint.ts"), "utf8");
-    expect(source).toContain(
-      '"no-io-in-pure-modules": "core/src/classify, core/src/guards, core/src/gh, core/src/evidence"',
-    );
+    const scope = /"no-io-in-pure-modules":\s*\n?\s*"([^"]+)"/.exec(source)?.[1] ?? "";
+    expect(scope).toContain("core/src/evidence");
   });
 
   // ASSERT THE DENOMINATOR. #253's first attempt passed while scanning ZERO
@@ -519,6 +528,7 @@ describe("no-io-in-pure-modules — case 19 (P0, NEVER-26.7): the rule covers pa
   test("a violation names the claim that owns the directory it was found in", () => {
     const io = `import { readFileSync } from "node:fs";\n`;
     const cases: Array<[string, string, string]> = [
+      ["binding/registry.ts", "NEVER-31.7", "binding/"],
       ["evidence/render.ts", "NEVER-26.7", "evidence/"],
       ["gh/issues.ts", "CLAIM-21.1", "gh/"],
       ["classify/classify.ts", "CLAIM-15.6", "classify/ and guards/"],
@@ -568,5 +578,213 @@ describe("no-io-in-pure-modules — case 21 (P0, NEVER-26.7): an I/O call introd
     const filePath = writePackageFile(makeTempDir(), "core", "evidence/clean.ts", clean);
     const violations = lintSource(filePath, clean, "core");
     expect(violations.filter((v) => v.rule === "no-io-in-pure-modules")).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #272 — S1.5.4. NEVER-31.7 (cases 15, 17) and NEVER-31.10 (cases 21, 22).
+//
+// THE THIRD INSTANCE OF THE THREE-CASE PATTERN, AND IT IS STILL NOT REDUNDANT.
+// Case 15 proves the directory is IN SCOPE, case 16 (packages/core/test/purity.test.ts)
+// proves the code RUNS TRAPPED, case 17 proves the rule FIRES. #261's story
+// verification found a mutation only the harness caught: an obfuscated
+// `globalThis["pro" + "cess"]` lookup leaves `bun run lint` at exit 0 with zero
+// violations, because a static rule certifies only the source it can read
+// (docs/evidence/261-20260904T040110Z.md).
+// ---------------------------------------------------------------------------
+
+describe("no-io-in-pure-modules — case 15 (P0, NEVER-31.7): the rule covers packages/core/src/binding", () => {
+  test("a file under core/src/binding is in scope for the rule", () => {
+    const source = `import { readFileSync } from "node:fs";\n`;
+    const filePath = writePackageFile(makeTempDir(), "core", "binding/registry.ts", source);
+    const violations = lintSource(filePath, source, "core");
+    expect(violations.filter((v) => v.rule === "no-io-in-pure-modules").length).toBeGreaterThan(0);
+  });
+
+  test("the printed scope string names core/src/binding, since it is the user-visible contract", () => {
+    const source = readFileSync(join(repoRoot, "scripts", "lint.ts"), "utf8");
+    const scope = /"no-io-in-pure-modules":\s*\n?\s*"([^"]+)"/.exec(source)?.[1] ?? "";
+    expect(scope).toContain("core/src/binding");
+  });
+
+  // ASSERT THE DENOMINATOR. #253's first attempt passed while scanning ZERO
+  // files, inside the very case written to prevent vacuous passes.
+  test("every real file under packages/core/src/binding has 0 violations, over a non-zero denominator", () => {
+    const dir = join(repoRoot, "packages", "core", "src", "binding");
+    const files = readdirSync(dir, { withFileTypes: true })
+      .filter((e) => e.isFile() && e.name.endsWith(".ts"))
+      .map((e) => join(dir, e.name));
+
+    expect(files.length).toBeGreaterThanOrEqual(4);
+
+    const violations = files.flatMap((filePath) =>
+      lintSource(filePath, readFileSync(filePath, "utf8"), "core"),
+    );
+    expect(violations.filter((v) => v.rule === "no-io-in-pure-modules")).toEqual([]);
+  });
+
+  test("a directory merely starting with binding is not pulled into scope", () => {
+    const source = `import { readFileSync } from "node:fs";\n`;
+    for (const rel of ["bindings/thing.ts", "binding-store/thing.ts"]) {
+      const filePath = writePackageFile(makeTempDir(), "core", rel, source);
+      const violations = lintSource(filePath, source, "core");
+      expect(violations.filter((v) => v.rule === "no-io-in-pure-modules")).toEqual([]);
+    }
+  });
+});
+
+// CASE 17 IS THE ONE THAT MATTERS for NEVER-31.7. Case 15 proves scope, case 16
+// proves the code runs trapped. NEITHER PROVES THE RULE FIRES.
+describe("no-io-in-pure-modules — case 17 (P0, NEVER-31.7): an I/O call introduced under core/src/binding is caught", () => {
+  test("all six I/O forms are reported, and each names NEVER-31.7", () => {
+    const mutations: Array<[string, string]> = [
+      ["node:fs import", `import { readFileSync } from "node:fs";\n`],
+      ["bare fs import", `import { readFileSync } from "fs";\n`],
+      ["fetch call", `export const run = () => fetch("https://api.github.com");\n`],
+      ["Bun.$ shell call", `export const run = () => Bun.$\`gh issue list\`;\n`],
+      ["node:child_process import", `import { execFile } from "node:child_process";\n`],
+      ["process.cwd read", `export const here = () => process.cwd();\n`],
+    ];
+    for (const [label, source] of mutations) {
+      const filePath = writePackageFile(makeTempDir(), "core", "binding/mutated.ts", source);
+      const violations = lintSource(filePath, source, "core").filter(
+        (v) => v.rule === "no-io-in-pure-modules",
+      );
+      expect(violations.length, `${label} must be reported`).toBeGreaterThan(0);
+      // The attribution half. Without a `pureModuleOwner` arm this reads
+      // CLAIM-15.6 and sends the reader to the wrong Story.
+      expect(violations[0]?.message, `${label} must name NEVER-31.7`).toContain("NEVER-31.7");
+    }
+  });
+
+  test("reverting the mutation restores 0 violations", () => {
+    const clean = `export const noop = (): number => 1;\n`;
+    const filePath = writePackageFile(makeTempDir(), "core", "binding/clean.ts", clean);
+    const violations = lintSource(filePath, clean, "core");
+    expect(violations.filter((v) => v.rule === "no-io-in-pure-modules")).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// NEVER-31.10 — a rule that has never existed, so there is no prior evidence it
+// works. skill-lint is required in CI, reports success on every run, and scans
+// ZERO files. A new rule that matched nothing would look identical from the
+// outside. Cases 21 and 22 are the two-case compression of the same shape: 21
+// defines the rule, 22 proves it fires and is reported.
+// ---------------------------------------------------------------------------
+
+describe("no-domain-pack-import — case 21 (P0, NEVER-31.10): a core/src file importing a domain pack is a violation", () => {
+  // All four forms the ban must catch. The relative form is what someone
+  // reaches for once the specifier form is blocked.
+  const forms: Array<[string, string]> = [
+    ["static import", `import { dev } from "iai-domain-dev";\n`],
+    ["dynamic import()", `export const load = () => import("iai-domain-dev");\n`],
+    ["require", `const dev = require("iai-domain-dev");\n`],
+    ["relative path", `import { dev } from "../../domain-dev/src/index";\n`],
+  ];
+
+  test("each of the four import forms is reported and names NEVER-31.10", () => {
+    for (const [label, source] of forms) {
+      const filePath = writePackageFile(makeTempDir(), "core", "binding/registry.ts", source);
+      // FILTERED BY RULE, DELIBERATELY. The relative form also leaves the
+      // package, so it legitimately trips `no-host-import` as well. Asserting
+      // a total count here would couple this case to that rule.
+      const violations = lintSource(filePath, source, "core").filter(
+        (v) => v.rule === "no-domain-pack-import",
+      );
+      expect(violations.length, `${label} must be reported`).toBeGreaterThan(0);
+      expect(violations[0]?.message, `${label} must name NEVER-31.10`).toContain("NEVER-31.10");
+    }
+  });
+
+  test("a re-export of a domain pack is caught too, not only an import", () => {
+    const source = `export { dev } from "iai-domain-dev";\n`;
+    const filePath = writePackageFile(makeTempDir(), "core", "index.ts", source);
+    const violations = lintSource(filePath, source, "core").filter(
+      (v) => v.rule === "no-domain-pack-import",
+    );
+    expect(violations.length).toBeGreaterThan(0);
+  });
+
+  test("the rule is core-only: another package importing a pack is not flagged", () => {
+    // Matching every other scoped rule in scripts/lint.ts. A domain pack may
+    // depend on another package; that is not this rule's business.
+    const source = `import { dev } from "iai-domain-dev";\n`;
+    for (const pkg of ["adapter-claude", "installer", "domain-null"]) {
+      const filePath = writePackageFile(makeTempDir(), pkg, "index.ts", source);
+      const violations = lintSource(filePath, source, pkg).filter(
+        (v) => v.rule === "no-domain-pack-import",
+      );
+      expect(violations, `${pkg} must not be flagged`).toEqual([]);
+    }
+  });
+
+  // THE SCOPE IS packages/core/src, NOT packages/core, AND THIS IS THE CASE
+  // THAT PINS IT. #34 gave packages/core a dev-only dependency on
+  // iai-domain-null so the conformance suite could import the fixture BY
+  // PACKAGE NAME. That test file imports a domain pack on purpose. A rule
+  // scoped to the whole package would fail it, and the correct response would
+  // not have been to weaken the rule.
+  test("packages/core/test may import a domain pack; only src is banned", () => {
+    const source = `import { nullBinding } from "iai-domain-null";\n`;
+    const dir = makeTempDir();
+    const filePath = join(dir, "core", "test", "conformance.test.ts");
+    mkdirSync(join(filePath, ".."), { recursive: true });
+    writeFileSync(filePath, source, "utf8");
+    const violations = lintSource(filePath, source, "core").filter(
+      (v) => v.rule === "no-domain-pack-import",
+    );
+    expect(violations).toEqual([]);
+  });
+
+  test("a non-domain relative import inside core/src is not flagged", () => {
+    // The converse guard. A rule that flagged every relative path would report
+    // a violation on almost every file in the package.
+    const source = `import { decide } from "../decision";\n`;
+    const filePath = writePackageFile(makeTempDir(), "core", "binding/registry.ts", source);
+    const violations = lintSource(filePath, source, "core").filter(
+      (v) => v.rule === "no-domain-pack-import",
+    );
+    expect(violations).toEqual([]);
+  });
+});
+
+describe("no-domain-pack-import — case 22 (P0, NEVER-31.10): the rule fires against the real tree and reports 0 there", () => {
+  test("the real packages tree has 0 violations of this rule, over a non-zero denominator", () => {
+    const violations = lintTree(join(repoRoot, "packages")).filter(
+      (v) => v.rule === "no-domain-pack-import",
+    );
+    expect(violations).toEqual([]);
+  });
+
+  test("a mutation introduced into a real core/src file is reported, and reverting restores 0", () => {
+    // Against the REAL file path, so the scope predicate is exercised as it
+    // runs in production rather than against a temp-dir shape.
+    const real = join(repoRoot, "packages", "core", "src", "binding", "registry.ts");
+    const clean = readFileSync(real, "utf8");
+    const mutated = `import { nullBinding } from "iai-domain-null";\n${clean}`;
+
+    const withMutation = lintSource(real, mutated, "core").filter(
+      (v) => v.rule === "no-domain-pack-import",
+    );
+    expect(withMutation.length).toBeGreaterThan(0);
+    expect(withMutation[0]?.message).toContain("NEVER-31.10");
+
+    // Reverting is asserted against the same path, not a different fixture.
+    const reverted = lintSource(real, clean, "core").filter(
+      (v) => v.rule === "no-domain-pack-import",
+    );
+    expect(reverted).toEqual([]);
+  });
+
+  test("the rule appears in RULE_SCOPES with its scope printed, so it cannot run and report nothing", () => {
+    // A rule absent from RULE_SCOPES still runs but never prints a line, which
+    // is indistinguishable from a rule that found nothing. skill-lint is the
+    // standing example of a check that passes while checking nothing.
+    const source = readFileSync(join(repoRoot, "scripts", "lint.ts"), "utf8");
+    const scope = /"no-domain-pack-import":\s*\n?\s*"([^"]+)"/.exec(source)?.[1] ?? "";
+    expect(scope).toContain("core/src");
+    // And it is listed for printing, not merely defined.
+    expect(source).toContain('"no-domain-pack-import",');
   });
 });

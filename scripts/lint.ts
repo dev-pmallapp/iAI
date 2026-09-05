@@ -5,7 +5,8 @@ export type RuleId =
   | "no-host-import"
   | "no-process-cwd"
   | "no-exec-template"
-  | "no-io-in-pure-modules";
+  | "no-io-in-pure-modules"
+  | "no-domain-pack-import";
 
 export interface Violation {
   file: string;
@@ -275,7 +276,7 @@ function checkExecTemplate(filePath: string, masked: string, packageName: string
   return violations;
 }
 
-// Two claims share this rule, and both are load-bearing:
+// Four claims share this rule, and all four are load-bearing:
 //
 //   CLAIM-15.6 — no file under packages/core/src/classify or
 //   packages/core/src/guards may perform I/O.
@@ -292,6 +293,12 @@ function checkExecTemplate(filePath: string, masked: string, packageName: string
 //   than discovering the gap mid-Story, which is what forced #253 into
 //   existence net-new against M1.md's four-row table for S1.3.
 //
+//   NEVER-31.7 — no module under packages/core/src/binding performs I/O.
+//   The third widening, in #272, and the third Story in a row whose milestone
+//   table carries no enforcement row (Decision 9 of docs/design/stories/31.md).
+//   S1.5 planned this task from the start rather than discovering the gap
+//   mid-Story, as S1.4 did and S1.3 did not.
+//
 // THE VIOLATION MESSAGE NAMES THE OWNING CLAIM. A violation under evidence/
 // reporting "CLAIM-15.6: classify/ and guards/ must perform no I/O" would send
 // the reader to the wrong Story — the same defect class as one generic message
@@ -299,24 +306,36 @@ function checkExecTemplate(filePath: string, masked: string, packageName: string
 // docs/test-plans/26-plan.md exists to exclude.
 //
 // `isPureModulePath` matches a path SEGMENT, never a substring, so
-// "src/guardsomething.ts" and "src/ghost.ts" do not fall into scope by
-// accident. That distinction is the whole reason these are anchored regexes
-// and not `includes()`.
+// "src/guardsomething.ts", "src/ghost.ts", "src/bindings.ts" and
+// "src/binding-store.ts" do not fall into scope by accident. That distinction
+// is the whole reason these are anchored regexes and not `includes()`.
 function isPureModulePath(filePath: string): boolean {
   const normalized = filePath.split(sep).join("/");
   return (
     /(^|\/)classify(\/|$)/.test(normalized) ||
     /(^|\/)guards(\/|$)/.test(normalized) ||
     /(^|\/)gh(\/|$)/.test(normalized) ||
-    /(^|\/)evidence(\/|$)/.test(normalized)
+    /(^|\/)evidence(\/|$)/.test(normalized) ||
+    /(^|\/)binding(\/|$)/.test(normalized)
   );
 }
 
 // The claim that owns the directory a violation was found in, and the
-// human-readable scope to name alongside it. The four directories are
+// human-readable scope to name alongside it. The five directories are
 // disjoint, so order is not load-bearing; stating it makes that explicit.
+//
+// EVERY DIRECTORY ADDED TO `isPureModulePath` NEEDS AN ARM HERE. The final
+// `return` is a fall-through default, not a match — so a directory widened into
+// scope above without a corresponding arm below is silently attributed to
+// CLAIM-15.6, which is precisely the mis-attribution the block above forbids.
+// #261's mutation 4 confirmed this is reachable: making this function always
+// report CLAIM-15.6 left the scope tests passing and broke only the
+// attribution case.
 function pureModuleOwner(filePath: string): { claim: string; scope: string } {
   const normalized = filePath.split(sep).join("/");
+  if (/(^|\/)binding(\/|$)/.test(normalized)) {
+    return { claim: "NEVER-31.7", scope: "binding/" };
+  }
   if (/(^|\/)evidence(\/|$)/.test(normalized)) {
     return { claim: "NEVER-26.7", scope: "evidence/" };
   }
@@ -404,6 +423,100 @@ function checkIoInPureModules(filePath: string, masked: string): Violation[] {
   return violations;
 }
 
+// NEVER-31.10 — no file under packages/core/src imports a domain pack.
+//
+// THE ABSTRACTION'S CENTRAL PROMISE, PREVIOUSLY ENFORCED BY NOTHING. Problem 8
+// of docs/design/stories/31.md: docs/milestones/M1.md:237-238 and CLAIM-9.4
+// name only the two ADAPTER packages; ARCHITECTURE.md:81 and
+// docs/design/08-dual-target.md:497-499 say core imports no host and that packs
+// never import each other — all four are silent on core importing a pack.
+// CLAIM-31.6 forbids domain LITERALS in core, which implies the import ban
+// without ever stating it. A Tier-1 verb that imported `iai-domain-trade` would
+// be the `if (domain === "trade")` failure ARCHITECTURE.md:208 exists to
+// prevent, and no rule would have said so.
+//
+// SCOPED TO packages/core/src, NOT TO packages/core, AND THAT IS DELIBERATE.
+// #34 had to give packages/core a dev-only dependency on `iai-domain-null` so
+// the conformance suite could import the fixture BY PACKAGE NAME — Bun resolves
+// a workspace package by name only from a package that declares it as a
+// dependency. `packages/core/test/binding-conformance.test.ts` therefore
+// imports a domain pack on purpose, and it is the one place that may.
+// docs/design/stories/31.md:229-230 words the claim as "No file under
+// `packages/core/src`", so the scope predicate matches the claim exactly rather
+// than being widened to the package and then punctured with an exemption. An
+// exemption is a hole; a correctly drawn scope is not.
+// Recorded at docs/evidence/34-20260905T031229Z.md:93-104.
+const DOMAIN_PACK_SPECIFIER_RE = /^iai-domain-[^/]+(\/.*)?$/;
+
+// A path SEGMENT match, in the same house style as `isPureModulePath`, so
+// "packages/core/srcs/x.ts" and "packages/core/src-gen/x.ts" are not pulled
+// into scope by a substring.
+function isCoreSrcPath(filePath: string): boolean {
+  const normalized = filePath.split(sep).join("/");
+  return /(^|\/)src(\/|$)/.test(normalized);
+}
+
+// Both forms the ban has to catch. The specifier form is the one that matters
+// in practice; the relative form is what someone reaches for when the specifier
+// form is blocked, and it resolves to the same place.
+//
+// The relative form ALSO trips `no-host-import` (it leaves the package), so a
+// single offending line yields two violations. That is correct — two rules are
+// genuinely broken — but it means any test asserting on this rule must FILTER
+// by `v.rule`, never assert `violations.length === 1`.
+function checkDomainPackImport(
+  filePath: string,
+  masked: string,
+  packageName: string,
+): Violation[] {
+  const locate = makeLocator(masked);
+  const violations: Violation[] = [];
+  const allMatches = [
+    ...collectSpecifiers(masked, IMPORT_FROM_RE),
+    ...collectSpecifiers(masked, EXPORT_FROM_RE),
+    ...collectSpecifiers(masked, IMPORT_BARE_RE),
+    ...collectSpecifiers(masked, DYNAMIC_IMPORT_RE),
+    ...collectSpecifiers(masked, REQUIRE_RE),
+  ];
+
+  for (const { specifier, index } of allMatches) {
+    const { line, column } = locate(index);
+
+    if (DOMAIN_PACK_SPECIFIER_RE.test(specifier)) {
+      violations.push({
+        file: filePath,
+        line,
+        column,
+        rule: "no-domain-pack-import",
+        message:
+          `NEVER-31.10: packages/${packageName}/src must not import a domain pack; ` +
+          `"${specifier}" is one. A domain is resolved through its binding, never imported`,
+      });
+      continue;
+    }
+
+    // The relative form. Resolved first, because "../../domain-dev/src/index"
+    // and "../domain-dev/src/index" are the same offence from different depths,
+    // and only the resolved path says so.
+    if (specifier.startsWith("./") || specifier.startsWith("../")) {
+      const resolved = resolve(dirname(filePath), specifier).split(sep).join("/");
+      if (/(^|\/)domain-[^/]+(\/|$)/.test(resolved)) {
+        violations.push({
+          file: filePath,
+          line,
+          column,
+          rule: "no-domain-pack-import",
+          message:
+            `NEVER-31.10: packages/${packageName}/src must not import a domain pack; ` +
+            `"${specifier}" resolves to ${resolved}`,
+        });
+      }
+    }
+  }
+
+  return violations;
+}
+
 export function lintSource(
   filePath: string,
   source: string,
@@ -422,6 +535,9 @@ export function lintSource(
   violations.push(...checkExecTemplate(filePath, masked, packageName));
   if (packageName === "core" && isPureModulePath(filePath)) {
     violations.push(...checkIoInPureModules(filePath, masked));
+  }
+  if (packageName === "core" && isCoreSrcPath(filePath)) {
+    violations.push(...checkDomainPackImport(filePath, masked, packageName));
   }
 
   return violations;
@@ -465,7 +581,11 @@ const RULE_SCOPES: Record<RuleId, string> = {
   "no-host-import": "core",
   "no-process-cwd": "core, adapter-opencode",
   "no-exec-template": "all packages",
-  "no-io-in-pure-modules": "core/src/classify, core/src/guards, core/src/gh, core/src/evidence",
+  // Kept on ONE line on purpose: test/lint.test.ts:367 and the case-19 sibling
+  // both extract this value with a single-line regex. Wrapping it is a silent
+  // way to break two tests in other Stories.
+  "no-io-in-pure-modules": "core/src/classify, core/src/guards, core/src/gh, core/src/evidence, core/src/binding",
+  "no-domain-pack-import": "core/src",
 };
 
 function countFiles(packagesDir: string): number {
@@ -500,6 +620,7 @@ function printReport(violations: Violation[], dir: string): void {
     "no-process-cwd": 0,
     "no-exec-template": 0,
     "no-io-in-pure-modules": 0,
+    "no-domain-pack-import": 0,
   };
   for (const violation of violations) byRule[violation.rule] += 1;
 
@@ -508,6 +629,7 @@ function printReport(violations: Violation[], dir: string): void {
     "no-process-cwd",
     "no-exec-template",
     "no-io-in-pure-modules",
+    "no-domain-pack-import",
   ];
   const padded = Math.max(...ruleIds.map((id) => id.length));
   for (const ruleId of ruleIds) {
