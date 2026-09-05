@@ -300,8 +300,16 @@ missing something — fix the binding.
       skeleton: purpose and scope · the binding · unit of work · verification
       rungs · the gate · skills · data model · integration points · worked
       example · failure modes. Match the existing packs section-for-section.
-- [ ] **Register the pack in the binding registry** (`packages/core/src/binding/registry.ts`)
-      and add its build target row to `ARCHITECTURE.md`.
+- [ ] **Add the pack to the composition root's binding list** — the array passed
+      to `createRegistry`, which lives at the edge of the application and *not*
+      under `packages/core/src`. Add its build target row to `ARCHITECTURE.md`
+      too. **Do not edit `packages/core/src/binding/registry.ts`**: there is no
+      `register()` and no module-level map to append to (Decision 2 of
+      `docs/design/stories/31.md`). Registration is a pure construction over a
+      list supplied by the caller, so a new pack is a new element in that list.
+      `CLAIM-31.3` requires a domain to register without editing any file under
+      `packages/core/src`, and `CLAIM-111.1` (`docs/milestones/M5.md:82-85`)
+      fails the build if a story branch touches that directory.
 - [ ] **Add the irreversible-action row to
       [`docs/design/09-security.md`](docs/design/09-security.md)** — domain,
       irreversible action, guard, authoriser, kill switch. A domain with no row

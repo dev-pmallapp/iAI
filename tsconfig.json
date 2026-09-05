@@ -10,6 +10,7 @@
     { "path": "packages/domain-health" },
     { "path": "packages/domain-wealth" },
     { "path": "packages/domain-know" },
+    { "path": "packages/domain-null" },
     { "path": "packages/pulse" }
   ]
 }
