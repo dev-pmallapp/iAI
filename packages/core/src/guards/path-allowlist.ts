@@ -111,10 +111,10 @@ export const PATH_ALLOW_LIST: readonly AllowedPath[] = [
     note: "docs/milestones/M2.md:19,36",
   },
   {
-    path: "references/isa-format.md",
+    path: "references/design-format.md",
     reason: "planned",
     milestone: "M2",
-    note: "docs/milestones/M2.md:19,36",
+    note: "docs/milestones/M2.md:19,36 — RENAMED from references/isa-format.md at the S2.1 gate (#35, Decision 5, human decision 2026-09-05). The milestone seeded it as isa-format; stories/194.md retired that acronym and :63 maps ISA to Design. docs/design/9-isa.md keeps its name — it is historical and allow-listed separately",
   },
   {
     path: "references/sizing-criteria.md",
