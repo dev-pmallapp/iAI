@@ -11,7 +11,20 @@
 //
 // Every entry is derived by measurement (`git grep -n <path>` against the
 // citing docs, then again against docs/milestones/ for the owning
-// milestone), not copied from the issue text. Six families, 38 entries.
+// milestone), not copied from the issue text. Seven families, 37 entries.
+//
+// THE COUNT ABOVE IS TESTED, NOT PROSE. It said "Six families, 38 entries"
+// while the list held 43 across 7 sections — a comment nothing checked, drifting
+// quietly for three milestones. `path-allowlist.test.ts` now parses this line
+// and the per-family headers below and asserts both against the real entries,
+// so a wrong number is a red test rather than a misleading remark.
+//
+// ENTRIES ARE RETIRED WHEN THEIR PATH COMES INTO EXISTENCE (issue #277). The
+// allow-list is meant to SHRINK. `claim-lint`'s `allowlist-stale` rule fails the
+// build on any entry whose path now resolves, because such an entry is not
+// merely untidy: `path-dangling` stops checking a citation once its target is
+// allow-listed, so a stale entry permanently exempts the path even if it is
+// later deleted or renamed.
 
 // "external" is a path on a filesystem that is not this repository: a host
 // install destination under the user's config, or a path in an ancestor
@@ -162,43 +175,12 @@ export const PATH_ALLOW_LIST: readonly AllowedPath[] = [
     note: "cited at docs/design/06-domain-health.md:533,559; reserved 900-block, Decision 8 at docs/design/stories/194.md:179,193",
   },
 
-  // --- packages/** — 9 paths, planned. ---------------------------------
-  {
-    path: "packages/domain-null",
-    reason: "planned",
-    milestone: "M1",
-    note: "docs/design/stories/31.md Build Targets and Decision 12 (S1.5). CLAIM-31.3 (docs/milestones/M1.md:209-211) requires the conformance suite to register a binding from a package OUTSIDE packages/core, so the fixture cannot live under packages/core/test; the milestone names the fixture (`nullBinding`) but not the package that holds it",
-  },
-  {
-    path: "packages/core/src/binding",
-    reason: "planned",
-    milestone: "M1",
-    note: "docs/milestones/M1.md:219 (S1.5 registry build target); cited also at CONTRIBUTING.md:293",
-  },
-  {
-    path: "packages/core/src/binding/registry.ts",
-    reason: "planned",
-    milestone: "M1",
-    note: "cited at CONTRIBUTING.md:303; the registry itself is docs/milestones/M1.md:219-220 (S1.5) but the filename is not spelled out there — attribution to M1 is from the surrounding registry feature, not a literal filename hit",
-  },
-  {
-    path: "packages/core/src/classify",
-    reason: "planned",
-    milestone: "M1",
-    note: "docs/milestones/M1.md:95,102 (CLAIM-15.6, S1.3 build target)",
-  },
-  {
-    path: "packages/core/src/evidence",
-    reason: "planned",
-    milestone: "M1",
-    note: "docs/milestones/M1.md:179 (S1.4 build target)",
-  },
-  {
-    path: "packages/core/src/gh",
-    reason: "planned",
-    milestone: "M1",
-    note: "docs/milestones/M1.md:124,141 (CLAIM-15.6 purity clause, S1.4 build target)",
-  },
+  // --- packages/** — 3 paths, planned. ---------------------------------
+  // Was 9. Six were retired in #277 once M1 created them: src/classify (S1.1),
+  // src/gh (S1.3), src/evidence (S1.4), src/binding and
+  // src/binding/registry.ts (S1.5), and packages/domain-null (S1.5). Five of
+  // the six had outlived their purpose across four merged Stories before any
+  // guard existed to say so.
   {
     path: "packages/core/src/routing",
     reason: "planned",

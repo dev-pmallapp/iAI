@@ -36,7 +36,8 @@ export type ClaimRuleId =
   | "identifier-duplicate"
   | "anticlaim-not-never"
   | "anchor-dangling"
-  | "path-dangling";
+  | "path-dangling"
+  | "allowlist-stale";
 
 export type ClaimSeverity = "error" | "warning";
 

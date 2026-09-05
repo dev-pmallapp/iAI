@@ -24,7 +24,7 @@
 // they never reach the allow-list check at all.
 
 import type { ClaimDoc, ClaimViolation } from "./claim-lint";
-import { isPathAllowed } from "./path-allowlist";
+import { PATH_ALLOW_LIST, isPathAllowed, type AllowedPath } from "./path-allowlist";
 
 export interface PathRefOptions {
   /** Every path that exists in the repo, repo-relative POSIX, files AND
@@ -263,6 +263,45 @@ function isIgnoredPrefixTarget(candidate: string, ignoredPrefixes: readonly stri
 function isKnownTopLevelSegment(candidate: string, knownPaths: ReadonlySet<string>): boolean {
   const first = candidate.split("/")[0] ?? "";
   return first.length > 0 && knownPaths.has(first);
+}
+
+// Every allow-list entry whose path NOW EXISTS in the tree (issue #277).
+//
+// THE ALLOW-LIST IS MEANT TO SHRINK, AND IT ONLY EVER GREW. An entry exists so
+// that a path cited in docs but absent from the tree does not fail
+// `path-dangling`. The moment the path is created the entry has done its job,
+// and every reason it can carry becomes false or moot:
+//
+//   - `planned` with a milestone asserts "this does not exist and <M> will
+//     create it". Once <M> has created it, the entry states something false,
+//     and this file's own header calls a knowingly-false milestone on a
+//     reviewed allow-list "the exact failure #209 warned about".
+//   - `fiction` asserts the path will never exist. If it exists, the entry and
+//     the tree contradict each other outright.
+//   - `historical` asserts it existed at some past commit but not at HEAD.
+//   - `defective` and `external` are both claims about a path that does not
+//     resolve here.
+//
+// So the rule is uniform and needs no per-reason special case: **an entry whose
+// path exists is stale, whatever its reason.**
+//
+// WHY THIS IS A FAIL-CLOSED CONCERN AND NOT TIDINESS. `path-dangling` stops
+// checking a citation once its target is allow-listed. A stale entry is
+// therefore a permanent hole: if the path is later deleted or renamed, every
+// citation to it goes unchecked, because the allow-list still forgives it. The
+// guard closes the hole by forcing the entry out once it is no longer needed.
+//
+// PURE. Existence is SUPPLIED via `knownPaths`, never read — this module states
+// at its head that it "cannot check whether a path exists", and that is still
+// true. The caller does the I/O; `scripts/claim-lint.ts` already builds exactly
+// this set for `lintPathRefs`, so the guard costs no extra filesystem work.
+export function staleAllowListEntries(
+  knownPaths: ReadonlySet<string>,
+): readonly AllowedPath[] {
+  // A directory entry is present in `knownPaths` as its own repo-relative
+  // prefix — `buildKnownPaths` adds directory prefixes as well as files — so
+  // `packages/core/src/binding` matches without needing a trailing slash.
+  return PATH_ALLOW_LIST.filter((entry) => knownPaths.has(entry.path));
 }
 
 export function lintPathRefs(

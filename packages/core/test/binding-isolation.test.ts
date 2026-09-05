@@ -66,33 +66,48 @@ function scan(pattern: RegExp): { readonly hits: readonly Hit[]; readonly files:
   return { hits, files: files.length };
 }
 
-// THE ONE DOCUMENTED EXCEPTION, AND WHY IT IS NAMED RATHER THAN EXCLUDED.
+// Case 14 still needs one named exception, and case 7 no longer does.
 //
 // `guards/path-allowlist.ts` is a reviewed table of DOCUMENTATION CITATIONS —
-// repo-relative paths that appear in docs but did not exist when the guard was
-// written (path-refs.ts, issue #210). It names `packages/domain-null` because
-// docs/design/stories/31.md cited the path before this task created it.
+// repo-relative paths cited in docs that do not exist in the tree. #277
+// retired its `packages/domain-null` entry (the path exists now), which is why
+// case 7 below is clean. But the table still legitimately names
+// `skills/dev`, `skills/health`, `skills/trade` and several
+// `docs/design/0N-domain-*.md` citations, none of which exist yet — so the five
+// domain LITERALS case 14 searches for still appear there.
 //
 // It is data, not logic: no import, no branch, no behaviour keyed on a domain.
 // A blanket file-level exclusion would be the cheap fix and would also hide a
-// real import if one were ever added, so instead each surviving hit is required
-// to be a `path:` or `note:` field of that table. That is the difference
-// between an exception and a hole.
-//
-// FINDING, RECORDED NOT FIXED: six entries in that allow-list name paths that
-// NOW EXIST (`packages/domain-null`, `packages/core/src/binding`,
-// `.../binding/registry.ts`, `.../classify`, `.../evidence`, `.../gh`), five of
-// them created by S1.1, S1.3, S1.4 and S1.5.1-2 without the entry being
-// retired. The file's own header warns that a knowingly-false entry is "the
-// exact failure #209 warned about", and its stated count of 38 entries is now
-// 43. Retiring them is a core/src edit that belongs to whoever owns that guard,
-// not to this task.
+// real import if one were added, so each surviving hit must be a `path:` or
+// `note:` field of that table. That is the difference between an exception and
+// a hole.
 const ALLOW_LIST_FILE = "guards/path-allowlist.ts";
 const DATA_LINE = /^(path|note):/;
 
 function isCitationData(hit: Hit): boolean {
   return hit.file === ALLOW_LIST_FILE && DATA_LINE.test(hit.text);
 }
+
+// CASE 7 NOW ASSERTS THE PLAN'S LITERAL WORDING: ZERO MATCHES.
+//
+// It did not, when #34 shipped it. `guards/path-allowlist.ts` carried two
+// genuine code-line mentions of `packages/domain-null` — placed there by this
+// Story's OWN Design commit `05f8deb` — so a search over `packages/core/src`
+// returned 2, not 0. #34 refused the two cheap ways out: excluding the file is
+// a hole in the very case that proves isolation, and deleting the entry is a
+// `packages/core/src` edit made in order to register a domain, which is what
+// CLAIM-31.3 forbids. It instead required each hit to be a `path:`/`note:`
+// field of that reviewed table and pinned the count at 2, recording the gap as
+// a deviation from a gate-approved plan.
+//
+// #277 discharged it, and from the other direction. The entry was not deleted
+// to make this case pass; it was retired because `packages/domain-null` now
+// EXISTS, which makes `reason: "planned"` false. `claim-lint`'s new
+// `allowlist-stale` rule fails the build on any such entry. The deviation
+// disappeared as a side effect of fixing the thing that caused it.
+//
+// So the exception, the `isCitationData` predicate and the pinned count of 2
+// are all gone, and the assertion below is the one the plan asked for.
 
 describe("binding — case 7 (P0, CLAIM-31.3): core carries no reference to the registered domain", () => {
   const NULL_DOMAIN = /domain-null|nullBinding|iai-domain-/;
@@ -104,25 +119,15 @@ describe("binding — case 7 (P0, CLAIM-31.3): core carries no reference to the 
 
   test("no file under packages/core/src imports the pack", () => {
     // The coupling that would actually matter. `packages/core/package.json`
-    // carries a dev-only dependency so this suite can resolve the fixture by
-    // name; that dependency must never reach the shipped source.
-    const { hits } = scan(/\bfrom\s+["']iai-domain-|\brequire\(\s*["']iai-domain-/);
+    // carries a dev-only dependency so the conformance suite can resolve the
+    // fixture by name; that dependency must never reach the shipped source.
+    const { hits } = scan(/\bfrom\s+["\']iai-domain-|\brequire\(\s*["\']iai-domain-/);
     expect(hits).toEqual([]);
   });
 
-  test("the only surviving mentions are citation data in the reviewed path allow-list", () => {
+  test("the search returns zero matches, which is the plan's literal wording", () => {
     const { hits } = scan(NULL_DOMAIN);
-    const offenders = hits.filter((h) => !isCitationData(h));
-    expect(offenders.map((h) => `${h.file}:${String(h.line)}: ${h.text}`)).toEqual([]);
-  });
-
-  test("that exception is exactly two lines, so it cannot grow unnoticed", () => {
-    // Pinned. If a third mention appears in the allow-list, or a real reference
-    // is added and miscategorised as citation data, this fails and someone
-    // re-reads the case rather than the count drifting silently.
-    const { hits } = scan(NULL_DOMAIN);
-    expect(hits.length).toBe(2);
-    expect(hits.every(isCitationData)).toBe(true);
+    expect(hits.map((h) => `${h.file}:${String(h.line)}: ${h.text}`)).toEqual([]);
   });
 });
 

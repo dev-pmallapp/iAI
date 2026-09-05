@@ -3,6 +3,7 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import {
   lintClaimDocs,
   lintPathRefs,
+  staleAllowListEntries,
   mapStory,
   formatClaimId,
   type ClaimDoc,
@@ -144,6 +145,48 @@ function buildIgnoredPrefixes(repoRoot: string): string[] {
   return prefixes;
 }
 
+// The allow-list source, as its own repo-relative path. Named once so the
+// violation location and the file actually read cannot drift apart.
+const ALLOW_LIST_PATH = "packages/core/src/guards/path-allowlist.ts";
+
+// The I/O half of the `allowlist-stale` rule (issue #277).
+//
+// `staleAllowListEntries` is pure and returns ENTRIES, not locations, because
+// `packages/core/src/guards` may not read a file. A violation needs a line
+// somebody can jump to, so the line is resolved HERE by searching the
+// allow-list source for the entry's own `path:` field.
+//
+// The search is for the exact quoted literal rather than a substring, so
+// `packages/core/src/binding` does not match the line declaring
+// `packages/core/src/binding/registry.ts`. Line 1 is the honest fallback if
+// the declaration cannot be located — a violation reported at the wrong line
+// is worse than one reported at the top of the right file, and this is a
+// four-line file-local search, not a parser.
+function lintStaleAllowList(repoRoot: string, knownPaths: ReadonlySet<string>): ClaimViolation[] {
+  const stale = staleAllowListEntries(knownPaths);
+  if (stale.length === 0) return [];
+
+  const sourcePath = join(repoRoot, ALLOW_LIST_PATH);
+  const lines = existsSync(sourcePath) ? readFileSync(sourcePath, "utf8").split("\n") : [];
+
+  return stale.map((entry) => {
+    const needle = `path: "${entry.path}"`;
+    const index = lines.findIndex((line) => line.includes(needle));
+    const milestone = entry.milestone === undefined ? "" : ` (milestone ${entry.milestone})`;
+    return {
+      file: ALLOW_LIST_PATH,
+      line: index === -1 ? 1 : index + 1,
+      rule: "allowlist-stale" as const,
+      severity: "error" as const,
+      message:
+        `"${entry.path}" now exists, so its allow-list entry is stale and must be removed. ` +
+        `It is recorded as reason "${entry.reason}"${milestone}, which asserts the path does ` +
+        `not resolve in this tree. The allow-list is meant to shrink: an entry kept past its ` +
+        `purpose permanently exempts the path from path-dangling, even if it is later deleted`,
+    };
+  });
+}
+
 const RULE_IDS: ClaimRuleId[] = [
   "isc-token",
   "identifier-malformed",
@@ -151,6 +194,7 @@ const RULE_IDS: ClaimRuleId[] = [
   "anticlaim-not-never",
   "anchor-dangling",
   "path-dangling",
+  "allowlist-stale",
 ];
 
 function pluralize(count: number, singular: string, plural: string): string {
@@ -181,6 +225,7 @@ function printReport(violations: ClaimViolation[], fileCount: number): void {
     "anticlaim-not-never": 0,
     "anchor-dangling": 0,
     "path-dangling": 0,
+    "allowlist-stale": 0,
   };
   for (const violation of violations) byRule[violation.rule] += 1;
 
@@ -266,7 +311,14 @@ function main(): void {
   const markdownDocs = docs.filter((doc) => doc.path.endsWith(".md"));
   const pathViolations = lintPathRefs(markdownDocs, { knownPaths, ignoredPrefixes });
 
-  const violations = pathsOnly ? pathViolations : [...lintClaimDocs(docs), ...pathViolations];
+  // allowlist-stale (issue #277). Reuses the SAME knownPaths set the rule above
+  // was already given, so the guard costs no extra filesystem work and cannot
+  // disagree with `path-dangling` about what exists.
+  const staleViolations = lintStaleAllowList(repoRoot, knownPaths);
+
+  const violations = pathsOnly
+    ? [...pathViolations, ...staleViolations]
+    : [...lintClaimDocs(docs), ...pathViolations, ...staleViolations];
   printReport(violations, docs.length);
 
   const hasError = violations.some((v) => v.severity === "error");
