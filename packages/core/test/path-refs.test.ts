@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { extractPathRefs, lintPathRefs } from "../src/guards/path-refs";
+import { extractPathRefs, lintPathRefs, staleAllowListEntries } from "../src/guards/path-refs";
 import { PATH_ALLOW_LIST, isPathAllowed } from "../src/guards/path-allowlist";
 
 const known = new Set([
@@ -252,3 +252,129 @@ describe("PATH_ALLOW_LIST integrity", () => {
   });
 });
 
+
+// ---------------------------------------------------------------------------
+// #277 — the allow-list is meant to SHRINK, and nothing made it.
+//
+// Six of 43 entries named paths that had come into existence, five of them
+// across four merged Stories. Every Story had a defensible reason not to touch
+// the list, which is exactly why the fix is a guard rather than a cleanup.
+// ---------------------------------------------------------------------------
+
+describe("staleAllowListEntries — an entry whose path exists is stale", () => {
+  test("an entry is reported once its path appears in knownPaths", () => {
+    const entry = PATH_ALLOW_LIST[0];
+    expect(entry).toBeDefined();
+    if (entry === undefined) return;
+
+    expect(staleAllowListEntries(new Set([entry.path])).map((e) => e.path)).toEqual([entry.path]);
+  });
+
+  test("nothing is reported when no allow-listed path exists", () => {
+    // The steady state, and the one the repo must hold at.
+    expect(staleAllowListEntries(new Set(["docs", "packages", "no/such/path"]))).toEqual([]);
+  });
+
+  test("the rule is uniform across every reason, not special-cased to planned", () => {
+    // All six stale entries found in practice were `planned`, which makes it
+    // tempting to check only that reason. `fiction` asserts the path will
+    // NEVER exist, so a fiction entry whose path exists is a sharper
+    // contradiction, not a lesser one.
+    const reasons = new Set(PATH_ALLOW_LIST.map((e) => e.reason));
+    expect(reasons.size).toBeGreaterThan(1);
+
+    for (const reason of reasons) {
+      const sample = PATH_ALLOW_LIST.find((e) => e.reason === reason);
+      expect(sample).toBeDefined();
+      if (sample === undefined) continue;
+      expect(
+        staleAllowListEntries(new Set([sample.path])).map((e) => e.path),
+        `reason "${reason}" must be reported when its path exists`,
+      ).toEqual([sample.path]);
+    }
+  });
+
+  test("the real repo has no stale entries, over a non-zero denominator", () => {
+    // ASSERT THE DENOMINATOR. An empty allow-list would make the check below
+    // trivially true — the vacuous-pass shape skill-lint demonstrates daily.
+    expect(PATH_ALLOW_LIST.length).toBeGreaterThan(30);
+
+    // Read via import.meta.dir, never a bare relative path.
+    const fs = require("node:fs") as typeof import("node:fs");
+    const path = require("node:path") as typeof import("node:path");
+    const repoRoot = path.join(import.meta.dir, "../../..");
+
+    const existing = new Set(
+      PATH_ALLOW_LIST.map((e) => e.path).filter((p) => fs.existsSync(path.join(repoRoot, p))),
+    );
+    expect(staleAllowListEntries(existing).map((e) => e.path)).toEqual([]);
+  });
+
+  test("every allow-listed path is genuinely absent from the tree", () => {
+    // The converse of the case above, stated positively so it fails loudly
+    // rather than by an empty array that could also mean "nothing was checked".
+    const fs = require("node:fs") as typeof import("node:fs");
+    const path = require("node:path") as typeof import("node:path");
+    const repoRoot = path.join(import.meta.dir, "../../..");
+
+    const present = PATH_ALLOW_LIST.map((e) => e.path).filter((p) =>
+      fs.existsSync(path.join(repoRoot, p)),
+    );
+    expect(present).toEqual([]);
+  });
+});
+
+// The header count was wrong by five for three milestones because it was prose.
+// Parsing it turns the comment into an assertion.
+describe("path-allowlist — the stated counts match the real entries", () => {
+  function source(): string {
+    const fs = require("node:fs") as typeof import("node:fs");
+    const path = require("node:path") as typeof import("node:path");
+    return fs.readFileSync(path.join(import.meta.dir, "../src/guards/path-allowlist.ts"), "utf8");
+  }
+
+  test("the header's total matches PATH_ALLOW_LIST.length", () => {
+    const m = /(\w+) families, (\d+) entries\./.exec(source());
+    expect(m).not.toBeNull();
+    expect(Number(m?.[2])).toBe(PATH_ALLOW_LIST.length);
+  });
+
+  test("the header's family count matches the number of family sections", () => {
+    const WORDS: Record<string, number> = { Five: 5, Six: 6, Seven: 7, Eight: 8, Nine: 9 };
+    const text = source();
+    const m = /(\w+) families, (\d+) entries\./.exec(text);
+    const sections = [...text.matchAll(/^\s*\/\/ --- .+? -+$/gm)].length;
+
+    expect(sections).toBeGreaterThan(0);
+    expect(WORDS[m?.[1] ?? ""]).toBe(sections);
+  });
+
+  test("each family header's own count matches the entries beneath it", () => {
+    // The per-family numbers drift the same way the total did. `packages/**`
+    // said 9 while holding 3 after #277's retirements.
+    const lines = source().split("\n");
+    const mismatches: string[] = [];
+    let current: { name: string; stated: number } | null = null;
+    let seen = 0;
+
+    const flush = (): void => {
+      if (current !== null && current.stated !== seen) {
+        mismatches.push(`${current.name}: header says ${String(current.stated)}, found ${String(seen)}`);
+      }
+    };
+
+    for (const line of lines) {
+      const header = /^\s*\/\/ --- (.+?) — (\d+) paths?/.exec(line);
+      if (header !== null) {
+        flush();
+        current = { name: header[1] ?? "?", stated: Number(header[2]) };
+        seen = 0;
+        continue;
+      }
+      if (/^\s*path: "/.test(line)) seen += 1;
+    }
+    flush();
+
+    expect(mismatches).toEqual([]);
+  });
+});
