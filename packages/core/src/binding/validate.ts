@@ -228,7 +228,23 @@ function validateLabels(value: unknown): string | undefined {
 
 // The `domain:<id>` label this binding answers to. Derived rather than read, so
 // a binding cannot claim an id and answer to a different label.
+//
+// THE TYPE GUARD IS NOT DECORATION, AND IT CLOSED A REAL DEFECT. `id` is
+// declared `string`, so the check below is unreachable from well-typed code —
+// the same situation as `evidenceRequired`, and kept for the same three paths
+// Decision 4 names: a pack authored in JavaScript, a value that crossed a
+// `JSON.parse` or a markdown parser, and an `as` cast.
+//
+// It is not hypothetical here. NEVER-31.8's reflective sweep calls every
+// exported function with the hostile corpus, and template interpolation is one
+// of the few operations that throws on a value rather than merely misbehaving:
+// `` `domain:${Symbol()}` `` is a TypeError, and an object with a throwing
+// `toString` propagates its own error straight out. Two of this barrel's seven
+// exported functions failed the sweep on this single line before the guard
+// existed. Every other function in the layer routes reads through `own()` and
+// was already total.
 export function domainLabelFor(id: string): string {
+  if (typeof id !== "string") return "domain:";
   return `domain:${id}`;
 }
 
