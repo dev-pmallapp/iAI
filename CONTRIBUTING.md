@@ -162,12 +162,39 @@ described above).
 bun run claim-lint
 ```
 
-Passes when: exit code 0. Validates claim identifiers across `docs/`,
-`scripts/`, `.github/` and the root markdown set, per
+Passes when: exit code 0. Validates claim identifiers per
 `docs/design/stories/194.md` — the retired prefix appears nowhere outside the
 four allow-listed paths, every identifier is Story-qualified and unique, every
 anti-claim carries `NEVER-`, no `anchors_to` dangles, and **every test-plan case
 declares a `Corpus`** (#289; the vocabulary is in `references/verification.md`).
+
+**Scope is a checkable list, not prose.** `test/claim-lint.test.ts` asserts
+this table and `scripts/claim-lint.ts`'s exported `SCOPE_DIRS` name exactly the
+same set, in both directions — the same mechanism the `skill-lint` rule table
+above uses against `RULE_IDS`. `<root>` is a pseudo-scope, not a member of
+`SCOPE_DIRS` — there is no `<root>` directory to walk, only the loose markdown
+files sitting beside the repository's own directories — and the test treats it
+separately for exactly that reason, rather than folding it into the set
+comparison.
+
+| Scope | What it covers |
+|---|---|
+| `docs` | Every file under `docs/`, not markdown only |
+| `scripts` | Every file under `scripts/` |
+| `.github` | Every file under `.github/` |
+| `skills` | Every file under `skills/` |
+| `<root>` | The root-markdown pseudo-scope: `.md` files sitting directly at the repo root (README, CONTRIBUTING, PLAN, ARCHITECTURE) |
+
+CLAIM-194.1 itself governs only four of these — `docs/`, `scripts/`, `.github/`
+and the root markdown set. `skills/` was added by Build Target 7 of
+`docs/design/stories/41.md` (task #296): before it, a `SKILL.md` could carry a
+malformed or duplicate claim identifier, an anti-claim missing `NEVER-`, a
+dangling `anchors_to`, or a dangling path citation, and nothing checked for
+any of it. That gap is also why the `skill-lint` rule table above once
+asserted two rules (`phase-0-section`, `error-handling-section`) that did not
+yet exist (Decision 5 of `docs/design/stories/41.md`): nothing cross-checked
+this document against the linter it describes, because the directory that
+would have caught the mismatch was itself out of scope.
 
 ### install-dry
 
