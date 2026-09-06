@@ -1146,37 +1146,276 @@ describe("CONTRIBUTING.md's rule table agrees with the linter (CLAIM-41.10, case
   });
 });
 
-describe("domain-routing-form vacuity, stated rather than hidden", () => {
-  // NEVER-41.7 says "proved over the real four-skill corpus, not a fixture".
-  // THE FOUR SKILLS DO NOT EXIST YET -- they are #42-#45. This rule ships
-  // BEFORE its own skill corpus, which is the opposite of how #280 was
-  // sequenced, and finding 36 of the S2.1 evidence is explicit that sequencing
-  // a rule after its corpus is what stopped it shipping wrong and green.
-  //
-  // The trade is deliberate and it is recorded on #46: a rule that constrains
-  // how the four verbs are WRITTEN is worth more before they are written than
-  // after, which is the same preventive-beats-detective argument #289 settled.
-  // What protects it is that the skill denominator is ASSERTED to be zero
-  // today, so nobody can mistake a green run for a verified claim.
-  //
-  // WIDENED by #295: the two new section rules (phase-0-section,
-  // error-handling-section) are ALSO unproved over a real skill body for
-  // exactly the same reason — the corpus they would be proved over is the
-  // same four verbs, #42-#45, and they do not exist yet either. This flips
-  // for all three rules together the moment the first of #42-#45 lands.
-  test("the skill population is empty today, so NEVER-41.7 and the two section rules are NOT yet discharged over real bodies", () => {
-    const skillsDir = join(repoRootForDomains, "skills");
-    const skillFiles = readdirSync(skillsDir, { withFileTypes: true })
-      .filter((e) => e.isDirectory())
-      .filter((e) => existsSync(join(skillsDir, e.name, "SKILL.md")));
+// ===========================================================================
+// THE FIRST REAL SKILL (task #44, `story-design`) — history and rewrite note
+// ===========================================================================
+//
+// THIS BLOCK USED TO ASSERT THE OPPOSITE OF WHAT IT ASSERTS NOW. Until task
+// #44 landed `skills/story-design/SKILL.md`, the single test here was:
+//
+//   test("the skill population is empty today, so NEVER-41.7 and the two
+//   section rules are NOT yet discharged over real bodies", () => {
+//     ...
+//     expect(skillFiles).toHaveLength(0);
+//   });
+//
+// NEVER-41.7 says "proved over the real four-skill corpus, not a fixture".
+// THE FOUR SKILLS DID NOT EXIST YET when #46 shipped domain-routing-form —
+// they are #42-#45, and #44 (story-design) is the first of the four to land.
+// That rule shipped BEFORE its own skill corpus, which is the opposite of how
+// #280 was sequenced, and finding 36 of the S2.1 evidence is explicit that
+// sequencing a rule after its corpus is what stopped it shipping wrong and
+// green. The trade was deliberate and recorded on #46; what protected it was
+// that the skill denominator was ASSERTED to be zero, so nobody could mistake
+// a green run for a verified claim.
+//
+// That denominator is no longer zero. The tests below are the update the old
+// comment promised ("Update it then; do not delete it.") — rewritten per the
+// governing principle: prefer RUN-TIME EQUALITIES read from disk on BOTH
+// sides, so nothing here needs editing again as #42, #43 and #45 land. Only
+// ONE assertion in this file still needs editing, and it is isolated at the
+// bottom of this block, edited exactly once, when the fourth verb lands.
 
-    // When this goes red, the four verbs have landed and NEVER-41.7 —
-    // and phase-0-section / error-handling-section alongside it — become
-    // provable over real bodies. Update it then; do not delete it.
-    expect(skillFiles).toHaveLength(0);
+function realSkillFiles(): { relPath: string; body: string }[] {
+  const skillsDir = join(repoRootForDomains, "skills");
+  const out: { relPath: string; body: string }[] = [];
+  for (const entry of readdirSync(skillsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const filePath = join(skillsDir, entry.name, "SKILL.md");
+    if (!existsSync(filePath)) continue;
+    out.push({ relPath: `skills/${entry.name}/SKILL.md`, body: readFileSync(filePath, "utf8") });
+  }
+  return out;
+}
+
+describe("NEVER-41.9: skill-lint's SKILL.md count is real, not vacuous", () => {
+  // NEVER-41.9: "the scanned count is asserted non-zero and equal to the
+  // number of verb directories on disk" (docs/design/stories/41.md:325-327;
+  // case 18 of docs/test-plans/41-plan.md). BOTH SIDES ARE READ FROM DISK AT
+  // RUN TIME, so this assertion never needs editing as #42, #43 and #45 add
+  // their own verb directories — a fifth directory or a dropped one is caught
+  // by the same equality, not by a literal that has to be bumped by hand.
+  test("the SKILL.md count is non-zero and equals the number of verb directories", () => {
+    const skillsDir = join(repoRootForDomains, "skills");
+    const verbDirs = readdirSync(skillsDir, { withFileTypes: true }).filter((e) => e.isDirectory());
+    const dirsWithSkillMd = verbDirs.filter((e) => existsSync(join(skillsDir, e.name, "SKILL.md")));
+
+    expect(dirsWithSkillMd.length).toBeGreaterThan(0);
+    expect(dirsWithSkillMd.length).toBe(verbDirs.length);
+  });
+});
+
+describe("NEVER-41.7 and the #295 section rules over the real skill corpus", () => {
+  // NEVER-41.7: "Proved over the real four-skill corpus, not a fixture."
+  // #295's phase-0-section and error-handling-section ride along for the same
+  // reason recorded in the old comment here: they were unproved over a real
+  // skill body because the corpus was the same four verbs.
+  //
+  // The count is asserted NON-ZERO FIRST, so the loop below cannot pass
+  // vacuously — the exact defect this whole block used to be a placeholder
+  // against.
+  test("every real SKILL.md on disk has 0 domain-routing-form, phase-0-section and error-handling-section violations", () => {
+    const files = realSkillFiles();
+    expect(files.length).toBeGreaterThan(0);
+
+    for (const file of files) {
+      const violations = lintBodyRules(file.relPath, file.body, { isSkill: true });
+      expect(violations.filter((v) => v.rule === "domain-routing-form"), file.relPath).toEqual([]);
+      expect(violations.filter((v) => v.rule === "phase-0-section"), file.relPath).toEqual([]);
+      expect(violations.filter((v) => v.rule === "error-handling-section"), file.relPath).toEqual([]);
+    }
   });
 
-  test("the contract population is NOT empty, so the rule is not vacuous today", () => {
+  test("the contract population is NOT empty either, so neither rule is vacuous over references/", () => {
     expect(realReferenceDocs().length).toBeGreaterThanOrEqual(12);
+  });
+});
+
+// The ONE assertion in this block that still needs editing, and the ONLY one:
+// docs/test-plans/41-plan.md case 6 requires "4 of 4, with the count asserted
+// first" for CLAIM-41.5. Today the corpus is 1 of 4. Stating the
+// incompleteness explicitly — rather than omitting it — means the gap is
+// asserted, not hidden, and there is exactly one place to update: this
+// constant and the `toBeLessThan` below become the `toBe`-4 assertion case 6
+// actually requires, the moment the last of #42/#43/#45 lands. Do not
+// hardcode `4` anywhere else in this file for this purpose.
+const CASE_6_REQUIRED_SKILL_COUNT = 4; // docs/test-plans/41-plan.md:119, "4 of 4"
+
+describe("case 6's 4-of-4 threshold (docs/test-plans/41-plan.md:119)", () => {
+  test("the real skill corpus has NOT YET reached 4 of 4 — flips ONCE, to toBe(4), when the last verb lands", () => {
+    const files = realSkillFiles();
+    expect(files.length).toBeLessThan(CASE_6_REQUIRED_SKILL_COUNT);
+  });
+});
+
+// ===========================================================================
+// CASE 6 (docs/test-plans/41-plan.md:119, CLAIM-41.5) — over the real corpus
+// ===========================================================================
+//
+// "Each of the four skills reads the `domain:` label and carries the
+// hard-failure block ... Each body names the label read **before** any step
+// that would need the binding, so the ordering is checked and not just the
+// presence."
+//
+// ANCHOR CHOICES, and why each was picked narrowly rather than broadly —
+// this repo has been bitten five times by an over-broad match (see
+// docs/evidence/46-*.md, case 7 of docs/test-plans/35-plan.md, and #295's
+// mutation M8, all recorded elsewhere in this file):
+//
+// 1. THE LABEL-READ ANCHOR is `` `domain:`\s*label `` — a backtick-quoted
+//    literal "domain:" token immediately followed by the word "label". This
+//    is narrower than searching for the bare word "domain" (which would match
+//    the routing-form fixtures, the `domain-routing-form` rule's own name,
+//    and any of the twelve references that describe the `domain:` label
+//    namespace) and it is exactly the phrase the real body uses at
+//    skills/story-design/SKILL.md:23: "**The Story's `domain:` label.**".
+//
+// 2. THE BINDING-USED ANCHOR is the literal path "references/domain-binding.md"
+//    — not the bare word "binding", which appears EARLIER in the same
+//    sentence as the label-read anchor ("before any step that needs a
+//    binding", skills/story-design/SKILL.md:24) and would make the ordering
+//    check trivially true regardless of what the body actually does. The
+//    reference path is where the binding is actually resolved ("The binding
+//    for that label, resolved through the registry described in
+//    `references/domain-binding.md`", :27-28) — a real step, not a mention of
+//    the word. Every one of the four skills must cite this contract to
+//    resolve a label into a binding (references/domain-binding.md is the
+//    shared registry contract, per Dependencies: S1.5 "the binding interface
+//    and KNOWN_DOMAIN_IDS"), so this anchor is expected to generalise.
+//
+// 3. THE HARD-FAILURE ANCHOR is the house convention's fixed first line,
+//    `^HARD FAILURE in Phase \d+ \(...\):`, specified verbatim at
+//    docs/design/02-roles.md:277 ("HARD FAILURE in Phase {N} ({skill}):")
+//    and used unmodified by every hard-failure block in the repository
+//    (docs/design/03-workflow.md:499, :05/:06-domain design docs, etc.). It is
+//    NOT specific to story-design, so it is expected to match goal-create,
+//    story-create and story-test-plan's blocks too.
+const DOMAIN_LABEL_READ_RE = /`domain:`\s*label/i;
+const BINDING_RESOLUTION_MARKER = "references/domain-binding.md";
+const HARD_FAILURE_BLOCK_RE = /^HARD FAILURE in Phase \d+ \([^)]+\):\n(?:- .+\n?)+/m;
+
+describe("case 6: each real skill reads the domain: label before resolving the binding, and carries the hard-failure block", () => {
+  test("the real skill corpus is non-zero, so the loop below cannot pass vacuously", () => {
+    expect(realSkillFiles().length).toBeGreaterThan(0);
+  });
+
+  test("every real skill body: label-read precedes binding-resolution, and the hard-failure block is present", () => {
+    const files = realSkillFiles();
+    expect(files.length).toBeGreaterThan(0); // denominator first, per case 6's own wording
+
+    for (const file of files) {
+      const labelIdx = file.body.search(DOMAIN_LABEL_READ_RE);
+      expect(labelIdx, `${file.relPath} must name reading the domain: label`).toBeGreaterThanOrEqual(0);
+
+      const bindingIdx = file.body.indexOf(BINDING_RESOLUTION_MARKER);
+      expect(
+        bindingIdx,
+        `${file.relPath} must cite ${BINDING_RESOLUTION_MARKER} to resolve the binding`,
+      ).toBeGreaterThanOrEqual(0);
+
+      // ORDERING IS THE POINT OF THE CASE, not presence alone (the plan's own
+      // words). A body that resolved the binding before naming the label read
+      // would pass every "presence" assertion above and still be wrong.
+      expect(
+        labelIdx,
+        `${file.relPath} must name the label read BEFORE the step that resolves the binding`,
+      ).toBeLessThan(bindingIdx);
+
+      expect(file.body, `${file.relPath} must carry the house hard-failure block`).toMatch(HARD_FAILURE_BLOCK_RE);
+    }
+  });
+});
+
+// ===========================================================================
+// CASE 12 (docs/test-plans/41-plan.md:130, CLAIM-41.5 + CLAIM-41.1)
+// ===========================================================================
+//
+// "A Story with no `domain:*` label produces the hard-failure block, not an
+// assumed domain ... Asserting the absence of a default is the case: a skill
+// that silently picked `dev` would pass any test that only checked it did not
+// crash."
+//
+// WHAT THIS TEST CAN PROVE: that the real skill body's TEXT never states a
+// fallback domain and never spells any of the five known domain ids as a bare
+// word anywhere in its own prose — which is what "a Tier-1 verb may never
+// know any [domain]" (CONTRIBUTING.md:339-340) means for a body whose whole
+// job is to stay domain-agnostic.
+//
+// WHAT THIS TEST CANNOT PROVE: that no host or model interpreting this
+// markdown would ever *behave* as though a domain were assumed. A skill is
+// prose read by an LLM host (Decision 6 of docs/design/stories/41.md); there
+// is no harness to execute it (#293). This is a textual, not a behavioural,
+// guarantee — the same limit CLAIM-41.8 names for the whole file.
+//
+// WHY THIS DOES NOT MERELY DUPLICATE domain-routing-form: that rule bans the
+// ROUTING FORM (`domain:<id>` or `skills/<id>/`) and explicitly permits prose
+// naming a domain (Decision 4: "Naming a domain in PROSE is fine"; proved at
+// case 14 above for the doctrine-illustration sentences). Case 12 asks a
+// narrower, different question about a narrower population: within the part
+// of a Tier-1 skill body that handles the ABSENCE of the domain: label, does
+// the text name ANY specific domain id at all, in any form, as a fallback?
+// domain-routing-form's carve-out for prose does not answer that; this test
+// adds the part it does not cover.
+describe("case 12: absence of the domain: label produces the hard-failure block, not an assumed default", () => {
+  test("the real skill corpus is non-zero, so the loop below cannot pass vacuously", () => {
+    expect(realSkillFiles().length).toBeGreaterThan(0);
+  });
+
+  test("every real skill body: the hard-failure block is tied to ABSENCE, and no domain id is named as a default", () => {
+    const files = realSkillFiles();
+    expect(files.length).toBeGreaterThan(0);
+
+    for (const file of files) {
+      const block = HARD_FAILURE_BLOCK_RE.exec(file.body)?.[0];
+      expect(block, `${file.relPath} must carry the hard-failure block`).toBeDefined();
+
+      // Tied to ABSENCE, not merely present: the block must itself reference
+      // the domain: label as what was expected, and record that none was
+      // found — not some other, unrelated hard failure the body might emit.
+      expect(block, `${file.relPath}'s hard-failure block must name the domain: label`).toContain("domain:");
+      expect(
+        block ?? "",
+        `${file.relPath}'s hard-failure block must record the label's absence, not merely fail`,
+      ).toMatch(/none/i);
+
+      // The explicit refusal doctrine, read verbatim off the real body
+      // (skills/story-design/SKILL.md:40, itself echoing
+      // docs/design/03-workflow.md:406's house phrase). Presence alone is not
+      // the case (per the plan's own words), so this is only ONE of the two
+      // halves asserted here.
+      expect(file.body, `${file.relPath} must state the refusal explicitly`).toMatch(/\bnot a default\b/i);
+
+      // ABSENCE OF A DEFAULT — and the honest limit of what this can assert.
+      //
+      // The obvious assertion is "no domain id appears as a bare word
+      // anywhere in a Tier-1 body". IT IS WRONG, and it must not be
+      // reintroduced. Gate ruling G2 DROPPED `know` from the ban entirely
+      // (Decision 4, docs/design/stories/41.md), because #46 measured the
+      // real corpus and found `know` is an ordinary English word that a
+      // whole-word rule does not save — 3 whole-word hits across the twelve
+      // references. And references/domain-binding.md:13 states the very
+      // doctrine these skills implement as "The kernel does not know what
+      // `trade` or `health` means": a skill body quoting its own doctrine
+      // would fail. Banning the words makes the owning document unwritable —
+      // the bind recorded against NEVER-35.7, hit for a third time here.
+      //
+      // What IS machine-checkable is the ROUTING FORM, and that is
+      // domain-routing-form's job, asserted over this same real corpus by the
+      // NEVER-41.7 block above. Duplicating it here would add no coverage.
+      //
+      // So the two halves asserted above — a hard-failure block tied to the
+      // label's ABSENCE, and an explicit refusal to default — are what this
+      // case can prove over a body. The plan's own words are that "asserting
+      // the absence of a default is the case"; a body that both refuses in
+      // terms and carries no routing form has no remaining place to keep a
+      // silent fallback. That is weaker than proving a runtime behaviour,
+      // and #293's execution harness is what would close the gap.
+      expect(
+        lintBodyRules(file.relPath, file.body, { isSkill: true }).filter(
+          (v) => v.rule === "domain-routing-form",
+        ),
+        `${file.relPath} must carry no routing form for any domain id`,
+      ).toEqual([]);
+    }
   });
 });
