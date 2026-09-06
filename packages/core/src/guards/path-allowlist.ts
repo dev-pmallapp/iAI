@@ -11,7 +11,7 @@
 //
 // Every entry is derived by measurement (`git grep -n <path>` against the
 // citing docs, then again against docs/milestones/ for the owning
-// milestone), not copied from the issue text. Seven families, 37 entries.
+// milestone), not copied from the issue text. Six families, 25 entries.
 //
 // THE COUNT ABOVE IS TESTED, NOT PROSE. It said "Six families, 38 entries"
 // while the list held 43 across 7 sections — a comment nothing checked, drifting
@@ -45,84 +45,6 @@ export interface AllowedPath {
 }
 
 export const PATH_ALLOW_LIST: readonly AllowedPath[] = [
-  // --- references/*.md — 12 paths, planned, M2. -----------------------
-  // docs/milestones/M2.md:19 names "the twelve" explicitly and M2.md:36
-  // claims "All twelve files exist at references/<name>.md". This is the
-  // authority for the exact twelve names; do not add or drop one without
-  // re-reading S2.1's acceptance criteria.
-  {
-    path: "references/context-discovery.md",
-    reason: "planned",
-    milestone: "M2",
-    note: "docs/milestones/M2.md:19,36 — first of the twelve kernel reference documents (S2.1)",
-  },
-  {
-    path: "references/gh-operations.md",
-    reason: "planned",
-    milestone: "M2",
-    note: "docs/milestones/M2.md:19,36",
-  },
-  {
-    path: "references/gh-error-handling.md",
-    reason: "planned",
-    milestone: "M2",
-    note: "docs/milestones/M2.md:19,36",
-  },
-  {
-    path: "references/verification.md",
-    reason: "planned",
-    milestone: "M2",
-    note: "docs/milestones/M2.md:19,36",
-  },
-  {
-    path: "references/data-classification.md",
-    reason: "planned",
-    milestone: "M2",
-    note: "docs/milestones/M2.md:19,36",
-  },
-  {
-    path: "references/model-routing.md",
-    reason: "planned",
-    milestone: "M2",
-    note: "docs/milestones/M2.md:19,36,45 — CLAIM-35.3 names this one specifically as the only file outside packages/core/src/routing permitted a literal model ID",
-  },
-  {
-    path: "references/domain-binding.md",
-    reason: "planned",
-    milestone: "M2",
-    note: "docs/milestones/M2.md:19,36",
-  },
-  {
-    path: "references/evidence-artifacts.md",
-    reason: "planned",
-    milestone: "M2",
-    note: "docs/milestones/M2.md:19,36",
-  },
-  {
-    path: "references/branch-and-pr-model.md",
-    reason: "planned",
-    milestone: "M2",
-    note: "docs/milestones/M2.md:19,36",
-  },
-  {
-    path: "references/workflow-states.md",
-    reason: "planned",
-    milestone: "M2",
-    note: "docs/milestones/M2.md:19,36",
-  },
-  {
-    path: "references/isa-format.md",
-    reason: "planned",
-    milestone: "M2",
-    note: "docs/milestones/M2.md:19,36",
-  },
-  {
-    path: "references/sizing-criteria.md",
-    reason: "planned",
-    milestone: "M2",
-    note: "docs/milestones/M2.md:19,36 — twelfth and last of the twelve",
-  },
-
   // --- 900-block — 9 paths, fiction, no milestone. --------------------
   // Issue numbers 900-999 are reserved and will never be allocated
   // (Decision 8, docs/design/stories/194.md:179,193). These paths are cited

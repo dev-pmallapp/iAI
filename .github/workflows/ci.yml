@@ -104,6 +104,11 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
       - run: bun install
+      # skills/ is the FRONTMATTER population. The body rules added by S2.1
+      # (#280, Decision 11 of docs/design/stories/35.md) additionally scan
+      # references/ and agents/, which the script resolves itself relative to
+      # the repo root — see CONTRACT_DIRS in scripts/skill-lint.ts. The report
+      # prints BOTH counts so neither population can silently go to zero.
       - run: bun run skill-lint skills/
 
   # claim-lint enforces CLAIM-194.1 through CLAIM-194.4 of

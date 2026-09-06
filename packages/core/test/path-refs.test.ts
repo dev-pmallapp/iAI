@@ -198,7 +198,10 @@ describe("extractPathRefs", () => {
 
 describe("isPathAllowed", () => {
   test.each([
-    ["references/gh-operations.md", "planned"],
+    // Was `references/gh-operations.md` until S2.1 retired it (task #36). The
+    // canonical `planned` fixture must be a path this Story does NOT create,
+    // or it is deleted out from under the case that depends on it.
+    ["skills/dev/domain.md", "planned"],
     ["docs/design/stories/901.md", "fiction"],
     ["docs/design/9-isa.md", "historical"],
     ["skills/trade/backtest/SKILL.md", "defective"],
@@ -295,9 +298,29 @@ describe("staleAllowListEntries — an entry whose path exists is stale", () => 
   });
 
   test("the real repo has no stale entries, over a non-zero denominator", () => {
-    // ASSERT THE DENOMINATOR. An empty allow-list would make the check below
-    // trivially true — the vacuous-pass shape skill-lint demonstrates daily.
-    expect(PATH_ALLOW_LIST.length).toBeGreaterThan(30);
+    // ASSERT THE DENOMINATOR — as a SHAPE, not a literal floor.
+    //
+    // This read `toBeGreaterThan(30)` until S2.1. That is a magic number on a
+    // list whose own header states it is meant to SHRINK as planned paths come
+    // into existence (issue #277). S2.1 retires twelve `references/` entries and
+    // takes the list from 37 to 25, so the literal floor breaks at the THIRD of
+    // five document tasks — a guard failing because the thing it guards is
+    // working as designed. Lowering the number would re-arm the identical trap
+    // for the next Story that retires a family.
+    //
+    // The property the floor was reaching for is "the stale check ran over a
+    // non-empty, non-degenerate corpus". Every declared `AllowReason` still
+    // being represented expresses that, and it survives any single family
+    // draining to zero: `planned` outlives the `references/` family via the
+    // `packages/`, `skills/` and `docs/parity/` entries.
+    //
+    // An emptied or gutted list cannot satisfy it, which is the whole point.
+    const reasonsPresent = new Set(PATH_ALLOW_LIST.map((e) => e.reason));
+    expect(
+      [...reasonsPresent].sort(),
+      "every AllowReason must still be represented, or the corpus is degenerate",
+    ).toEqual(["defective", "external", "fiction", "historical", "planned"]);
+    expect(PATH_ALLOW_LIST.length).toBeGreaterThanOrEqual(reasonsPresent.size);
 
     // Read via import.meta.dir, never a bare relative path.
     const fs = require("node:fs") as typeof import("node:fs");
