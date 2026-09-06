@@ -411,19 +411,44 @@ export function lintSkillSource(filePath: string, source: string, directoryName:
 // copy of a contract, and a rule that restated the thing it polices would be
 // its own first violation.
 
-// The maximum number of distinct references a single skill may cite.
-// docs/design/01-skill-hierarchy.md:472 — "A skill reads at most 3 references
-// — beyond that, the skill is doing too many jobs and should be split."
+// THE BASELINE. Three references CONTRIBUTING.md mandates for every skill:
+// context discovery at :272, the label scheme at :277, error handling at :281.
+//
+// Part C of issue #287. These are the ROUTER's responsibility, read once when
+// the verb resolves, not a per-skill dependency. A skill may still name one —
+// an Error Handling section pointing at gh-error-handling.md is good practice —
+// but naming it costs nothing, because it is loaded either way.
+//
+// EXPORTED so the rule, the test and any future reader share one copy. A
+// second copy of this list is exactly what `duplicate-contract` exists to stop.
+export const BASELINE_REFERENCES: readonly string[] = [
+  "references/context-discovery.md",
+  "references/gh-operations.md",
+  "references/gh-error-handling.md",
+];
+
+// The maximum number of DISCRETIONARY references a single skill may cite —
+// that is, references outside BASELINE_REFERENCES.
+//
+// docs/design/01-skill-hierarchy.md:472 bounds a skill's own dependencies.
+// Parts A and B of issue #287, decided by @dev-pmallapp on 2026-09-06.
+//
+// WHY 5, DERIVED RATHER THAN CHOSEN. The `Reads` column at
+// docs/design/01-skill-hierarchy.md:92-105 gives every one of the fourteen
+// Tier-1 verbs its own references; the measured maximum is TWO
+// (`task-verify` and `story-verify`, which read verification.md and
+// evidence-artifacts.md). Tier-2 pack leaves are unwritten and unmeasured
+// until M4. 5 = the measured maximum of 2, plus 3 of headroom for the
+// unmeasured population.
+//
+// THE 2 IS NOT RESTATED HERE. test/skill-lint.test.ts parses the `Reads`
+// column out of the design at run time and asserts this cap clears the real
+// maximum with headroom, so the derivation re-checks itself when the design
+// changes rather than rotting into a comment.
 //
 // EXPORTED so the test reads the bound rather than restating it, and so no
 // file implementing the rule carries a bare literal as the threshold.
-//
-// KNOWN CONTRADICTION, recorded not resolved: CONTRIBUTING.md:266-276 makes
-// context-discovery, gh-operations and gh-error-handling mandatory for EVERY
-// skill — which is the entire budget before a skill cites anything specific
-// to its own job. Problem 5 / Decision 10 of docs/design/stories/35.md route
-// that to S2.2, the first Story that can actually violate it.
-export const MAX_REFERENCES_PER_SKILL = 3;
+export const MAX_DISCRETIONARY_REFERENCES = 5;
 
 // Vendor namespaces that qualify a literal model ID, per the routing table at
 // docs/design/02-roles.md:547-553. Deliberately a closed list of vendor
@@ -502,6 +527,19 @@ function citedReferences(body: string): string[] {
   return [...found].sort();
 }
 
+// Part B of issue #287: the cap governs a skill's OWN dependencies, so the
+// router-resident baseline does not count against it.
+//
+// Before this split the cap was unsatisfiable by construction — three mandated
+// plus one of a skill's own is four, against a cap of three, so the rule
+// admitted only skills with no dependencies at all. Two of the fourteen Tier-1
+// verbs passed, and both did so by accident: `goal-create`'s own reference IS
+// context-discovery, and `story-test-plan` reads `binding.verify`, which is not
+// a reference.
+export function discretionaryReferences(body: string): string[] {
+  return citedReferences(body).filter((c) => !BASELINE_REFERENCES.includes(c));
+}
+
 // The three body rules. PURE over (path, body) — no fs, no discovery.
 //
 // POPULATION IS PER RULE, not per rule-set. This was wrong on the first
@@ -543,18 +581,20 @@ export function lintBodyRules(
   }
 
   // --- reference-citation-count (CLAIM-35.5) — SKILLS ONLY ---
-  const cited = citedReferences(body);
-  if (options.isSkill && cited.length > MAX_REFERENCES_PER_SKILL) {
+  // Counts DISCRETIONARY citations only. Part B of issue #287.
+  const discretionary = discretionaryReferences(body);
+  if (options.isSkill && discretionary.length > MAX_DISCRETIONARY_REFERENCES) {
     violations.push({
       file: filePath,
       line: 1,
       rule: "reference-citation-count",
       severity: "error",
       message:
-        `reference-citation-count: this body cites ${String(cited.length)} distinct ` +
-        `references (${cited.join(", ")}) but the maximum is ` +
-        `${String(MAX_REFERENCES_PER_SKILL)}. Beyond that the skill is doing too many ` +
-        `jobs and should be split (docs/design/01-skill-hierarchy.md:472)`,
+        `reference-citation-count: this body cites ${String(discretionary.length)} discretionary ` +
+        `references (${discretionary.join(", ")}) but the maximum is ` +
+        `${String(MAX_DISCRETIONARY_REFERENCES)}. Beyond that the skill is doing too many ` +
+        `jobs and should be split (docs/design/01-skill-hierarchy.md:472). The ` +
+        `router-resident baseline is exempt and was not counted`,
     });
   }
 

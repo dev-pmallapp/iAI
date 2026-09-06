@@ -271,15 +271,15 @@ through this checklist in order.
       permanent.
 - [ ] **Phase 0 must run context discovery.** Every skill opens by establishing
       state from disk and GitHub — never from conversation memory. `context-discovery`
-      is Tier 0 for this reason. A skill that assumes it knows the current state
-      is a skill that corrupts it.
-- [ ] **Cite references, do not restate contracts.** Link
-      `references/gh-operations.md` rather than re-documenting the label scheme.
-      Twenty copies of a contract drift within a month — that is forge's lesson,
+      is **baseline**: the router reads it on route, so you need not cite it and it
+      does **not** count against your reference budget (#287).
+- [ ] **Cite references, do not restate contracts.** The label scheme lives in
+      `references/gh-operations.md` — also **baseline**, also uncounted. Twenty
+      copies of a contract drift within a month — that is forge's lesson,
       and it is why `references/` exists as a separate build target.
-- [ ] **Add an Error Handling section** pointing at
-      `references/gh-error-handling.md`. Cover at minimum: the resource does not
-      exist, the resource already exists, rate limiting, and a partial write.
+- [ ] **Add an Error Handling section.** `references/gh-error-handling.md` is the
+      third **baseline** reference — uncounted. Cover at minimum: the resource does
+      not exist, the resource already exists, rate limiting, and a partial write.
 - [ ] **The skill must be idempotent.** Re-running detects existing state and
       addresses only the gaps. Every skill is re-run — after a crash, after a
       context compaction, after a human edits something mid-flight.
