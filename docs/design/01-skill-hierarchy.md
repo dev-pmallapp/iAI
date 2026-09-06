@@ -453,23 +453,23 @@ and kill-switch checks, `risk-officer` would be consulted for a veto, and
 
 | Tier | Loaded when | Approx cost | What is loaded |
 |------|-------------|-------------|----------------|
-| **Tier 0 — skill** | Always, every session | ~2k tokens | The `iai` router skill only. References are *not* loaded here |
+| **Tier 0 — skill** | Always, every session | ~2k tokens | The `iai` router skill only. References are *not* loaded here — but see the baseline row below (#287) |
 | **Tier 1 — lifecycle** | On route, after the verb resolves | ~4k tokens | One verb's `SKILL.md`. The other thirteen are never loaded |
 | **Tier 2 — domain pack** | On demand, after the `domain:` label is read | ~3k tokens | One `domain.md` binding plus one leaf skill. Other packs are never loaded |
 | **References** | Never automatically | ~1–3k each | Read by explicit path, by the skill that needs the contract, at the moment it needs it |
+| **Baseline references** | **On route, once** | **~4.6k measured** | `context-discovery`, `gh-operations`, `gh-error-handling` — the three `CONTRIBUTING.md` mandates for every skill. The **router** reads them, not each verb (#287). Not resident: a session that routes nothing still costs ~2k |
 
 Loading rule, stated as an invariant:
 
-> A session that does nothing costs ~2k. A session that runs one Task in one
-> domain costs roughly 2k + 4k + 3k plus the two or three references that Task
-> actually reads — call it 12–15k. It never costs the sum of the tree.
+> A session that does nothing costs ~2k. One Task in one domain costs 2k + 4k + 3k + 4.6k baseline plus
+> what it reads — **~17k measured, not the 12–15k first estimated here** (#287). Never the sum of the tree.
 
 Consequences worth designing around:
 
 | Rule | Reason |
 |------|--------|
 | References are never listed as skills | Listing them would put twelve descriptions in every session's working set for content that is read by path |
-| A skill reads at most 3 references | Beyond that, the skill is doing too many jobs and should be split |
+| A skill reads at most 5 references **of its own** | Beyond that, the skill is doing too many jobs and should be split. The three baseline references the router reads are **not** counted: three mandated against a cap of three admitted only skills with no dependencies at all, so the cap was unsatisfiable by construction until #287 |
 | `description` is written for the router, not the human | It is the only part of a Tier-1 or Tier-2 skill that may be resident before invocation, so it must be discriminative in one paragraph |
 | Bindings are data, not prose | `domain.md` is parsed, not read into context as narrative; a verbose binding is a per-invocation tax |
 | Evidence stays on disk behind a sentinel | The 60000-char artifact budget exists precisely so large payloads never enter the model's context — the issue carries a pointer, not the payload |

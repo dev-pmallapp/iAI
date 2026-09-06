@@ -3,10 +3,12 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  MAX_REFERENCES_PER_SKILL,
+  BASELINE_REFERENCES,
+  MAX_DISCRETIONARY_REFERENCES,
   MODEL_ID_EXEMPT_PATH,
   MODEL_ID_VENDORS,
   discoverContractFiles,
+  discretionaryReferences,
   lintBodyRules,
   lintContractTree,
   lintSkillSource,
@@ -386,38 +388,93 @@ describe("duplicate-contract (CLAIM-35.2, NEVER-35.7)", () => {
   });
 });
 
-describe("reference-citation-count (CLAIM-35.5)", () => {
-  test("a SKILL citing four references fails and names them", () => {
-    const body = "references/a.md references/b.md references/c.md references/d.md";
-    const v = lintBodyRules("skills/x/SKILL.md", body);
-    expect(v.map((x) => x.rule)).toEqual(["reference-citation-count"]);
-    expect(v[0]?.message).toContain("references/d.md");
+// THE REAL ROSTER, read from disk at run time and never restated.
+//
+// Finding 4 of docs/evidence/287-20260906T110203Z.md. Every citation fixture
+// here used to be synthetic — `references/a.md`, `references/over0.md` — and
+// that is precisely why no case in docs/test-plans/35-plan.md could catch the
+// unsatisfiable cap: A SYNTHETIC NAME IS NEVER A BASELINE MEMBER, so a fixture
+// built from synthetic names cannot exercise the exemption at all. Cases 12 and
+// 13 of that plan pass under the broken rule and the fixed one alike.
+//
+// Fixtures now name files that exist. `assertRealRoster` below is the guard.
+function realReferences(): string[] {
+  const { readdirSync } = require("node:fs") as typeof import("node:fs");
+  return readdirSync(join(repoRoot, "references"))
+    .filter((f) => f.endsWith(".md"))
+    .map((f) => `references/${f}`)
+    .sort();
+}
+
+function realDiscretionary(): string[] {
+  return realReferences().filter((r) => !BASELINE_REFERENCES.includes(r));
+}
+
+// Fixtures are sliced from the real roster and sized FROM the exported cap,
+// never from the literal 4 and 3 they carried when the cap was 3 (#280).
+const overCap = (n = 1) => realDiscretionary().slice(0, MAX_DISCRETIONARY_REFERENCES + n);
+const atCap = () => realDiscretionary().slice(0, MAX_DISCRETIONARY_REFERENCES);
+
+describe("the fixtures name real files (#287 finding 4)", () => {
+  test("the roster is non-empty and the baseline is a SUBSET of it", () => {
+    // The coupling synthetic names destroyed. If the baseline is not drawn
+    // from the same population the fixtures are, the exemption is untestable.
+    const roster = realReferences();
+    expect(roster.length).toBeGreaterThanOrEqual(12);
+    for (const b of BASELINE_REFERENCES) expect(roster).toContain(b);
   });
 
-  test("a SKILL citing three references passes", () => {
-    const body = "references/a.md references/b.md references/c.md";
-    expect(lintBodyRules("skills/x/SKILL.md", body)).toEqual([]);
+  test("the roster can build an OVER-cap fixture from real names", () => {
+    // If the discretionary population ever falls to the cap or below, the
+    // boundary stops being testable with real names and this fails loudly
+    // rather than silently sliding back to synthetic ones.
+    expect(realDiscretionary().length).toBeGreaterThan(MAX_DISCRETIONARY_REFERENCES);
+  });
+
+  test("every path the fixture builders emit exists on disk", () => {
+    const { existsSync } = require("node:fs") as typeof import("node:fs");
+    const emitted = [...new Set([...atCap(), ...overCap(), ...BASELINE_REFERENCES])];
+    expect(emitted.length).toBeGreaterThan(MAX_DISCRETIONARY_REFERENCES);
+    for (const path of emitted) {
+      expect(existsSync(join(repoRoot, path)), `${path} must be a real reference`).toBe(true);
+    }
+  });
+});
+
+describe("reference-citation-count (CLAIM-35.5)", () => {
+  test("a SKILL one over the cap fails and names the offenders", () => {
+    const cites = overCap();
+    const v = lintBodyRules("skills/x/SKILL.md", cites.join(" "));
+    expect(v.map((x) => x.rule)).toEqual(["reference-citation-count"]);
+    expect(v[0]?.message).toContain(cites[cites.length - 1] ?? "!");
+  });
+
+  test("a SKILL exactly at the cap passes — the boundary is inclusive", () => {
+    expect(lintBodyRules("skills/x/SKILL.md", atCap().join(" "))).toEqual([]);
   });
 
   test("the same reference cited repeatedly counts once", () => {
-    const body = "references/a.md references/a.md references/a.md references/a.md";
+    const one = realDiscretionary()[0] ?? "";
+    const body = new Array(MAX_DISCRETIONARY_REFERENCES + 3).fill(one).join(" ");
     expect(lintBodyRules("skills/x/SKILL.md", body)).toEqual([]);
   });
 
-  test("a REFERENCE document citing four siblings is NOT capped", () => {
+  test("a REFERENCE document over the cap is NOT capped", () => {
     // docs/design/01-skill-hierarchy.md:472 bounds "a SKILL", and Problem 4 of
     // stories/35.md says CLAIM-35.5 counts "per skill body". Capping a
     // reference would push the twelve toward restating each other, which is
     // backwards from the cite-don't-restate doctrine.
-    const body = "references/a.md references/b.md references/c.md references/d.md";
-    expect(lintBodyRules("references/z.md", body, { isSkill: false })).toEqual([]);
+    const body = overCap(3).join(" ");
+    // Same body, both populations — the pair is the case.
+    expect(lintBodyRules("references/workflow-states.md", body, { isSkill: false })).toEqual([]);
+    expect(lintBodyRules("skills/x/SKILL.md", body).map((v) => v.rule)).toEqual([
+      "reference-citation-count",
+    ]);
   });
 
   test("the cap is the exported constant, not a literal in the rule", () => {
-    const under = Array.from({ length: MAX_REFERENCES_PER_SKILL }, (_, i) => `references/r${String(i)}.md`).join(" ");
-    const over = `${under} references/extra.md`;
-    expect(lintBodyRules("skills/x/SKILL.md", under)).toEqual([]);
-    expect(lintBodyRules("skills/x/SKILL.md", over).length).toBe(1);
+    expect(lintBodyRules("skills/x/SKILL.md", atCap().join(" "))).toEqual([]);
+    expect(lintBodyRules("skills/x/SKILL.md", overCap().join(" ")).length).toBe(1);
   });
 });
 
@@ -477,5 +534,195 @@ describe("the two populations are separated in both directions (cases 21-23)", (
     const body = readFileSync(join(repoRoot, "references/verification.md"), "utf8");
     const asSkill = lintSkillSource("references/verification.md", body, "references");
     expect(asSkill.some((x) => x.rule === "frontmatter-missing")).toBe(true);
+  });
+});
+
+// ===========================================================================
+// THE BASELINE SPLIT AND THE RAISED CAP (issue #287, parts A / B / C)
+// ===========================================================================
+//
+// Decided by @dev-pmallapp on 2026-09-06. iAI did not originate the decision
+// (docs/design/03-workflow.md:271).
+//
+// The cap shipped in #280 was UNSATISFIABLE BY CONSTRUCTION: CONTRIBUTING.md
+// mandates three references for every skill (:272, :276, :280) against a cap
+// of three, so only a skill with no dependencies of its own could pass. Two of
+// the fourteen Tier-1 verbs passed and both did so by accident.
+
+describe("the baseline is exempt from the cap (#287 part B)", () => {
+  test("citing every baseline reference plus nothing else is 0 discretionary", () => {
+    const body = BASELINE_REFERENCES.map((r) => `See \`${r}\`.`).join("\n");
+    expect(discretionaryReferences(body)).toEqual([]);
+    expect(lintBodyRules("skills/x/SKILL.md", body)).toEqual([]);
+  });
+
+  test("the baseline set is NON-EMPTY and every member is a real file", () => {
+    // ASSERT THE DENOMINATOR. An empty baseline makes the exemption vacuous
+    // and silently restores the unsatisfiable cap.
+    expect(BASELINE_REFERENCES.length).toBeGreaterThanOrEqual(3);
+    for (const ref of BASELINE_REFERENCES) {
+      expect(readFileSync(join(repoRoot, ref), "utf8").length).toBeGreaterThan(0);
+    }
+  });
+
+  test("a baseline reference does not consume a discretionary slot", () => {
+    // The pair that proves the exemption is doing work: identical bodies but
+    // for one citation, one baseline and one not.
+    const own = atCap();
+    const extra = realDiscretionary()[MAX_DISCRETIONARY_REFERENCES] ?? "";
+    const withBaseline = [...own, ...BASELINE_REFERENCES].join(" ");
+    const withExtra = [...own, extra].join(" ");
+    expect(lintBodyRules("skills/x/SKILL.md", withBaseline)).toEqual([]);
+    expect(lintBodyRules("skills/x/SKILL.md", withExtra).map((v) => v.rule)).toEqual([
+      "reference-citation-count",
+    ]);
+  });
+
+  test("the message says DISCRETIONARY and names the exemption", () => {
+    const over = overCap().join(" ");
+    const msg = lintBodyRules("skills/x/SKILL.md", `${over} ${BASELINE_REFERENCES[0] ?? ""}`)[0]?.message ?? "";
+    expect(msg).toContain("discretionary");
+    expect(msg).toContain("baseline is exempt");
+    // The baseline member must not appear in the offending list.
+    expect(msg.split("but the maximum")[0]).not.toContain(BASELINE_REFERENCES[0] ?? "!");
+  });
+});
+
+describe("every Tier-1 verb clears the cap (#287, the case that motivated it)", () => {
+  // The `Reads` column of docs/design/01-skill-hierarchy.md:92-105, PARSED AT
+  // RUN TIME rather than restated — the case-1 pattern from
+  // docs/test-plans/35-plan.md. A restated table would pass while the design
+  // moved underneath it.
+  function tierOneOwnReferences(): Map<string, string[]> {
+    const doc = readFileSync(join(repoRoot, "docs/design/01-skill-hierarchy.md"), "utf8");
+    const rows = doc.split("\n").filter((l) => /^\| `[a-z-]+` \| `\[/.test(l));
+    const out = new Map<string, string[]>();
+    for (const row of rows) {
+      const name = /^\| `([a-z-]+)`/.exec(row)?.[1];
+      if (name === undefined) continue;
+      const reads = row.split("|")[3] ?? "";
+      const refs = [...new Set([...reads.matchAll(/references\/[a-z0-9-]+\.md/g)].map((m) => m[0]))];
+      out.set(name, refs.filter((r) => !BASELINE_REFERENCES.includes(r)));
+    }
+    return out;
+  }
+
+  test("the design's Reads column parses to the full Tier-1 roster", () => {
+    // Denominator first. A failed parse must not pass vacuously.
+    expect(tierOneOwnReferences().size).toBe(14);
+  });
+
+  test("no Tier-1 verb is rejected, with the baseline added to every body", () => {
+    const verbs = tierOneOwnReferences();
+    const rejected: string[] = [];
+    for (const [name, own] of verbs) {
+      const body = [...BASELINE_REFERENCES, ...own].map((r) => `See \`${r}\`.`).join("\n");
+      const v = lintBodyRules(`skills/${name}/SKILL.md`, body);
+      if (v.some((x) => x.rule === "reference-citation-count")) rejected.push(name);
+    }
+    expect(rejected).toEqual([]);
+  });
+
+  test("the cap clears the measured maximum WITH headroom", () => {
+    // This is the derivation behind MAX_DISCRETIONARY_REFERENCES, re-checked
+    // against the design rather than recorded in a comment that can rot.
+    const maxOwn = Math.max(...[...tierOneOwnReferences().values()].map((r) => r.length));
+    expect(maxOwn).toBeGreaterThan(0);
+    expect(MAX_DISCRETIONARY_REFERENCES).toBeGreaterThan(maxOwn);
+  });
+
+  test("the OLD cap of 3 would have rejected the roster — the defect is pinned", () => {
+    // Without this, the three cases above pass just as well under a cap that
+    // was never broken, and the regression they guard is invisible.
+    const verbs = tierOneOwnReferences();
+    const rejectedUnderOldRule: string[] = [];
+    for (const [name, own] of verbs) {
+      const total = new Set([...BASELINE_REFERENCES, ...own]).size;
+      if (total > 3) rejectedUnderOldRule.push(name);
+    }
+    expect(rejectedUnderOldRule.length).toBeGreaterThanOrEqual(5);
+  });
+});
+
+describe("the design and the constant agree (#287 part A)", () => {
+  test("the cap stated in 01-skill-hierarchy.md matches the exported constant", () => {
+    // The header count was wrong by five for three milestones because it was
+    // prose. Parsing it turns the comment into an assertion — the
+    // path-allowlist lesson, applied to the design.
+    const doc = readFileSync(join(repoRoot, "docs/design/01-skill-hierarchy.md"), "utf8");
+    const m = /A skill reads at most (\d+) references/.exec(doc);
+    expect(m).not.toBeNull();
+    expect(Number(m?.[1])).toBe(MAX_DISCRETIONARY_REFERENCES);
+  });
+
+  test("CONTRIBUTING marks EACH baseline reference baseline, in its own item", () => {
+    // The first version of this test asserted only that the word "baseline"
+    // appeared SOMEWHERE in the file. Mutation M8 of #287 removed it from one
+    // of the three items and the test stayed green, because the other two
+    // still carried it. Assert per item, not per file — the
+    // docs/evidence/33-20260904T113934Z.md lesson in a new place.
+    const doc = readFileSync(join(repoRoot, "CONTRIBUTING.md"), "utf8");
+    const items = doc.split(/^- \[ \] /m).slice(1);
+    expect(items.length).toBeGreaterThan(10);
+
+    for (const ref of BASELINE_REFERENCES) {
+      const name = ref.replace("references/", "").replace(".md", "");
+      const owning = items.filter((i) => i.includes(name));
+      expect(owning.length, `no CONTRIBUTING item mentions ${name}`).toBeGreaterThan(0);
+      expect(
+        owning.some((i) => i.includes("baseline")),
+        `the item naming ${name} must call it baseline (#287 part C)`,
+      ).toBe(true);
+    }
+  });
+});
+
+describe("live content, not fixtures (#287 finding 4)", () => {
+  // references/workflow-states.md is the single best specimen in the tree for
+  // the baseline exemption, and it is REAL. It cites four siblings, TWO of
+  // which are baseline:
+  //
+  //   evidence-artifacts   discretionary
+  //   verification         discretionary
+  //   gh-operations        BASELINE
+  //   gh-error-handling    BASELINE
+  //
+  // Under the rule #280 shipped it counted 4 against a cap of 3 and was
+  // rejected. Under #287 it counts 2. Nothing synthetic can demonstrate that,
+  // because a synthetic name is never a baseline member.
+  const body = () => readFileSync(join(repoRoot, "references/workflow-states.md"), "utf8");
+
+  test("it really does cite four siblings, two of them baseline", () => {
+    // Denominator first, read from the file — if the document is rewritten to
+    // cite fewer, this fails rather than quietly making the case below vacuous.
+    const cited = [...new Set([...body().matchAll(/references\/[a-z0-9-]+\.md/g)].map((m) => m[0]))];
+    const baseline = cited.filter((c) => BASELINE_REFERENCES.includes(c));
+    expect(cited.length).toBeGreaterThanOrEqual(4);
+    expect(baseline.length).toBeGreaterThanOrEqual(2);
+    expect(cited.length - baseline.length).toBeLessThanOrEqual(MAX_DISCRETIONARY_REFERENCES);
+  });
+
+  test("as a SKILL body it passes only because the baseline is exempt", () => {
+    const cited = [...new Set([...body().matchAll(/references\/[a-z0-9-]+\.md/g)].map((m) => m[0]))];
+    // The rule as shipped: passes.
+    expect(
+      lintBodyRules("skills/x/SKILL.md", body()).filter((v) => v.rule === "reference-citation-count"),
+    ).toEqual([]);
+    // And it would NOT have passed the cap of 3 counting every citation —
+    // which is the defect this fix removes, pinned against live content.
+    expect(cited.length).toBeGreaterThan(3);
+  });
+
+  test("every real reference passes the cap as a skill body", () => {
+    // The whole roster as a corpus, not one specimen. Denominator asserted.
+    const roster = realReferences();
+    expect(roster.length).toBeGreaterThanOrEqual(12);
+    const over = roster.filter(
+      (r) =>
+        lintBodyRules("skills/x/SKILL.md", readFileSync(join(repoRoot, r), "utf8")).some(
+          (v) => v.rule === "reference-citation-count",
+        ),
+    );
+    expect(over).toEqual([]);
   });
 });
