@@ -3,12 +3,14 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import {
   lintClaimDocs,
   lintPathRefs,
+  lintTestPlanCorpus,
   staleAllowListEntries,
   mapStory,
   formatClaimId,
   type ClaimDoc,
   type ClaimViolation,
   type ClaimRuleId,
+  type TestPlanCorpusReport,
 } from "../packages/core/src/index";
 
 // claim-lint validates the claim-identifier rules described in
@@ -195,13 +197,18 @@ const RULE_IDS: ClaimRuleId[] = [
   "anchor-dangling",
   "path-dangling",
   "allowlist-stale",
+  "testplan-corpus",
 ];
 
 function pluralize(count: number, singular: string, plural: string): string {
   return count === 1 ? singular : plural;
 }
 
-function printReport(violations: ClaimViolation[], fileCount: number): void {
+function printReport(
+  violations: ClaimViolation[],
+  fileCount: number,
+  corpus: TestPlanCorpusReport,
+): void {
   const sorted = [...violations].sort((a, b) => {
     if (a.file !== b.file) return a.file < b.file ? -1 : 1;
     return a.line - b.line;
@@ -226,6 +233,7 @@ function printReport(violations: ClaimViolation[], fileCount: number): void {
     "anchor-dangling": 0,
     "path-dangling": 0,
     "allowlist-stale": 0,
+    "testplan-corpus": 0,
   };
   for (const violation of violations) byRule[violation.rule] += 1;
 
@@ -236,6 +244,18 @@ function printReport(violations: ClaimViolation[], fileCount: number): void {
       `claim-lint: ${ruleId.padEnd(padded)}  ${count} ${pluralize(count, "violation", "violations")}`,
     );
   }
+
+  // The denominator for testplan-corpus, printed unconditionally and as THREE
+  // numbers rather than one. `skill-lint: 0 SKILL.md files scanned, 0 errors`
+  // is this repository's standing example of a check that passes while
+  // checking nothing; a single conflated total would let the case count go to
+  // zero — a plan renamed out of docs/test-plans/, a header edited so no table
+  // is recognised — while the rule kept reporting success.
+  console.log(
+    `claim-lint: testplan-corpus scanned ${corpus.plans} ${pluralize(corpus.plans, "plan", "plans")}, ` +
+      `${corpus.tables} ${pluralize(corpus.tables, "case table", "case tables")}, ` +
+      `${corpus.cases} ${pluralize(corpus.cases, "case", "cases")}`,
+  );
 
   const errorCount = violations.filter((v) => v.severity === "error").length;
   const warningCount = violations.length - errorCount;
@@ -316,10 +336,16 @@ function main(): void {
   // disagree with `path-dangling` about what exists.
   const staleViolations = lintStaleAllowList(repoRoot, knownPaths);
 
+  // testplan-corpus (issue #289). Scanned over the same markdown subset as
+  // path-dangling; the rule selects docs/test-plans/ itself, so narrowing the
+  // CLI to another directory yields a zero denominator rather than a silent
+  // pass — which is why the counts are printed even when they are zero.
+  const corpus = lintTestPlanCorpus(markdownDocs);
+
   const violations = pathsOnly
-    ? [...pathViolations, ...staleViolations]
-    : [...lintClaimDocs(docs), ...pathViolations, ...staleViolations];
-  printReport(violations, docs.length);
+    ? [...pathViolations, ...staleViolations, ...corpus.violations]
+    : [...lintClaimDocs(docs), ...pathViolations, ...staleViolations, ...corpus.violations];
+  printReport(violations, docs.length, corpus);
 
   const hasError = violations.some((v) => v.severity === "error");
   process.exit(hasError ? 1 : 0);

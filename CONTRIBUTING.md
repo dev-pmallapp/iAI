@@ -136,10 +136,10 @@ bun run claim-lint
 
 Passes when: exit code 0. Validates claim identifiers across `docs/`,
 `scripts/`, `.github/` and the root markdown set, per
-`docs/design/stories/194.md` — the retired identifier prefix appears nowhere
-outside the four allow-listed paths, every claim identifier is Story-qualified
-and unique, every anti-claim carries `NEVER-`, and no `anchors_to` reference is
-left dangling. Pass a directory to narrow the scan.
+`docs/design/stories/194.md` — the retired prefix appears nowhere outside the
+four allow-listed paths, every identifier is Story-qualified and unique, every
+anti-claim carries `NEVER-`, no `anchors_to` dangles, and **every test-plan case
+declares a `Corpus`** (#289; the vocabulary is in `references/verification.md`).
 
 ### install-dry
 

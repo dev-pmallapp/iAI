@@ -46,64 +46,64 @@ carries two anti-claim cases and the highest severity.
 
 ### Positive
 
-| # | Case | anchors_to | Target | Priority | Verifier | Command | Passes when |
-|---|------|------------|--------|----------|----------|---------|-------------|
-| 1 | No `ISC-` token survives outside the four allow-listed paths | CLAIM-194.1 | iai-references | P0 | tool-checked | `git grep -n 'ISC-' -- docs scripts .github '*.md'` | Every hit is under `docs/evidence/`, or is `docs/design/stories/194.md`, `docs/test-plans/194-plan.md` or `docs/design/verification-pass.md` |
-| 2 | The thematic design series is migrated | CLAIM-194.1 | iai-references | P1 | tool-checked | `git grep -c 'ISC-' -- docs/design` | 0 hits outside `stories/194.md` and `verification-pass.md` |
-| 3 | Every claim identifier is Story-qualified | CLAIM-194.2 | iai-core | P0 | tool-checked | `bun run claim-lint` | Exit 0; every identifier matches `^(CLAIM\|NEVER)-\d+\.\d+$` |
-| 4 | Story 9's nine identifiers map one-to-one with `n` preserved | CLAIM-194.2 | iai-references | P0 | tool-checked | `bun run claim-lint --map 9` | `ISC-1..6`→`CLAIM-9.1..6`, `ISC-7..9`→`NEVER-9.7..9` |
-| 5 | Every anti-claim in a Story design document carries the `NEVER-` prefix | CLAIM-194.3 | iai-core | P0 | tool-checked | `bun run claim-lint` | 0 anti-claim rows carrying `CLAIM-` |
-| 6 | Every `anchors_to` resolves to an existing identifier | CLAIM-194.4 | iai-core | P0 | tool-checked | `bun run claim-lint` | 0 dangling references across `docs/test-plans/` |
-| 7 | Coverage tables resolve to identifiers in the matching design | CLAIM-194.4 | iai-core | P1 | tool-checked | `bun run claim-lint` | Every Coverage row resolves |
-| 8 | Every task issue's `\| Claims \|` row names identifiers that exist | CLAIM-194.5 | iai-references | P1 | human-attested | `gh issue list --label type:task` review | 43/43 bodies migrated, 0 unresolvable |
+| # | Case | anchors_to | Target | Priority | Verifier | Corpus | Command | Passes when |
+|---|------|------------|--------|----------|----------|--------|---------|-------------|
+| 1 | No `ISC-` token survives outside the four allow-listed paths | CLAIM-194.1 | iai-references | P0 | tool-checked | real — `git grep` across `docs`, `scripts` and `.github` as shipped | `git grep -n 'ISC-' -- docs scripts .github '*.md'` | Every hit is under `docs/evidence/`, or is `docs/design/stories/194.md`, `docs/test-plans/194-plan.md` or `docs/design/verification-pass.md` |
+| 2 | The thematic design series is migrated | CLAIM-194.1 | iai-references | P1 | tool-checked | real — `git grep` across `docs/design` as shipped | `git grep -c 'ISC-' -- docs/design` | 0 hits outside `stories/194.md` and `verification-pass.md` |
+| 3 | Every claim identifier is Story-qualified | CLAIM-194.2 | iai-core | P0 | tool-checked | real — every claim identifier under `docs/design` as shipped | `bun run claim-lint` | Exit 0; every identifier matches `^(CLAIM\|NEVER)-\d+\.\d+$` |
+| 4 | Story 9's nine identifiers map one-to-one with `n` preserved | CLAIM-194.2 | iai-references | P0 | tool-checked | real — Story 9's identifiers in `docs/design/stories/9.md` | `bun run claim-lint --map 9` | `ISC-1..6`→`CLAIM-9.1..6`, `ISC-7..9`→`NEVER-9.7..9` |
+| 5 | Every anti-claim in a Story design document carries the `NEVER-` prefix | CLAIM-194.3 | iai-core | P0 | tool-checked | real — every anti-claim row across `docs/design/stories` | `bun run claim-lint` | 0 anti-claim rows carrying `CLAIM-` |
+| 6 | Every `anchors_to` resolves to an existing identifier | CLAIM-194.4 | iai-core | P0 | tool-checked | real — every `anchors_to` cell under `docs/test-plans/` | `bun run claim-lint` | 0 dangling references across `docs/test-plans/` |
+| 7 | Coverage tables resolve to identifiers in the matching design | CLAIM-194.4 | iai-core | P1 | tool-checked | real — every Coverage row under `docs/test-plans/` | `bun run claim-lint` | Every Coverage row resolves |
+| 8 | Every task issue's `\| Claims \|` row names identifiers that exist | CLAIM-194.5 | iai-references | P1 | human-attested | real — the live `gh issue list --label type:task` roster | `gh issue list --label type:task` review | 43/43 bodies migrated, 0 unresolvable |
 
 ### Negative
 
-| # | Case | anchors_to | Target | Priority | Verifier | Command | Passes when |
-|---|------|------------|--------|----------|----------|---------|-------------|
-| 9 | No file under `docs/evidence/` is modified | NEVER-194.6 | iai-references | P0 | tool-checked | `git diff --name-only main...HEAD -- docs/evidence` | Empty output |
-| 10 | No posted `## iai-evidence` or `## iai-gate` comment is edited | NEVER-194.6 | iai-references | P0 | human-attested | comment `updated_at` audit on #9–#14, #187 | No gate or evidence comment shows an edit after its Story closed |
-| 11 | The `## iai-isa` sentinel is never left dangling | NEVER-194.7 | iai-references | P0 | tool-checked | `git grep -c 'iai-isa'` and `git grep -c 'iai-design'` | Writers and readers agree; no mixed state in any single commit |
-| 12 | A reintroduced `ISC-` token fails the check | CLAIM-194.1 | iai-core | P1 | tool-checked | plant `ISC-1` in a design file, run `claim-lint` | Non-zero exit naming the file and line |
-| 13 | A duplicate identifier across two Stories fails | CLAIM-194.2 | iai-core | P0 | tool-checked | plant `CLAIM-9.1` in another Story's design | Non-zero exit naming both files |
-| 14 | An anti-claim written as `CLAIM-` in a Story design fails | CLAIM-194.3 | iai-core | P1 | tool-checked | plant an anti-claim row with `CLAIM-` | Non-zero exit naming the row |
-| 15 | A dangling `anchors_to` fails | CLAIM-194.4 | iai-core | P0 | tool-checked | plant `anchors_to: CLAIM-9.99` | Non-zero exit naming the dangling reference |
+| # | Case | anchors_to | Target | Priority | Verifier | Corpus | Command | Passes when |
+|---|------|------------|--------|----------|----------|--------|---------|-------------|
+| 9 | No file under `docs/evidence/` is modified | NEVER-194.6 | iai-references | P0 | tool-checked | real — `git diff` against the real `docs/evidence/` history | `git diff --name-only main...HEAD -- docs/evidence` | Empty output |
+| 10 | No posted `## iai-evidence` or `## iai-gate` comment is edited | NEVER-194.6 | iai-references | P0 | human-attested | real — posted comment history on issues #9-#14, #187 | comment `updated_at` audit on #9–#14, #187 | No gate or evidence comment shows an edit after its Story closed |
+| 11 | The `## iai-isa` sentinel is never left dangling | NEVER-194.7 | iai-references | P0 | tool-checked | real — `git grep` over the real repository tree | `git grep -c 'iai-isa'` and `git grep -c 'iai-design'` | Writers and readers agree; no mixed state in any single commit |
+| 12 | A reintroduced `ISC-` token fails the check | CLAIM-194.1 | iai-core | P1 | tool-checked | synthetic — a planted `ISC-1` token cannot come from the real corpus | plant `ISC-1` in a design file, run `claim-lint` | Non-zero exit naming the file and line |
+| 13 | A duplicate identifier across two Stories fails | CLAIM-194.2 | iai-core | P0 | tool-checked | synthetic — a planted duplicate identifier cannot come from the real corpus | plant `CLAIM-9.1` in another Story's design | Non-zero exit naming both files |
+| 14 | An anti-claim written as `CLAIM-` in a Story design fails | CLAIM-194.3 | iai-core | P1 | tool-checked | synthetic — a planted anti-claim row cannot come from the real corpus | plant an anti-claim row with `CLAIM-` | Non-zero exit naming the row |
+| 15 | A dangling `anchors_to` fails | CLAIM-194.4 | iai-core | P0 | tool-checked | synthetic — a planted `CLAIM-9.99` reference must not be parsed as real | plant `anchors_to: CLAIM-9.99` | Non-zero exit naming the dangling reference |
 
 ### Boundary
 
-| # | Case | anchors_to | Target | Priority | Verifier | Command | Passes when |
-|---|------|------------|--------|----------|----------|---------|-------------|
-| 20 | A milestone seed carrying `CLAIM-` for a prohibition does **not** fail | CLAIM-194.3 | iai-core | P1 | tool-checked | `bun run claim-lint docs/milestones` | Exit 0. `M1.md`'s `CLAIM-15.6` (*"No file … performs I/O"*) is a seed, not a design claim |
-| 21 | The same identifier in a seed and a design is not a duplicate | CLAIM-194.2 | iai-core | P0 | tool-checked | `bun run claim-lint` | `CLAIM-9.1`–`9.6` appear in both `M1.md` and `stories/9.md`; uniqueness is per-identifier-meaning, not per-occurrence |
+| # | Case | anchors_to | Target | Priority | Verifier | Corpus | Command | Passes when |
+|---|------|------------|--------|----------|----------|--------|---------|-------------|
+| 20 | A milestone seed carrying `CLAIM-` for a prohibition does **not** fail | CLAIM-194.3 | iai-core | P1 | tool-checked | real — `CLAIM-15.6` as seeded in the real `docs/milestones/M1.md` | `bun run claim-lint docs/milestones` | Exit 0. `M1.md`'s `CLAIM-15.6` (*"No file … performs I/O"*) is a seed, not a design claim |
+| 21 | The same identifier in a seed and a design is not a duplicate | CLAIM-194.2 | iai-core | P0 | tool-checked | real — `CLAIM-9.1`-`9.6` as they exist in `M1.md` and `stories/9.md` | `bun run claim-lint` | `CLAIM-9.1`–`9.6` appear in both `M1.md` and `stories/9.md`; uniqueness is per-identifier-meaning, not per-occurrence |
 
 
-| # | Case | anchors_to | Target | Priority | Verifier | Command | Passes when |
-|---|------|------------|--------|----------|----------|---------|-------------|
-| 16 | The allow-list is closed at exactly four paths | CLAIM-194.1 | iai-core | P1 | tool-checked | add a second file containing `ISC-` | Non-zero exit; the allow-list is closed, not a prefix match |
-| 17 | Two-digit Story and claim numbers parse | CLAIM-194.2 | iai-core | P1 | tool-checked | `CLAIM-194.10` | Parsed as Story 194, claim 10 — not 194.1 followed by 0 |
+| # | Case | anchors_to | Target | Priority | Verifier | Corpus | Command | Passes when |
+|---|------|------------|--------|----------|----------|--------|---------|-------------|
+| 16 | The allow-list is closed at exactly four paths | CLAIM-194.1 | iai-core | P1 | tool-checked | synthetic — a second `ISC-` file must be added, since only one exists today | add a second file containing `ISC-` | Non-zero exit; the allow-list is closed, not a prefix match |
+| 17 | Two-digit Story and claim numbers parse | CLAIM-194.2 | iai-core | P1 | tool-checked | synthetic — `CLAIM-194.10` is a hypothetical identifier, not one that exists | `CLAIM-194.10` | Parsed as Story 194, claim 10 — not 194.1 followed by 0 |
 
 ### Integration
 
-| # | Case | anchors_to | Target | Priority | Verifier | Command | Passes when |
-|---|------|------------|--------|----------|----------|---------|-------------|
-| 18 | Evidence documents remain resolvable via the mapping note | CLAIM-194.5 | iai-references | P1 | model-judged | read `docs/evidence/187-*.md` `Claims: ISC-4, ISC-9` | Both resolve through `stories/194.md` to `CLAIM-9.4` and `NEVER-9.9` |
-| 19 | A newly posted sentinel uses the renamed form | NEVER-194.7 | iai-references | P1 | human-attested | next Story's sentinel | Posted as `## iai-design`; nothing still greps `iai-isa` |
+| # | Case | anchors_to | Target | Priority | Verifier | Corpus | Command | Passes when |
+|---|------|------------|--------|----------|----------|--------|---------|-------------|
+| 18 | Evidence documents remain resolvable via the mapping note | CLAIM-194.5 | iai-references | P1 | model-judged | real — the shipped `docs/evidence/187-*.md` artifact and its mapping | read `docs/evidence/187-*.md` `Claims: ISC-4, ISC-9` | Both resolve through `stories/194.md` to `CLAIM-9.4` and `NEVER-9.9` |
+| 19 | A newly posted sentinel uses the renamed form | NEVER-194.7 | iai-references | P1 | human-attested | real — the next Story's actually posted sentinel comment | next Story's sentinel | Posted as `## iai-design`; nothing still greps `iai-isa` |
 
 ### Path Guard (#210)
 
-| # | Case | anchors_to | Target | Priority | Verifier | Command | Passes when |
-|---|------|------------|--------|----------|----------|---------|-------------|
-| 22 | A citation of an existing repo-relative path passes | CLAIM-194.8 | iai-core | P0 | tool-checked | `bun run claim-lint` | Exit 0; no `path-dangling` violation |
-| 23 | A citation of a non-existent repo-relative path fails | CLAIM-194.8 | iai-core | P0 | tool-checked | plant `` `docs/design/stories/888.md` `` in a design doc, run `claim-lint` | Non-zero exit; `path-dangling` names the file and line of the citation |
-| 24 | The planted `docs/design/stories/999.md` fires | CLAIM-194.8 | iai-core | P0 | tool-checked | plant `` `docs/design/stories/999.md` `` in a design doc, run `claim-lint` | Non-zero exit; `path-dangling` names `docs/design/stories/999.md` |
-| 25 | Exclusion 1 — a citing file under `docs/evidence/` is skipped entirely | CLAIM-194.8 | iai-core | P1 | tool-checked | plant a dangling citation inside `docs/evidence/1-x.md`, run `claim-lint` | Exit 0; the evidence file is never scanned |
-| 26 | Exclusion 2 — a cited target under `docs/evidence/` is excluded | CLAIM-194.8 | iai-core | P1 | tool-checked | cite a nonexistent `docs/evidence/999-x.md` from a design doc, run `claim-lint` | Exit 0; no violation for the evidence-prefixed target |
-| 27 | Exclusion 3 — a `{}` or `<>` template placeholder is excluded | CLAIM-194.8 | iai-core | P1 | tool-checked | cite `docs/design/stories/{issue}.md` and `docs/design/NN-domain-<id>.md`, run `claim-lint` | Exit 0; neither placeholder is reported |
-| 28 | Exclusion 4 — a glob is excluded | CLAIM-194.8 | iai-core | P1 | tool-checked | cite `docs/milestones/M*.md`, run `claim-lint` | Exit 0; no violation |
-| 29 | Exclusion 5 — range notation is excluded | CLAIM-194.8 | iai-core | P1 | tool-checked | cite `docs/milestones/M1..M8.md`, run `claim-lint` | Exit 0; no violation |
-| 30 | Exclusion 6 — a SHA-pinned permalink target must NOT be reported | CLAIM-194.8 | iai-core | P0 | tool-checked | cite a nonexistent path trailing `/blob/<sha>/`, both a 40-hex and a 7-8-hex short SHA, run `claim-lint` | Exit 0 for both; the `{7,40}` contract (`docs/milestones/M1.md:170`) covers short SHAs too |
-| 31 | Exclusion 7 — citing file is `docs/design/verification-pass.md` | CLAIM-194.8 | iai-core | P1 | tool-checked | cite an ancestor-repo path from `verification-pass.md`, run `claim-lint` | Exit 0; that document's citations are never checked against this tree |
-| 32 | Exclusion 8 — a path under an `ignoredPrefixes` entry is excluded | CLAIM-194.8 | iai-core | P1 | tool-checked | cite `USER/GOALS/GOALS.md`, run `claim-lint` | Exit 0; no violation |
+| # | Case | anchors_to | Target | Priority | Verifier | Corpus | Command | Passes when |
+|---|------|------------|--------|----------|----------|--------|---------|-------------|
+| 22 | A citation of an existing repo-relative path passes | CLAIM-194.8 | iai-core | P0 | tool-checked | real — the real citations already present in the shipped doc tree | `bun run claim-lint` | Exit 0; no `path-dangling` violation |
+| 23 | A citation of a non-existent repo-relative path fails | CLAIM-194.8 | iai-core | P0 | tool-checked | synthetic — a planted nonexistent path must be constructed to fail | plant `` `docs/design/stories/888.md` `` in a design doc, run `claim-lint` | Non-zero exit; `path-dangling` names the file and line of the citation |
+| 24 | The planted `docs/design/stories/999.md` fires | CLAIM-194.8 | iai-core | P0 | tool-checked | synthetic — the planted `999.md` path does not exist in the real tree | plant `` `docs/design/stories/999.md` `` in a design doc, run `claim-lint` | Non-zero exit; `path-dangling` names `docs/design/stories/999.md` |
+| 25 | Exclusion 1 — a citing file under `docs/evidence/` is skipped entirely | CLAIM-194.8 | iai-core | P1 | tool-checked | synthetic — a dangling citation must be planted inside a synthetic evidence file | plant a dangling citation inside `docs/evidence/1-x.md`, run `claim-lint` | Exit 0; the evidence file is never scanned |
+| 26 | Exclusion 2 — a cited target under `docs/evidence/` is excluded | CLAIM-194.8 | iai-core | P1 | tool-checked | synthetic — a nonexistent evidence-prefixed target must be invented | cite a nonexistent `docs/evidence/999-x.md` from a design doc, run `claim-lint` | Exit 0; no violation for the evidence-prefixed target |
+| 27 | Exclusion 3 — a `{}` or `<>` template placeholder is excluded | CLAIM-194.8 | iai-core | P1 | tool-checked | synthetic — placeholder citations are invented, not drawn from real docs | cite `docs/design/stories/{issue}.md` and `docs/design/NN-domain-<id>.md`, run `claim-lint` | Exit 0; neither placeholder is reported |
+| 28 | Exclusion 4 — a glob is excluded | CLAIM-194.8 | iai-core | P1 | tool-checked | synthetic — the glob citation is invented for the exclusion test | cite `docs/milestones/M*.md`, run `claim-lint` | Exit 0; no violation |
+| 29 | Exclusion 5 — range notation is excluded | CLAIM-194.8 | iai-core | P1 | tool-checked | synthetic — the range citation is invented for the exclusion test | cite `docs/milestones/M1..M8.md`, run `claim-lint` | Exit 0; no violation |
+| 30 | Exclusion 6 — a SHA-pinned permalink target must NOT be reported | CLAIM-194.8 | iai-core | P0 | tool-checked | synthetic — SHA-pinned permalinks to a nonexistent path must be constructed | cite a nonexistent path trailing `/blob/<sha>/`, both a 40-hex and a 7-8-hex short SHA, run `claim-lint` | Exit 0 for both; the `{7,40}` contract (`docs/milestones/M1.md:170`) covers short SHAs too |
+| 31 | Exclusion 7 — citing file is `docs/design/verification-pass.md` | CLAIM-194.8 | iai-core | P1 | tool-checked | synthetic — an ancestor-repo path is invented to test the exemption | cite an ancestor-repo path from `verification-pass.md`, run `claim-lint` | Exit 0; that document's citations are never checked against this tree |
+| 32 | Exclusion 8 — a path under an `ignoredPrefixes` entry is excluded | CLAIM-194.8 | iai-core | P1 | tool-checked | synthetic — the `ignoredPrefixes` citation is invented for the exclusion test | cite `USER/GOALS/GOALS.md`, run `claim-lint` | Exit 0; no violation |
 
 ## Not applicable
 

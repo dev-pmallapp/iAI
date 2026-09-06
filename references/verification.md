@@ -63,6 +63,62 @@ the two from the outside.
 This applies to every enumerating check in the repository, and it is why cases
 throughout `docs/test-plans/` assert a count before asserting a result.
 
+---
+
+## A non-empty corpus is not a representative one
+
+Asserting the denominator is necessary and it is **not sufficient**.
+
+> **A denominator guard proves the corpus is non-empty. It does not prove it is
+> representative.**
+
+A fixture set can be large, carefully enumerated, and still incapable of
+detecting the defect it exists to catch — because every member of it was
+invented.
+
+The measured instance: a required CI check shipped with **sixty passing tests**
+and rejected **seven of nine** real Tier-1 verbs the first time it met them. The
+same rule, unchanged, over two fixture sets — invented names: zero failures. The
+real roster read off disk: seven. Two of those seven were live-content failures
+that no invented fixture can produce at all, because
+
+> **a synthetic name is never a baseline member.**
+
+The exemption under test could therefore never be exercised, so the suite agreed
+with the rule perfectly and reported nothing about the world.
+
+### The `Corpus` column
+
+Every case in every test plan declares where its fixtures come from. The column
+sits between `Verifier` and `Command`, and its value is a kind, a dash, and a
+detail:
+
+| Kind | Means | The detail must give |
+|---|---|---|
+| `real` | the fixtures are the repository as it actually is — files read off disk, the shipped allow-list, live git history | **the corpus, named**: a path, a directory, a roster |
+| `synthetic` | the fixtures are constructed in the test — invented strings, hand-built objects, crafted hostile input | **why** a real corpus is unavailable or wrong |
+| `none` | the case has no fixture corpus: an exit code, a constant, a review verdict | **why** none applies |
+
+`synthetic` is a legal, declared value and not a lesser one. Some fixtures
+**must** be invented: a case proving a path exemption is exact rather than a
+prefix needs a filename that does *not* exist, and a blanket ban would delete
+the case. What is forbidden is an **undeclared** or **unreasoned** synthetic
+corpus, not a synthetic one.
+
+**What the check can and cannot do.** It verifies that every case declares, and
+that the declaration is well formed. It cannot verify that a declaration is
+*true* — a case with invented fixtures can still be labelled `real`. That is not
+a gap to be closed with a cleverer regex; judging fixture realism from a prose
+cell is not a thing a linter can do. Making the declaration required, visible
+and machine-read is what stops it being forgotten, and being forgotten is the
+failure actually observed.
+
+**Two enforcement points, deliberately.** The lint reads plans that already
+exist and tells an author they were wrong after the fact. The planning verb that
+emits a plan refuses to write a case with no declaration in the first place.
+Detective and preventive; the second does not replace the first, because a skill
+cannot annotate the plans written before it existed.
+
 ### The related trap: a guard shadowed by another guard
 
 When several rules can reject the same fixture, a test proving "it was rejected"
@@ -129,4 +185,6 @@ as a bare survivor would imply the fix was wrong.
 | Evidence on disk before closure; evidence precedes the label | `docs/design/01-skill-hierarchy.md:56` | confirmed |
 | Three verifier classes | `packages/core/src/binding/domain.ts:125`, validated at `validate.ts:68` | confirmed — **owning module named**. The three names are used here because defining them is this document's assigned job (`01-skill-hierarchy.md:56`); the closed list itself is not copied |
 | `skill-lint` is green over zero files | observed every run since S1.3 | confirmed — **an open weakness, not a defect in this document** |
+| A non-empty corpus is not a representative one | measured twice: `docs/evidence/287-20260906T111141Z.md`, and `docs/evidence/12-20260826T114251Z.md:161-163` eleven days earlier | confirmed — the insight was drawn at S1.2, treated as a property of one task, and **not promoted to a rule until it had been re-derived the expensive way** |
+| Every test-plan case declares a `Corpus` | enforced by `claim-lint`, rule `testplan-corpus` | confirmed — **the declaration is checked, its truth is not.** Stated as a bound, not hidden |
 | Format validation is not existence validation | hit live; no guard can close it | **carried** — owner: S1.4's sentinel engine, if a future Story widens it |
