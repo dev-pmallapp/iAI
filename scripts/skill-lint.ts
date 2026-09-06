@@ -1,5 +1,12 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
+import {
+  BLOB_SHA_PATTERN,
+  COMMIT_PREFIX_RE,
+  EXCLUSIVE_LABEL_PREFIXES,
+  SENTINEL_NAMESPACE_PREFIX,
+  SUB_ISSUE_FEATURE_HEADER,
+} from "../packages/core/src/index";
 
 // skill-lint validates SKILL.md frontmatter against the both-hosts
 // intersection schema described in docs/design/08-dual-target.md and
@@ -37,7 +44,15 @@ export type SkillRuleId =
   | "description-length"
   | "metadata-not-a-map"
   | "metadata-value-unquoted"
-  | "metadata-nested";
+  | "metadata-nested"
+  // --- BODY rules (S2.1 / #280). ---------------------------------------
+  // The first body rules in this repository: every rule above inspects
+  // frontmatter only. They run over a SECOND population as well as skills
+  // (Decision 11 of docs/design/stories/35.md) and no frontmatter rule ever
+  // runs over that second population.
+  | "duplicate-contract"
+  | "reference-citation-count"
+  | "model-id-literal";
 
 export type Severity = "error" | "warning";
 
@@ -383,6 +398,218 @@ export function lintSkillSource(filePath: string, source: string, directoryName:
   return violations;
 }
 
+// ===========================================================================
+// BODY RULES (S2.1, issue #280)
+// ===========================================================================
+//
+// CLAIM-35.2, CLAIM-35.3, CLAIM-35.5 and NEVER-35.7 of
+// docs/design/stories/35.md. These are the first rules here that read the
+// BODY of a document rather than its frontmatter.
+//
+// Every contract below is IMPORTED from packages/core, never restated. That
+// is not stylistic: `duplicate-contract` exists precisely to stop a second
+// copy of a contract, and a rule that restated the thing it polices would be
+// its own first violation.
+
+// The maximum number of distinct references a single skill may cite.
+// docs/design/01-skill-hierarchy.md:472 — "A skill reads at most 3 references
+// — beyond that, the skill is doing too many jobs and should be split."
+//
+// EXPORTED so the test reads the bound rather than restating it, and so no
+// file implementing the rule carries a bare literal as the threshold.
+//
+// KNOWN CONTRADICTION, recorded not resolved: CONTRIBUTING.md:266-276 makes
+// context-discovery, gh-operations and gh-error-handling mandatory for EVERY
+// skill — which is the entire budget before a skill cites anything specific
+// to its own job. Problem 5 / Decision 10 of docs/design/stories/35.md route
+// that to S2.2, the first Story that can actually violate it.
+export const MAX_REFERENCES_PER_SKILL = 3;
+
+// Vendor namespaces that qualify a literal model ID, per the routing table at
+// docs/design/02-roles.md:547-553. Deliberately a closed list of vendor
+// prefixes rather than a generic `word/word` pattern: the generic form
+// matches repo-relative paths such as `packages/core` and would flag every
+// document in the tree.
+export const MODEL_ID_VENDORS: readonly string[] = ["amd-anthropic", "amd-unified"];
+
+// The single file permitted to carry a literal model ID.
+//
+// CLAIM-35.3 as restated by Decision 1 of docs/design/stories/35.md. Matched
+// as an EXACT repo-relative path, never a prefix and never a line range:
+// a prefix would also exempt a hypothetical `model-routing-notes.md`, and
+// docs/evidence/34-20260905T031229Z.md records a mutation surviving inside a
+// range-based exemption.
+export const MODEL_ID_EXEMPT_PATH = "references/model-routing.md";
+
+interface ContractDef {
+  readonly id: string;
+  readonly needle: string;
+  readonly owner: string;
+}
+
+// Each entry is built from the IMPORTED constant. Adding a contract here is
+// how the rule grows; restating a value is not.
+function contractDefs(): ContractDef[] {
+  return [
+    {
+      id: "the sentinel namespace prefix",
+      needle: SENTINEL_NAMESPACE_PREFIX,
+      owner: "packages/core/src/evidence/sentinel.ts",
+    },
+    {
+      id: "the commit-subject regex",
+      needle: COMMIT_PREFIX_RE.source,
+      owner: "packages/core/src/guards/commit-prefix.ts",
+    },
+    {
+      id: "the at-most-one-status invariant (the exclusive label prefixes)",
+      // The LITERAL ARRAY form only. Prose naming the namespaces is the job of
+      // references/workflow-states.md and must not trip this rule — banning
+      // the words would make the owning document unwritable, which is the bind
+      // recorded against NEVER-35.7 in docs/design/stories/35.md.
+      needle: JSON.stringify(EXCLUSIVE_LABEL_PREFIXES),
+      owner: "packages/core/src/gh/labels.ts",
+    },
+    {
+      id: "the blob-SHA permalink pattern",
+      needle: BLOB_SHA_PATTERN,
+      owner: "packages/core/src/evidence/permalink.ts",
+    },
+    {
+      id: "the sub-issue feature header",
+      needle: SUB_ISSUE_FEATURE_HEADER,
+      owner: "packages/core/src/gh/sub-issues.ts",
+    },
+  ];
+}
+
+function lineOf(body: string, index: number): number {
+  let line = 1;
+  for (let i = 0; i < index && i < body.length; i += 1) if (body[i] === "\n") line += 1;
+  return line;
+}
+
+// `- [ ] references/foo.md` and `references/foo.md` alike; DISTINCT paths only,
+// because citing the same reference three times is one dependency, not three.
+function citedReferences(body: string): string[] {
+  const found = new Set<string>();
+  const re = /references\/[a-z0-9-]+\.md/g;
+  let m: RegExpExecArray | null = re.exec(body);
+  while (m !== null) {
+    found.add(m[0]);
+    m = re.exec(body);
+  }
+  return [...found].sort();
+}
+
+// The three body rules. PURE over (path, body) — no fs, no discovery.
+//
+// POPULATION IS PER RULE, not per rule-set. This was wrong on the first
+// implementation and real content caught it:
+//
+//   - `duplicate-contract` and `model-id-literal` apply to BOTH populations.
+//     CLAIM-35.3 names skills/, agents/ AND references/; NEVER-35.7 polices
+//     references/ specifically.
+//   - `reference-citation-count` applies to SKILLS ONLY. The bound at
+//     docs/design/01-skill-hierarchy.md:472 reads "A SKILL reads at most 3
+//     references", and Problem 4 of docs/design/stories/35.md says CLAIM-35.5
+//     "counts citations per skill body". A reference document citing its
+//     siblings is the cite-don't-restate doctrine working; capping it would
+//     push the twelve toward restating each other, which is precisely
+//     backwards.
+export function lintBodyRules(
+  filePath: string,
+  body: string,
+  options: { readonly isSkill: boolean } = { isSkill: true },
+): SkillViolation[] {
+  const violations: SkillViolation[] = [];
+  if (typeof body !== "string") return violations;
+
+  // --- duplicate-contract (CLAIM-35.2, and NEVER-35.7 over references/) ---
+  for (const def of contractDefs()) {
+    if (def.needle.length < 3) continue;
+    const at = body.indexOf(def.needle);
+    if (at === -1) continue;
+    violations.push({
+      file: filePath,
+      line: lineOf(body, at),
+      rule: "duplicate-contract",
+      severity: "error",
+      message:
+        `duplicate-contract: this body restates ${def.id}, which is owned by ` +
+        `${def.owner}. Cite the owning module by path instead of copying the value ` +
+        `— two copies of a contract drift`,
+    });
+  }
+
+  // --- reference-citation-count (CLAIM-35.5) — SKILLS ONLY ---
+  const cited = citedReferences(body);
+  if (options.isSkill && cited.length > MAX_REFERENCES_PER_SKILL) {
+    violations.push({
+      file: filePath,
+      line: 1,
+      rule: "reference-citation-count",
+      severity: "error",
+      message:
+        `reference-citation-count: this body cites ${String(cited.length)} distinct ` +
+        `references (${cited.join(", ")}) but the maximum is ` +
+        `${String(MAX_REFERENCES_PER_SKILL)}. Beyond that the skill is doing too many ` +
+        `jobs and should be split (docs/design/01-skill-hierarchy.md:472)`,
+    });
+  }
+
+  // --- model-id-literal (CLAIM-35.3) ---
+  if (filePath !== MODEL_ID_EXEMPT_PATH) {
+    for (const vendor of MODEL_ID_VENDORS) {
+      const re = new RegExp(`\\b${vendor}\\/[A-Za-z0-9][A-Za-z0-9._-]*`, "g");
+      const m = re.exec(body);
+      if (m === null) continue;
+      violations.push({
+        file: filePath,
+        line: lineOf(body, m.index),
+        rule: "model-id-literal",
+        severity: "error",
+        message:
+          `model-id-literal: this body contains the literal model ID "${m[0]}". ` +
+          `Only ${MODEL_ID_EXEMPT_PATH} may name a model; everywhere else names a ` +
+          `routing CATEGORY (CLAIM-35.3, docs/design/stories/35.md Decision 1)`,
+      });
+    }
+  }
+
+  return violations;
+}
+
+// The SECOND population: contract documents, which have no frontmatter and
+// must never be asked for one. Decision 11 of docs/design/stories/35.md.
+//
+// This is a NEW function beside discoverSkillFiles, not a loosening of it.
+// Widening the existing discovery is the single most likely way to reintroduce
+// a frontmatter-missing error on all twelve references — verified against the
+// real function before this rule was written.
+export function discoverContractFiles(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  const files: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      files.push(...discoverContractFiles(join(dir, entry.name)));
+      continue;
+    }
+    if (entry.name.endsWith(".md")) files.push(join(dir, entry.name));
+  }
+  return files.sort();
+}
+
+// Body rules ONLY. No frontmatter rule may reach this population.
+export function lintContractTree(root: string, repoRoot: string): SkillViolation[] {
+  const violations: SkillViolation[] = [];
+  for (const filePath of discoverContractFiles(root)) {
+    const rel = relative(repoRoot, filePath);
+    violations.push(...lintBodyRules(rel, readFileSync(filePath, "utf8"), { isSkill: false }));
+  }
+  return violations;
+}
+
 function discoverSkillFiles(dir: string): string[] {
   const files: string[] = [];
   const entries = readdirSync(dir, { withFileTypes: true });
@@ -396,12 +623,15 @@ function discoverSkillFiles(dir: string): string[] {
   return files;
 }
 
-export function lintSkillTree(root: string): SkillViolation[] {
+export function lintSkillTree(root: string, repoRoot?: string): SkillViolation[] {
   const violations: SkillViolation[] = [];
   for (const filePath of discoverSkillFiles(root)) {
     const source = readFileSync(filePath, "utf8");
     const directoryName = basename(dirname(filePath));
     violations.push(...lintSkillSource(filePath, source, directoryName));
+    // Skills get BOTH rule sets. Contract documents get body rules only.
+    const rel = repoRoot === undefined ? filePath : relative(repoRoot, filePath);
+    violations.push(...lintBodyRules(rel, source, { isSkill: true }));
   }
   return violations;
 }
@@ -418,13 +648,21 @@ const RULE_IDS: SkillRuleId[] = [
   "metadata-not-a-map",
   "metadata-value-unquoted",
   "metadata-nested",
+  "duplicate-contract",
+  "reference-citation-count",
+  "model-id-literal",
 ];
 
 function pluralize(count: number, singular: string, plural: string): string {
   return count === 1 ? singular : plural;
 }
 
-function printReport(violations: SkillViolation[], fileCount: number, dir: string): void {
+function printReport(
+  violations: SkillViolation[],
+  skillFileCount: number,
+  contractFileCount: number,
+  dir: string,
+): void {
   const sorted = [...violations].sort((a, b) => {
     if (a.file !== b.file) return a.file < b.file ? -1 : 1;
     return a.line - b.line;
@@ -448,6 +686,9 @@ function printReport(violations: SkillViolation[], fileCount: number, dir: strin
     "metadata-not-a-map": 0,
     "metadata-value-unquoted": 0,
     "metadata-nested": 0,
+    "duplicate-contract": 0,
+    "reference-citation-count": 0,
+    "model-id-literal": 0,
   };
   for (const violation of violations) byRule[violation.rule] += 1;
 
@@ -461,10 +702,32 @@ function printReport(violations: SkillViolation[], fileCount: number, dir: strin
 
   const errorCount = violations.filter((v) => v.severity === "error").length;
   const warningCount = violations.length - errorCount;
+
+  // TWO COUNTS, NEVER ONE. Decision 11 of docs/design/stories/35.md: a single
+  // conflated total would let either population silently go to zero, which is
+  // the exact shape this linter itself demonstrated for four milestones while
+  // reporting success over an empty skills/ directory.
   console.log(
-    `skill-lint: ${fileCount} SKILL.md ${pluralize(fileCount, "file", "files")} scanned, ${errorCount} ${pluralize(errorCount, "error", "errors")}, ${warningCount} ${pluralize(warningCount, "warning", "warnings")}`,
+    `skill-lint: ${skillFileCount} SKILL.md ${pluralize(skillFileCount, "file", "files")} scanned (frontmatter + body rules)`,
+  );
+  console.log(
+    `skill-lint: ${contractFileCount} contract ${pluralize(contractFileCount, "file", "files")} scanned (body rules only)`,
+  );
+  console.log(
+    `skill-lint: ${errorCount} ${pluralize(errorCount, "error", "errors")}, ${warningCount} ${pluralize(warningCount, "warning", "warnings")}`,
   );
 }
+
+// The contract-document populations. Decision 11 of docs/design/stories/35.md
+// widened this linter past skills/ for the first time.
+//
+// docs/design/verification-pass.md:142 (conflict row 19) shipped skill-lint
+// skills/-only, on the ground that "one schema cannot span all three". That
+// adjudication concerned the FRONTMATTER SCHEMA and is untouched: no
+// frontmatter rule runs over the directories below. Row 19 never considered a
+// body rule, because none existed until this Story. The row is annotated in
+// place, never edited — its verdict rows are immutable by Decision 9.
+const CONTRACT_DIRS: readonly string[] = ["references", "agents"];
 
 function main(): void {
   const repoRoot = join(import.meta.dir, "..");
@@ -476,9 +739,17 @@ function main(): void {
     process.exit(1);
   }
 
-  const files = discoverSkillFiles(targetDir);
-  const violations = lintSkillTree(targetDir);
-  printReport(violations, files.length, targetDir);
+  const skillFiles = discoverSkillFiles(targetDir);
+  const violations = lintSkillTree(targetDir, repoRoot);
+
+  let contractFileCount = 0;
+  for (const dir of CONTRACT_DIRS) {
+    const abs = join(repoRoot, dir);
+    contractFileCount += discoverContractFiles(abs).length;
+    violations.push(...lintContractTree(abs, repoRoot));
+  }
+
+  printReport(violations, skillFiles.length, contractFileCount, targetDir);
 
   const hasError = violations.some((v) => v.severity === "error");
   process.exit(hasError ? 1 : 0);
