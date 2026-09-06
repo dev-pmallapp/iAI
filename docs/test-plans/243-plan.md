@@ -47,43 +47,43 @@ caller.
 
 ### Positive
 
-| # | Case | anchors_to | Target | Priority | Verifier | Command | Passes when |
-|---|------|------------|--------|----------|----------|---------|-------------|
-| 1 | No document states that `PRIVATE` data may reach a cloud vendor under any condition | CLAIM-243.1 | iai-references | P0 | tool-checked | `git grep -n` for the per-session opt-in and de-identified-egress phrasings across `docs/` and the root markdown set | 0 hits outside `docs/evidence/**` and the superseded-annotation lines |
-| 2 | The strict posture is stated positively, not merely by absence of the permissive one | CLAIM-243.1 | iai-references | P1 | human-attested | read `docs/design/09-security.md` class table and absolutes | The `PRIVATE` row and the second absolute both say no cloud egress, so a reader reaches the rule without inferring it |
-| 8 | `deidentifyPrivatePayload` remains exported and under test | CLAIM-243.4 | iai-core | P0 | tool-checked | `bun test packages/core` | The projection's own tests still pass unchanged; the export resolves from the guards barrel |
+| # | Case | anchors_to | Target | Priority | Verifier | Corpus | Command | Passes when |
+|---|------|------------|--------|----------|----------|--------|---------|-------------|
+| 1 | No document states that `PRIVATE` data may reach a cloud vendor under any condition | CLAIM-243.1 | iai-references | P0 | tool-checked | real — the docs/ tree and root markdown files | `git grep -n` for the per-session opt-in and de-identified-egress phrasings across `docs/` and the root markdown set | 0 hits outside `docs/evidence/**` and the superseded-annotation lines |
+| 2 | The strict posture is stated positively, not merely by absence of the permissive one | CLAIM-243.1 | iai-references | P1 | human-attested | real — docs/design/09-security.md | read `docs/design/09-security.md` class table and absolutes | The `PRIVATE` row and the second absolute both say no cloud egress, so a reader reaches the rule without inferring it |
+| 8 | `deidentifyPrivatePayload` remains exported and under test | CLAIM-243.4 | iai-core | P0 | tool-checked | real — the guards barrel and its own test suite | `bun test packages/core` | The projection's own tests still pass unchanged; the export resolves from the guards barrel |
 
 ### Negative
 
-| # | Case | anchors_to | Target | Priority | Verifier | Command | Passes when |
-|---|------|------------|--------|----------|----------|---------|-------------|
-| 3 | `PRIVATE` to a `cloud` destination blocks with consent **granted** | CLAIM-243.2 | iai-core | P0 | tool-checked | `bun test packages/core` | `action: "block"`; this is the cell S1.2 shipped as allow, and it is the single behavioural change in the Story |
-| 4 | `PRIVATE` to a `cloud` destination blocks with consent withheld and omitted | CLAIM-243.2 | iai-core | P0 | tool-checked | `bun test packages/core` | both block, unchanged from S1.2 |
-| 5 | The full twelve-cell matrix returns the documented action under the strict posture | CLAIM-243.2 | iai-core | P0 | tool-checked | `bun test packages/core` | 12/12 cells; only the `PRIVATE`/cloud/granted cell differs from the S1.2 table |
-| 9 | The projection has no caller on any egress path | CLAIM-243.4 | iai-core | P1 | tool-checked | grep `deidentifyPrivatePayload` across `packages/**/src`, excluding its own module | 0 references from `egress.ts` or any other guard reached by `checkEgress` |
+| # | Case | anchors_to | Target | Priority | Verifier | Corpus | Command | Passes when |
+|---|------|------------|--------|----------|----------|--------|---------|-------------|
+| 3 | `PRIVATE` to a `cloud` destination blocks with consent **granted** | CLAIM-243.2 | iai-core | P0 | tool-checked | real — the shipped class/destination/consent matrix | `bun test packages/core` | `action: "block"`; this is the cell S1.2 shipped as allow, and it is the single behavioural change in the Story |
+| 4 | `PRIVATE` to a `cloud` destination blocks with consent withheld and omitted | CLAIM-243.2 | iai-core | P0 | tool-checked | real — the shipped class/destination/consent matrix | `bun test packages/core` | both block, unchanged from S1.2 |
+| 5 | The full twelve-cell matrix returns the documented action under the strict posture | CLAIM-243.2 | iai-core | P0 | tool-checked | real — the full twelve-cell decision matrix | `bun test packages/core` | 12/12 cells; only the `PRIVATE`/cloud/granted cell differs from the S1.2 table |
+| 9 | The projection has no caller on any egress path | CLAIM-243.4 | iai-core | P1 | tool-checked | real — the packages/**/src source tree | grep `deidentifyPrivatePayload` across `packages/**/src`, excluding its own module | 0 references from `egress.ts` or any other guard reached by `checkEgress` |
 
 ### Boundary
 
-| # | Case | anchors_to | Target | Priority | Verifier | Command | Passes when |
-|---|------|------------|--------|----------|----------|---------|-------------|
-| 11 | A granted consent cannot produce an allow for `PRIVATE` to cloud | NEVER-243.6 | iai-core | P0 | tool-checked | `bun test packages/core` | `{granted: true}` blocks; the test name states why re-enabling is forbidden |
-| 12 | No consent value in the corpus produces an allow for `PRIVATE` to cloud | NEVER-243.6 | iai-core | P0 | tool-checked | `bun test packages/core` | granted, withheld, omitted, `{}`, `null`, `undefined`, `{granted: "yes"}`, a throwing getter — 0 allows across all of them |
-| 13 | Consent does not alter the decision for any class or destination | NEVER-243.6 | iai-core | P0 | tool-checked | `bun test packages/core` | For all four classes and both localities, the decision with consent granted is deep-equal to the decision with consent withheld |
-| 14 | Consent remains inert for `SECRET`, unchanged from S1.2 | NEVER-243.6 | iai-core | P0 | tool-checked | `bun test packages/core` | `SECRET` blocks under every consent value and both localities |
+| # | Case | anchors_to | Target | Priority | Verifier | Corpus | Command | Passes when |
+|---|------|------------|--------|----------|----------|--------|---------|-------------|
+| 11 | A granted consent cannot produce an allow for `PRIVATE` to cloud | NEVER-243.6 | iai-core | P0 | tool-checked | real — the shipped class/destination/consent matrix | `bun test packages/core` | `{granted: true}` blocks; the test name states why re-enabling is forbidden |
+| 12 | No consent value in the corpus produces an allow for `PRIVATE` to cloud | NEVER-243.6 | iai-core | P0 | tool-checked | synthetic — hostile consent shapes no real caller sends | `bun test packages/core` | granted, withheld, omitted, `{}`, `null`, `undefined`, `{granted: "yes"}`, a throwing getter — 0 allows across all of them |
+| 13 | Consent does not alter the decision for any class or destination | NEVER-243.6 | iai-core | P0 | tool-checked | real — the full class/locality decision matrix | `bun test packages/core` | For all four classes and both localities, the decision with consent granted is deep-equal to the decision with consent withheld |
+| 14 | Consent remains inert for `SECRET`, unchanged from S1.2 | NEVER-243.6 | iai-core | P0 | tool-checked | real — the class/locality/consent matrix, unchanged from S1.2 | `bun test packages/core` | `SECRET` blocks under every consent value and both localities |
 
 ### Integration
 
-| # | Case | anchors_to | Target | Priority | Verifier | Command | Passes when |
-|---|------|------------|--------|----------|----------|---------|-------------|
-| 6 | `CLAIM-15.4` is annotated as superseded and names #243 | CLAIM-243.3 | iai-references | P1 | human-attested | read `docs/design/stories/15.md` | The annotation names #243; the original claim text is intact, so the sealed Design still matches the evidence taken against it |
-| 7 | `CLAIM-126.3` and `CLAIM-126.4` are corrected at source and each names #243 | CLAIM-243.3 | iai-references | P1 | human-attested | read `docs/milestones/M5.md` | Both corrected; neither still asserts that a de-identified payload egresses |
-| 10 | The local-model prerequisite is recorded as a blocking dependency on M5 | CLAIM-243.5 | iai-references | P1 | human-attested | read `docs/milestones/M5.md` | The entry names the capability M5 cannot deliver without a named local model, not merely that one is missing |
+| # | Case | anchors_to | Target | Priority | Verifier | Corpus | Command | Passes when |
+|---|------|------------|--------|----------|----------|--------|---------|-------------|
+| 6 | `CLAIM-15.4` is annotated as superseded and names #243 | CLAIM-243.3 | iai-references | P1 | human-attested | real — docs/design/stories/15.md | read `docs/design/stories/15.md` | The annotation names #243; the original claim text is intact, so the sealed Design still matches the evidence taken against it |
+| 7 | `CLAIM-126.3` and `CLAIM-126.4` are corrected at source and each names #243 | CLAIM-243.3 | iai-references | P1 | human-attested | real — docs/milestones/M5.md | read `docs/milestones/M5.md` | Both corrected; neither still asserts that a de-identified payload egresses |
+| 10 | The local-model prerequisite is recorded as a blocking dependency on M5 | CLAIM-243.5 | iai-references | P1 | human-attested | real — docs/milestones/M5.md | read `docs/milestones/M5.md` | The entry names the capability M5 cannot deliver without a named local model, not merely that one is missing |
 
 ### Immutability
 
-| # | Case | anchors_to | Target | Priority | Verifier | Command | Passes when |
-|---|------|------------|--------|----------|----------|---------|-------------|
-| 15 | `docs/evidence/` is untouched and no posted sentinel is edited | NEVER-243.7 | iai-references | P0 | tool-checked | `git diff --name-only main...HEAD -- docs/evidence` | 0 files changed; #15's `## iai-verdict` remains as posted |
+| # | Case | anchors_to | Target | Priority | Verifier | Corpus | Command | Passes when |
+|---|------|------------|--------|----------|----------|--------|---------|-------------|
+| 15 | `docs/evidence/` is untouched and no posted sentinel is edited | NEVER-243.7 | iai-references | P0 | tool-checked | real — docs/evidence git history | `git diff --name-only main...HEAD -- docs/evidence` | 0 files changed; #15's `## iai-verdict` remains as posted |
 
 ## Not applicable
 
