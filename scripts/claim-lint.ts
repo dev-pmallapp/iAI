@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import {
   lintClaimDocs,
+  lintDesignSpine,
   lintPathRefs,
   lintTestPlanCorpus,
   staleAllowListEntries,
@@ -10,6 +11,7 @@ import {
   type ClaimDoc,
   type ClaimViolation,
   type ClaimRuleId,
+  type DesignSpineReport,
   type TestPlanCorpusReport,
 } from "../packages/core/src/index";
 
@@ -198,6 +200,7 @@ const RULE_IDS: ClaimRuleId[] = [
   "path-dangling",
   "allowlist-stale",
   "testplan-corpus",
+  "design-spine",
 ];
 
 function pluralize(count: number, singular: string, plural: string): string {
@@ -208,6 +211,7 @@ function printReport(
   violations: ClaimViolation[],
   fileCount: number,
   corpus: TestPlanCorpusReport,
+  spine: DesignSpineReport,
 ): void {
   const sorted = [...violations].sort((a, b) => {
     if (a.file !== b.file) return a.file < b.file ? -1 : 1;
@@ -234,6 +238,7 @@ function printReport(
     "path-dangling": 0,
     "allowlist-stale": 0,
     "testplan-corpus": 0,
+    "design-spine": 0,
   };
   for (const violation of violations) byRule[violation.rule] += 1;
 
@@ -255,6 +260,16 @@ function printReport(
     `claim-lint: testplan-corpus scanned ${corpus.plans} ${pluralize(corpus.plans, "plan", "plans")}, ` +
       `${corpus.tables} ${pluralize(corpus.tables, "case table", "case tables")}, ` +
       `${corpus.cases} ${pluralize(corpus.cases, "case", "cases")}`,
+  );
+
+  // The denominator for design-spine, printed for the same reason: a rule that
+  // stopped recognising Design documents -- a renamed directory, a changed
+  // filename shape -- would otherwise keep reporting 0 violations forever.
+  // Both numbers are printed because a Design whose headings stopped parsing
+  // has a non-zero document count and a zero section count.
+  console.log(
+    `claim-lint: design-spine scanned ${spine.designs} ${pluralize(spine.designs, "Design", "Designs")}, ` +
+      `${spine.sections} ${pluralize(spine.sections, "section", "sections")}`,
   );
 
   const errorCount = violations.filter((v) => v.severity === "error").length;
@@ -342,10 +357,20 @@ function main(): void {
   // pass — which is why the counts are printed even when they are zero.
   const corpus = lintTestPlanCorpus(markdownDocs);
 
+  // design-spine (CLAIM-41.3, gate rulings G1a and G1b). Same markdown subset;
+  // the rule selects docs/design/stories/ itself.
+  const spine = lintDesignSpine(markdownDocs);
+
   const violations = pathsOnly
-    ? [...pathViolations, ...staleViolations, ...corpus.violations]
-    : [...lintClaimDocs(docs), ...pathViolations, ...staleViolations, ...corpus.violations];
-  printReport(violations, docs.length, corpus);
+    ? [...pathViolations, ...staleViolations, ...corpus.violations, ...spine.violations]
+    : [
+        ...lintClaimDocs(docs),
+        ...pathViolations,
+        ...staleViolations,
+        ...corpus.violations,
+        ...spine.violations,
+      ];
+  printReport(violations, docs.length, corpus, spine);
 
   const hasError = violations.some((v) => v.severity === "error");
   process.exit(hasError ? 1 : 0);
