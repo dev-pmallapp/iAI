@@ -885,6 +885,41 @@ describe("domain-routing-form negative fixtures and the own-domain carve-out", (
     expect(ownDomainOf("references/verification.md")).toBeUndefined();
   });
 
+  // FOUND BY MUTATION M7, WHICH SURVIVED THE FIRST RUN.
+  //
+  // `ownDomainOf` grants the carve-out. Written as a bare prefix test --
+  // `dir.startsWith(id)` -- it hands `dev` to `skills/development-tools/` and
+  // `know` to `skills/knowledge-base/`, silently exempting a verb that is not a
+  // domain pack at all. The carve-out must be SHAPE-BASED: exactly the id, or
+  // the id followed by a hyphen.
+  //
+  // THIS IS THE THIRD OCCURRENCE OF ONE CLASS. docs/evidence/34-*.md: "an
+  // exemption expressed as a line range admits anything that fits inside the
+  // range." Case 7 of docs/test-plans/35-plan.md: a prefix match on the
+  // model-ID exemption "would additionally exempt a hypothetical
+  // model-routing-notes.md". Same defect, third shape: an exemption expressed
+  // as a prefix admits anything that starts with it.
+  //
+  // An over-broad exemption is the dangerous direction. A rule that fires too
+  // often is noisy and gets fixed; a carve-out that is too generous is silent
+  // and never does.
+  test("the own-domain carve-out is shape-based, not a bare prefix", () => {
+    expect(ownDomainOf("skills/development-tools/SKILL.md")).toBeUndefined();
+    expect(ownDomainOf("skills/knowledge-base/SKILL.md")).toBeUndefined();
+    expect(ownDomainOf("skills/devops/SKILL.md")).toBeUndefined();
+    expect(ownDomainOf("skills/wealthy-clients/SKILL.md")).toBeUndefined();
+
+    // ...and the two legal shapes still hold, so this did not fix the leak by
+    // breaking the carve-out.
+    expect(ownDomainOf("skills/dev/domain.md")).toBe("dev");
+    expect(ownDomainOf("skills/dev-coder/SKILL.md")).toBe("dev");
+
+    // The consequence the mutation exposed: a verb merely BEGINNING with a
+    // domain id must still be policed.
+    const v = lintBodyRules("skills/development-tools/SKILL.md", "route on `domain:dev`");
+    expect(v.map((x) => x.rule)).toEqual(["domain-routing-form"]);
+  });
+
   test("a longer word beginning with a domain id is not a routing form", () => {
     expect(routingForms("`domain:knowledge` and `skills/devops` and `domain:development`")).toEqual([]);
   });
