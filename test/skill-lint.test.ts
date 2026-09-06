@@ -1242,9 +1242,25 @@ describe("NEVER-41.7 and the #295 section rules over the real skill corpus", () 
 const CASE_6_REQUIRED_SKILL_COUNT = 4; // docs/test-plans/41-plan.md:119, "4 of 4"
 
 describe("case 6's 4-of-4 threshold (docs/test-plans/41-plan.md:119)", () => {
-  test("the real skill corpus has NOT YET reached 4 of 4 — flips ONCE, to toBe(4), when the last verb lands", () => {
+  // FLIPPED BY #45, the last of the four verbs, which is the single edit this
+  // assertion was written to require. It read `toBeLessThan(4)` from #44 until
+  // now, so the shortfall was stated on every run rather than assumed away.
+  //
+  // NEVER-41.7 said "proved over the real four-skill corpus, not a fixture".
+  // This is the line that makes the denominator in that sentence real: the
+  // loops above assert zero violations over whatever exists, and this asserts
+  // that what exists is the four the case names. Without it those loops stay
+  // green over a corpus that quietly shrank.
+  //
+  // It is deliberately NOT a run-time equality. Every other assertion added by
+  // #44 and #296 reads both sides from disk and needs no editing; this one
+  // hardcodes the number the PLAN specifies, because "4" here is a claim about
+  // what S2.2 committed to build, not a fact about the filesystem. A disk-read
+  // denominator on both sides would pass a corpus of three verbs and a deleted
+  // one, which is exactly the drift case 6 exists to catch.
+  test("the real skill corpus is 4 of 4 — case 6's denominator is met", () => {
     const files = realSkillFiles();
-    expect(files.length).toBeLessThan(CASE_6_REQUIRED_SKILL_COUNT);
+    expect(files.length).toBe(CASE_6_REQUIRED_SKILL_COUNT);
   });
 });
 
