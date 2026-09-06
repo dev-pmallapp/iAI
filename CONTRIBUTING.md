@@ -113,7 +113,13 @@ drifted from the core's types.
 bun run skill-lint skills/
 ```
 
-Passes when: exit code 0. Validates every `SKILL.md` against the **both-hosts
+Passes when: exit code 0. **Two populations are scanned and two counts are
+printed** (Decision 11 of `docs/design/stories/35.md`): every `SKILL.md` under
+`skills/` gets the frontmatter schema **plus** the body rules, while every
+`.md` under `references/` and `agents/` gets the **body rules only** — no
+frontmatter rule ever reaches a contract document, which has none by design.
+
+Validates every `SKILL.md` against the **both-hosts
 intersection schema** — `name` (required, 1–64 chars, matching
 `^[a-z0-9]+(-[a-z0-9]+)*$`, and **identical to the containing directory
 name**), `description` (required, 1–1024 chars), and the optional `license`,
