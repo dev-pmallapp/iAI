@@ -110,9 +110,40 @@ describe("claim-lint CLI exit codes and reporting", () => {
       "identifier-duplicate",
       "anticlaim-not-never",
       "anchor-dangling",
+      "testplan-corpus",
     ]) {
       expect(stdout).toContain(rule);
     }
+  });
+
+  // Issue #289. The rule's denominator is printed as three numbers, not one.
+  // `skill-lint: 0 SKILL.md files scanned, 0 errors` is this repository's
+  // standing example of a check that passes while checking nothing; a single
+  // conflated total would let the case count fall to zero unnoticed — a plan
+  // renamed out of docs/test-plans/, or a header edited so no table is
+  // recognised — while the rule kept reporting success.
+  test("the testplan-corpus denominator is printed, non-zero, and split three ways", async () => {
+    const { stdout, code } = await run();
+    expect(code).toBe(0);
+
+    const match = /claim-lint: testplan-corpus scanned (\d+) plans?, (\d+) case tables?, (\d+) cases?/.exec(
+      stdout,
+    );
+    expect(match).not.toBeNull();
+
+    const [plans, tables, cases] = (match ?? []).slice(1).map(Number);
+    expect(plans).toBeGreaterThanOrEqual(8);
+    expect(tables).toBeGreaterThanOrEqual(40);
+    expect(cases).toBeGreaterThanOrEqual(190);
+  });
+
+  // Narrowing the CLI away from docs/test-plans/ must not look like success.
+  // The counts go to zero and say so, rather than the rule quietly reporting
+  // "0 violations" over an empty population.
+  test("narrowing the scan away from the plans zeroes the denominator visibly", async () => {
+    const { stdout, code } = await run("docs/milestones");
+    expect(code).toBe(0);
+    expect(stdout).toContain("testplan-corpus scanned 0 plans, 0 case tables, 0 cases");
   });
 });
 

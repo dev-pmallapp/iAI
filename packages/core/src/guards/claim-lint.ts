@@ -37,7 +37,8 @@ export type ClaimRuleId =
   | "anticlaim-not-never"
   | "anchor-dangling"
   | "path-dangling"
-  | "allowlist-stale";
+  | "allowlist-stale"
+  | "testplan-corpus";
 
 export type ClaimSeverity = "error" | "warning";
 
@@ -122,7 +123,11 @@ export function formatClaimId(id: ClaimId): string {
 // Story 194 is the renaming Story and legitimately quotes nine of Story 9's
 // identifiers.
 const STORY_DESIGN_RE = /^docs\/design\/stories\/(\d+)\.md$/;
-const TEST_PLAN_RE = /^docs\/test-plans\/[^/]+\.md$/;
+// Exported so testplan-corpus.ts selects exactly the same population this
+// module's anchors_to parser does. Two independently written path predicates
+// over the same directory is the `duplicate-contract` defect in miniature:
+// they agree until one of them is edited.
+export const TEST_PLAN_RE = /^docs\/test-plans\/[^/]+\.md$/;
 
 // Loose on purpose: capture whatever sits between `- [ ] ` and the colon so a
 // malformed identifier is still seen and reported, rather than silently
@@ -165,13 +170,13 @@ interface ParsedDoc {
  *  This matters: docs/test-plans/194-plan.md:57 carries an escaped pipe pair
  *  in the Case column, which sits BEFORE anchors_to. A naive split('|') shifts
  *  every later column and reads the wrong cell. */
-function splitRow(line: string): string[] {
+export function splitRow(line: string): string[] {
   const guarded = line.replace(/\\\|/g, "\u0000");
   const trimmed = guarded.trim().replace(/^\|/, "").replace(/\|$/, "");
   return trimmed.split("|").map((cell) => cell.replace(/\u0000/g, "\\|").trim());
 }
 
-function isSeparatorRow(cells: string[]): boolean {
+export function isSeparatorRow(cells: string[]): boolean {
   return cells.length > 0 && cells.every((cell) => /^:?-{2,}:?$/.test(cell));
 }
 

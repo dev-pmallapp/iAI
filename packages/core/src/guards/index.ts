@@ -8,6 +8,7 @@ export {
   mapStory,
   parseClaimId,
 } from "./claim-lint";
+export { TEST_PLAN_RE, isSeparatorRow, splitRow } from "./claim-lint";
 export type {
   ClaimDoc,
   ClaimId,
@@ -15,6 +16,13 @@ export type {
   ClaimSeverity,
   ClaimViolation,
 } from "./claim-lint";
+export {
+  CORPUS_COLUMN,
+  CORPUS_KINDS,
+  MIN_CORPUS_DETAIL,
+  lintTestPlanCorpus,
+} from "./testplan-corpus";
+export type { CorpusKind, TestPlanCorpusReport } from "./testplan-corpus";
 export { PATH_ALLOW_LIST, isPathAllowed } from "./path-allowlist";
 export type { AllowReason, AllowedPath } from "./path-allowlist";
 export { extractPathRefs, lintPathRefs, staleAllowListEntries } from "./path-refs";
