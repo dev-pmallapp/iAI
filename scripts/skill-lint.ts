@@ -4,6 +4,7 @@ import {
   BLOB_SHA_PATTERN,
   COMMIT_PREFIX_RE,
   EXCLUSIVE_LABEL_PREFIXES,
+  KNOWN_DOMAIN_IDS,
   SENTINEL_NAMESPACE_PREFIX,
   SUB_ISSUE_FEATURE_HEADER,
 } from "../packages/core/src/index";
@@ -52,7 +53,9 @@ export type SkillRuleId =
   // runs over that second population.
   | "duplicate-contract"
   | "reference-citation-count"
-  | "model-id-literal";
+  | "model-id-literal"
+  // --- S2.2 / #46. -----------------------------------------------------
+  | "domain-routing-form";
 
 export type Severity = "error" | "warning";
 
@@ -540,7 +543,78 @@ export function discretionaryReferences(body: string): string[] {
   return citedReferences(body).filter((c) => !BASELINE_REFERENCES.includes(c));
 }
 
-// The three body rules. PURE over (path, body) — no fs, no discovery.
+
+// --- domain-routing-form (CLAIM-41.6, NEVER-41.7) -----------------------
+//
+// Ruled at the S2.2 design gate on 2026-09-06 (G2). The seeded form of
+// CLAIM-41.6 banned the bare tokens `dev`, `trade`, `health`, `wealth` and
+// `know` from a skill body "outside a references/ citation path". That was
+// measured against the real corpus and it fails three ways:
+//
+//   1. `know` is an ordinary English word. 16 occurrences across the twelve
+//      shipped references, 13 of them `known` / `knows` / `knowledge` /
+//      `unknown`. A whole-word rule still breaks on the remaining 3.
+//   2. The carve-out is ZERO-WIDTH. None of the twelve reference FILENAMES
+//      contains any of the five tokens, so "outside a references/ citation
+//      path" exempts 0 of 28 occurrences.
+//   3. It is self-contradictory. references/domain-binding.md:13 -- "The
+//      kernel does not know what `trade` or `health` means" -- holds four of
+//      the five banned tokens and is the doctrine CLAIM-41.5 requires these
+//      skills to implement. docs/design/01-skill-hierarchy.md:33 states the
+//      rule using `trade`; CONTRIBUTING.md:304 uses `know` twice to say a
+//      Tier-1 verb may never know a domain. Under the seeded wording the two
+//      documents that DEFINE domain-agnosticism violate it.
+//
+// So the rule bans the FORM THAT DOES THE HARM, not the word that describes
+// it: a routing decision keyed on a domain identifier. Same shape as
+// no-domain-pack-import (scripts/lint.ts), which bans an import specifier
+// rather than a word, and the same lesson as model-id-literal, whose header
+// records that a generic pattern "would flag every document in the tree".
+//
+// THE CARVE-OUT IS DERIVED, NOT LISTED. CONTRIBUTING.md:303-304 is exact:
+// "A leaf skill may know its own domain; a Tier-1 verb may never know any."
+// A body's OWN domain is read from its own directory -- `skills/trade-backtest/`
+// owns `trade` -- so no enumeration of the fourteen Tier-1 verbs is needed and
+// none can go stale. A contract document under references/ or agents/ has no
+// directory to own one, so it may name none.
+
+/** The domain a body is permitted to name: the one its own directory declares.
+ *  `undefined` for a Tier-1 verb and for every contract document. */
+export function ownDomainOf(filePath: string): string | undefined {
+  const match = /(?:^|\/)skills\/([^/]+)\//.exec(filePath);
+  if (match === null) return undefined;
+  const dir = match[1] ?? "";
+  return KNOWN_DOMAIN_IDS.find((id) => dir === id || dir.startsWith(`${id}-`));
+}
+
+export interface RoutingForm {
+  readonly form: string;
+  readonly domain: string;
+  readonly index: number;
+}
+
+/** Every routing form in a body: a `domain:<id>` label or a `skills/<id>` path.
+ *
+ *  The negative lookahead is what keeps `domain:knowledge`, `skills/devops` and
+ *  `references/data-classification.md`'s prose out of the result. A bare
+ *  `domain:` with no id -- references/workflow-states.md:15 owns the namespace
+ *  and must be able to name it -- matches nothing here. */
+export function routingForms(body: string): RoutingForm[] {
+  const found: RoutingForm[] = [];
+  for (const id of KNOWN_DOMAIN_IDS) {
+    for (const pattern of [`domain:${id}(?![a-z0-9])`, `skills\\/${id}(?![a-z0-9])`]) {
+      const re = new RegExp(pattern, "g");
+      let m: RegExpExecArray | null = re.exec(body);
+      while (m !== null) {
+        found.push({ form: m[0], domain: id, index: m.index });
+        m = re.exec(body);
+      }
+    }
+  }
+  return found.sort((a, b) => a.index - b.index);
+}
+
+// The body rules. PURE over (path, body) — no fs, no discovery.
 //
 // POPULATION IS PER RULE, not per rule-set. This was wrong on the first
 // implementation and real content caught it:
@@ -617,6 +691,28 @@ export function lintBodyRules(
     }
   }
 
+  // --- domain-routing-form (CLAIM-41.6, NEVER-41.7) ---
+  const own = ownDomainOf(filePath);
+  for (const hit of routingForms(body)) {
+    if (hit.domain === own) continue;
+    violations.push({
+      file: filePath,
+      line: lineOf(body, hit.index),
+      rule: "domain-routing-form",
+      severity: "error",
+      message:
+        `domain-routing-form: this body hardcodes a routing decision on "${hit.form}". ` +
+        (own === undefined
+          ? `A Tier-1 verb reads the issue's label and loads that pack's binding; it may name ` +
+            `no domain at all (CONTRIBUTING.md:303-304). Adding a sixth domain must be one ` +
+            `binding file, not an edit here`
+          : `This body owns "${own}" and may name that one, but not "${hit.domain}" ` +
+            `(CONTRIBUTING.md:303-304)`) +
+        `. Naming a domain in PROSE is fine — only the routing form is banned (Decision 4 of ` +
+        `docs/design/stories/41.md, ruled at the gate)`,
+    });
+  }
+
   return violations;
 }
 
@@ -691,6 +787,7 @@ const RULE_IDS: SkillRuleId[] = [
   "duplicate-contract",
   "reference-citation-count",
   "model-id-literal",
+  "domain-routing-form",
 ];
 
 function pluralize(count: number, singular: string, plural: string): string {
@@ -729,6 +826,7 @@ function printReport(
     "duplicate-contract": 0,
     "reference-citation-count": 0,
     "model-id-literal": 0,
+    "domain-routing-form": 0,
   };
   for (const violation of violations) byRule[violation.rule] += 1;
 
@@ -767,7 +865,7 @@ function printReport(
 // frontmatter rule runs over the directories below. Row 19 never considered a
 // body rule, because none existed until this Story. The row is annotated in
 // place, never edited — its verdict rows are immutable by Decision 9.
-const CONTRACT_DIRS: readonly string[] = ["references", "agents"];
+export const CONTRACT_DIRS: readonly string[] = ["references", "agents"];
 
 function main(): void {
   const repoRoot = join(import.meta.dir, "..");

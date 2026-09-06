@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -9,11 +9,15 @@ import {
   MODEL_ID_VENDORS,
   discoverContractFiles,
   discretionaryReferences,
+  CONTRACT_DIRS,
   lintBodyRules,
+  ownDomainOf,
+  routingForms,
   lintContractTree,
   lintSkillSource,
   lintSkillTree,
 } from "../scripts/skill-lint";
+import { KNOWN_DOMAIN_IDS } from "../packages/core/src/index";
 // Contracts are IMPORTED, never restated — the rule under test polices
 // exactly this, and a test that restated them would be its own violation.
 import {
@@ -724,5 +728,206 @@ describe("live content, not fixtures (#287 finding 4)", () => {
         ),
     );
     expect(over).toEqual([]);
+  });
+});
+
+// --- domain-routing-form (CLAIM-41.6, NEVER-41.7), task #46 --------------
+//
+// EVERY POSITIVE CASE HERE READS A REAL FILE OFF DISK. The rule exists
+// because the SEEDED form of CLAIM-41.6 was measured against the real corpus
+// and found unsatisfiable: `know` appears 16 times in references/, 13 of them
+// ordinary English, and the seeded carve-out exempted 0 of 28 occurrences.
+// A suite that proved this rule only against invented bodies would repeat the
+// defect the rule was rewritten to avoid -- #287 and #289 both.
+
+const repoRootForDomains = join(import.meta.dir, "..");
+
+function readReal(relPath: string): string {
+  return readFileSync(join(repoRootForDomains, relPath), "utf8");
+}
+
+function realReferenceDocs(): { path: string; body: string }[] {
+  const dir = join(repoRootForDomains, "references");
+  return readdirSync(dir)
+    .filter((f) => f.endsWith(".md"))
+    .sort()
+    .map((f) => ({ path: `references/${f}`, body: readFileSync(join(dir, f), "utf8") }));
+}
+
+describe("domain-routing-form over the real corpus", () => {
+  test("no shipped reference document carries a routing form", () => {
+    const refs = realReferenceDocs();
+    expect(refs.length).toBeGreaterThanOrEqual(12);
+    for (const ref of refs) {
+      const v = lintBodyRules(ref.path, ref.body, { isSkill: false });
+      expect(v.filter((x) => x.rule === "domain-routing-form")).toEqual([]);
+    }
+  });
+
+  // CASE 13. This is the gate ruling G2 made executable.
+  test("the `know` family is present in quantity and produces zero violations", () => {
+    const refs = realReferenceDocs();
+    const hits = refs.reduce(
+      (n, r) => n + (r.body.match(/know/gi) ?? []).length,
+      0,
+    );
+    // The denominator IS the case: a rule that passed over zero occurrences of
+    // the word would prove nothing about dropping it from the ban.
+    expect(hits).toBeGreaterThanOrEqual(14);
+
+    for (const ref of refs) {
+      const v = lintBodyRules(ref.path, ref.body, { isSkill: false });
+      expect(v.filter((x) => x.rule === "domain-routing-form")).toEqual([]);
+    }
+
+    // And the specific ordinary-English forms are really there, so this cannot
+    // pass because the corpus quietly lost them.
+    const all = refs.map((r) => r.body).join("\n");
+    for (const word of ["known", "knows", "knowledge", "unknown"]) {
+      expect(all).toContain(word);
+    }
+  });
+
+  // CASE 14, AMENDED. The sharpest property of the whole rule, but it has to be
+  // stated over the right unit.
+  //
+  // The seeded CLAIM-41.6 banned the bare tokens, and under it these two
+  // documents violated the rule they define: 01-skill-hierarchy.md:33 states it
+  // using `trade`, and CONTRIBUTING.md:304 uses `know` twice. THAT is what case
+  // 14 was written to pin, and the ruled rule passes it.
+  //
+  // What case 14 could NOT be asked to pin is the whole FILE. A design document
+  // is not a skill body and is not in this rule's population; applying a
+  // skill-body rule to it is a category error -- the same one caught in #294,
+  // where a Design rule had been pointed at the skill linter. Second occurrence
+  // in two tasks.
+  //
+  // 01-skill-hierarchy.md legitimately carries routing forms because DOCUMENTING
+  // routing is its job: `:436` spells out "Read `domain:trade` -> load
+  // `skills/trade/domain.md`". A document that explains routing is not a body
+  // that performs it.
+  test("the sentences that DEFINE domain-agnosticism pass the rule that enforces it", () => {
+    const hierarchy = readReal("docs/design/01-skill-hierarchy.md");
+    const contributing = readReal("CONTRIBUTING.md");
+
+    // The exact doctrine sentences, read out of the real documents rather than
+    // retyped, so this cannot pass against a paraphrase that drifted.
+    const doctrine = [
+      'There is no `if (domain === "trade")`',
+      "A Tier-1 verb never hardcodes a domain",
+      "a Tier-1 verb may never know any",
+    ];
+    for (const sentence of doctrine) {
+      expect(hierarchy + contributing).toContain(sentence);
+      const v = lintBodyRules("skills/goal-create/SKILL.md", sentence);
+      expect(v.filter((x) => x.rule === "domain-routing-form")).toEqual([]);
+    }
+  });
+
+  // The out-of-population citations, asserted rather than hidden. If this ever
+  // goes to zero, someone has "cleaned up" a design document to satisfy a rule
+  // that was never meant to reach it.
+  test("the design document carries routing forms BECAUSE documenting routing is its job", () => {
+    const hierarchy = readReal("docs/design/01-skill-hierarchy.md");
+    expect(hierarchy).toContain("Read `domain:trade`");
+    expect(routingForms(hierarchy).length).toBeGreaterThanOrEqual(4);
+
+    // And it is out of population: skill-lint scans skills/, references/ and
+    // agents/. docs/ is claim-lint's, and claim-lint does not run this rule.
+    expect(CONTRACT_DIRS).not.toContain("docs");
+  });
+
+  // references/workflow-states.md owns the label namespaces and must be able to
+  // name `domain:` without an id.
+  test("a bare `domain:` namespace with no id is not a routing form", () => {
+    expect(readReal("references/workflow-states.md")).toContain("domain:");
+    expect(routingForms("the exclusive prefix `domain:` is one per issue")).toEqual([]);
+  });
+});
+
+describe("domain-routing-form negative fixtures and the own-domain carve-out", () => {
+  // CASE 10.
+  test("a Tier-1 body carrying a label routing form is reported, and only as that", () => {
+    const v = lintBodyRules("skills/story-design/SKILL.md", "route when `domain:trade` is set");
+    expect(v.map((x) => x.rule)).toEqual(["domain-routing-form"]);
+    expect(v[0]?.message).toContain("hardcodes a routing decision");
+    expect(v[0]?.message).toContain("domain:trade");
+    // Assert the REASON, not the verdict: no other body rule may be what
+    // rejected this fixture.
+    expect(v[0]?.message).not.toContain("restates");
+    expect(v[0]?.message).not.toContain("discretionary");
+    expect(v[0]?.message).not.toContain("literal model ID");
+  });
+
+  test("a Tier-1 body carrying a path routing form is reported", () => {
+    const v = lintBodyRules("skills/story-create/SKILL.md", "load `skills/health/domain.md`");
+    expect(v.map((x) => x.rule)).toEqual(["domain-routing-form"]);
+    expect(v[0]?.message).toContain("skills/health");
+  });
+
+  // CONTRIBUTING.md:303-304 exactly: "A leaf skill may know its own domain; a
+  // Tier-1 verb may never know any." The carve-out is DERIVED from the path,
+  // so no list of the fourteen verbs exists to go stale.
+  test("a Tier-2 leaf skill may name its OWN domain but not another", () => {
+    const own = lintBodyRules("skills/trade-backtest/SKILL.md", "this is `domain:trade` work");
+    expect(own.filter((x) => x.rule === "domain-routing-form")).toEqual([]);
+
+    const other = lintBodyRules("skills/trade-backtest/SKILL.md", "also `domain:health`");
+    expect(other.map((x) => x.rule)).toEqual(["domain-routing-form"]);
+    expect(other[0]?.message).toContain('owns "trade"');
+  });
+
+  test("ownDomainOf derives the carve-out from the path, and is undefined for Tier-1", () => {
+    expect(ownDomainOf("skills/trade-backtest/SKILL.md")).toBe("trade");
+    expect(ownDomainOf("skills/dev/domain.md")).toBe("dev");
+    expect(ownDomainOf("skills/goal-create/SKILL.md")).toBeUndefined();
+    expect(ownDomainOf("skills/story-test-plan/SKILL.md")).toBeUndefined();
+    expect(ownDomainOf("references/verification.md")).toBeUndefined();
+  });
+
+  test("a longer word beginning with a domain id is not a routing form", () => {
+    expect(routingForms("`domain:knowledge` and `skills/devops` and `domain:development`")).toEqual([]);
+  });
+
+  // CASE 22.
+  test("the rule reads KNOWN_DOMAIN_IDS and does not restate the five ids", () => {
+    // Every shipped id is enforced, derived from the export rather than listed.
+    for (const id of KNOWN_DOMAIN_IDS) {
+      const v = lintBodyRules("skills/goal-create/SKILL.md", `see \`domain:${id}\``);
+      expect(v.map((x) => x.rule)).toEqual(["domain-routing-form"]);
+    }
+    // And no second copy of the list exists in the linter source.
+    const source = readReal("scripts/skill-lint.ts");
+    const literalList = KNOWN_DOMAIN_IDS.map((id) => `"${id}"`).join(", ");
+    expect(source).not.toContain(literalList);
+    expect(source).toContain("KNOWN_DOMAIN_IDS");
+  });
+});
+
+describe("domain-routing-form vacuity, stated rather than hidden", () => {
+  // NEVER-41.7 says "proved over the real four-skill corpus, not a fixture".
+  // THE FOUR SKILLS DO NOT EXIST YET -- they are #42-#45. This rule ships
+  // BEFORE its own skill corpus, which is the opposite of how #280 was
+  // sequenced, and finding 36 of the S2.1 evidence is explicit that sequencing
+  // a rule after its corpus is what stopped it shipping wrong and green.
+  //
+  // The trade is deliberate and it is recorded on #46: a rule that constrains
+  // how the four verbs are WRITTEN is worth more before they are written than
+  // after, which is the same preventive-beats-detective argument #289 settled.
+  // What protects it is that the skill denominator is ASSERTED to be zero
+  // today, so nobody can mistake a green run for a verified claim.
+  test("the skill population is empty today, so NEVER-41.7 is NOT yet discharged", () => {
+    const skillsDir = join(repoRootForDomains, "skills");
+    const skillFiles = readdirSync(skillsDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .filter((e) => existsSync(join(skillsDir, e.name, "SKILL.md")));
+
+    // When this goes red, the four verbs have landed and NEVER-41.7 becomes
+    // provable over real bodies. Update it then; do not delete it.
+    expect(skillFiles).toHaveLength(0);
+  });
+
+  test("the contract population is NOT empty, so the rule is not vacuous today", () => {
+    expect(realReferenceDocs().length).toBeGreaterThanOrEqual(12);
   });
 });
