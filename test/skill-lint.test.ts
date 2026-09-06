@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import {
   BASELINE_REFERENCES,
   MAX_DISCRETIONARY_REFERENCES,
@@ -1299,11 +1299,48 @@ describe("case 6: each real skill reads the domain: label before resolving the b
     expect(realSkillFiles().length).toBeGreaterThan(0);
   });
 
+  // THE EXEMPTION IS NAMED, COUNTED AND ASSERTED — never derived from a
+  // pattern. #307 records why one is needed at all: CLAIM-41.5 says "each of
+  // the four skills resolves the binding from the Story's `domain:` label",
+  // and `goal-create` HAS NO STORY. It runs before any Story exists, and a
+  // milestone carries no labels, so "the Story's domain: label" has no
+  // referent for it. The doctrine it does share -- absence is a hard failure,
+  // not a default -- is asserted over ALL bodies below and in case 12.
+  //
+  // A DERIVED exemption ("bodies that do not cite domain-binding.md") would be
+  // the silent direction, and this repository has recorded that failure five
+  // times. So the list is literal, its size is asserted, and every member must
+  // exist on disk -- a stale exemption for a skill that was renamed or that
+  // later grew a binding read cannot sit here unnoticed.
+  const DOMAIN_ORDERING_EXEMPT: readonly string[] = ["goal-create"];
+
+  test("the domain-ordering exemption is exactly one skill, and it exists on disk", () => {
+    expect(DOMAIN_ORDERING_EXEMPT).toHaveLength(1);
+    const names = new Set(realSkillFiles().map((f) => basename(dirname(f.relPath))));
+    for (const exempt of DOMAIN_ORDERING_EXEMPT) {
+      expect(names.has(exempt), `exempt skill "${exempt}" is not on disk -- retire the exemption`).toBe(true);
+    }
+  });
+
   test("every real skill body: label-read precedes binding-resolution, and the hard-failure block is present", () => {
     const files = realSkillFiles();
     expect(files.length).toBeGreaterThan(0); // denominator first, per case 6's own wording
 
     for (const file of files) {
+      // The hard-failure block is required of EVERY body, exempt or not: it is
+      // the doctrine, and only its trigger differs.
+      expect(file.body, `${file.relPath} must carry the house hard-failure block`).toMatch(HARD_FAILURE_BLOCK_RE);
+
+      if (DOMAIN_ORDERING_EXEMPT.includes(basename(dirname(file.relPath)))) {
+        // Exempt from the ORDERING half only, and it must say why in its own
+        // body rather than relying on this list to explain it.
+        expect(
+          file.body,
+          `${file.relPath} is exempt from the domain ordering, so it must state that it reads no domain`,
+        ).toMatch(/reads no `domain:` label/i);
+        continue;
+      }
+
       const labelIdx = file.body.search(DOMAIN_LABEL_READ_RE);
       expect(labelIdx, `${file.relPath} must name reading the domain: label`).toBeGreaterThanOrEqual(0);
 
@@ -1320,8 +1357,6 @@ describe("case 6: each real skill reads the domain: label before resolving the b
         labelIdx,
         `${file.relPath} must name the label read BEFORE the step that resolves the binding`,
       ).toBeLessThan(bindingIdx);
-
-      expect(file.body, `${file.relPath} must carry the house hard-failure block`).toMatch(HARD_FAILURE_BLOCK_RE);
     }
   });
 });
@@ -1369,14 +1404,21 @@ describe("case 12: absence of the domain: label produces the hard-failure block,
       const block = HARD_FAILURE_BLOCK_RE.exec(file.body)?.[0];
       expect(block, `${file.relPath} must carry the hard-failure block`).toBeDefined();
 
-      // Tied to ABSENCE, not merely present: the block must itself reference
-      // the domain: label as what was expected, and record that none was
-      // found — not some other, unrelated hard failure the body might emit.
-      expect(block, `${file.relPath}'s hard-failure block must name the domain: label`).toContain("domain:");
+      // Tied to ABSENCE, not merely present. Asserted on the SHAPE of the
+      // block rather than on the literal token "domain:", because #307
+      // establishes that the required input differs per verb -- goal-create
+      // hard-fails on an unresolvable goal, story-design on a missing
+      // `domain:` label -- while the doctrine does not. The block must name
+      // what it expected and record that none was found, so an unrelated
+      // hard failure the body happens to emit cannot satisfy this case.
       expect(
         block ?? "",
-        `${file.relPath}'s hard-failure block must record the label's absence, not merely fail`,
-      ).toMatch(/none/i);
+        `${file.relPath}'s hard-failure block must name what it expected`,
+      ).toMatch(/^- Expected: .+$/m);
+      expect(
+        block ?? "",
+        `${file.relPath}'s hard-failure block must record the input's absence, not merely fail`,
+      ).toMatch(/^- Found: none$/m);
 
       // The explicit refusal doctrine, read verbatim off the real body
       // (skills/story-design/SKILL.md:40, itself echoing
