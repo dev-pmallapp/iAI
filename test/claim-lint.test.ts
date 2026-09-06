@@ -111,6 +111,7 @@ describe("claim-lint CLI exit codes and reporting", () => {
       "anticlaim-not-never",
       "anchor-dangling",
       "testplan-corpus",
+      "design-spine",
     ]) {
       expect(stdout).toContain(rule);
     }
@@ -135,6 +136,31 @@ describe("claim-lint CLI exit codes and reporting", () => {
     expect(plans).toBeGreaterThanOrEqual(8);
     expect(tables).toBeGreaterThanOrEqual(40);
     expect(cases).toBeGreaterThanOrEqual(190);
+  });
+
+  // Task #294. The Design corpus gets the same treatment as the plan corpus:
+  // two numbers, both printed, both asserted. A Design count that stayed
+  // non-zero while the section count fell to zero would mean the heading parser
+  // had stopped working while the rule kept reporting success.
+  test("the design-spine denominator is printed, non-zero, and split two ways", async () => {
+    const { stdout, code } = await run();
+    expect(code).toBe(0);
+
+    const match = /claim-lint: design-spine scanned (\d+) Designs?, (\d+) sections?/.exec(stdout);
+    expect(match).not.toBeNull();
+
+    const [designs, sections] = (match ?? []).slice(1).map(Number);
+    expect(designs).toBeGreaterThanOrEqual(10);
+    expect(sections).toBeGreaterThanOrEqual(100);
+  });
+
+  // The one known metadata outlier is a WARNING, so the whole chain must stay
+  // green with it present. If this ever goes red, someone promoted the ruling's
+  // "recorded rather than failed" into a hard failure.
+  test("the metadata outlier warns without failing the run", async () => {
+    const { stdout, code } = await run();
+    expect(code).toBe(0);
+    expect(stdout).toContain("1 warning");
   });
 
   // Narrowing the CLI away from docs/test-plans/ must not look like success.

@@ -38,7 +38,8 @@ export type ClaimRuleId =
   | "anchor-dangling"
   | "path-dangling"
   | "allowlist-stale"
-  | "testplan-corpus";
+  | "testplan-corpus"
+  | "design-spine";
 
 export type ClaimSeverity = "error" | "warning";
 
