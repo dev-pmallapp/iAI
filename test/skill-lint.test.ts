@@ -603,12 +603,24 @@ describe("the design and the constant agree (#287 part A)", () => {
     expect(Number(m?.[1])).toBe(MAX_DISCRETIONARY_REFERENCES);
   });
 
-  test("CONTRIBUTING names every baseline reference as baseline", () => {
+  test("CONTRIBUTING marks EACH baseline reference baseline, in its own item", () => {
+    // The first version of this test asserted only that the word "baseline"
+    // appeared SOMEWHERE in the file. Mutation M8 of #287 removed it from one
+    // of the three items and the test stayed green, because the other two
+    // still carried it. Assert per item, not per file — the
+    // docs/evidence/33-20260904T113934Z.md lesson in a new place.
     const doc = readFileSync(join(repoRoot, "CONTRIBUTING.md"), "utf8");
+    const items = doc.split(/^- \[ \] /m).slice(1);
+    expect(items.length).toBeGreaterThan(10);
+
     for (const ref of BASELINE_REFERENCES) {
       const name = ref.replace("references/", "").replace(".md", "");
-      expect(doc).toContain(name);
+      const owning = items.filter((i) => i.includes(name));
+      expect(owning.length, `no CONTRIBUTING item mentions ${name}`).toBeGreaterThan(0);
+      expect(
+        owning.some((i) => i.includes("baseline")),
+        `the item naming ${name} must call it baseline (#287 part C)`,
+      ).toBe(true);
     }
-    expect(doc).toContain("baseline");
   });
 });
