@@ -55,7 +55,10 @@ export type SkillRuleId =
   | "reference-citation-count"
   | "model-id-literal"
   // --- S2.2 / #46. -----------------------------------------------------
-  | "domain-routing-form";
+  | "domain-routing-form"
+  // --- S2.2 / #295. ------------------------------------------------------
+  | "phase-0-section"
+  | "error-handling-section";
 
 export type Severity = "error" | "warning";
 
@@ -561,7 +564,7 @@ export function discretionaryReferences(body: string): string[] {
 //      kernel does not know what `trade` or `health` means" -- holds four of
 //      the five banned tokens and is the doctrine CLAIM-41.5 requires these
 //      skills to implement. docs/design/01-skill-hierarchy.md:33 states the
-//      rule using `trade`; CONTRIBUTING.md:304 uses `know` twice to say a
+//      rule using `trade`; CONTRIBUTING.md:340 uses `know` twice to say a
 //      Tier-1 verb may never know a domain. Under the seeded wording the two
 //      documents that DEFINE domain-agnosticism violate it.
 //
@@ -571,7 +574,7 @@ export function discretionaryReferences(body: string): string[] {
 // rather than a word, and the same lesson as model-id-literal, whose header
 // records that a generic pattern "would flag every document in the tree".
 //
-// THE CARVE-OUT IS DERIVED, NOT LISTED. CONTRIBUTING.md:303-304 is exact:
+// THE CARVE-OUT IS DERIVED, NOT LISTED. CONTRIBUTING.md:339-340 is exact:
 // "A leaf skill may know its own domain; a Tier-1 verb may never know any."
 // A body's OWN domain is read from its own directory -- `skills/trade-backtest/`
 // owns `trade` -- so no enumeration of the fourteen Tier-1 verbs is needed and
@@ -612,6 +615,57 @@ export function routingForms(body: string): RoutingForm[] {
     }
   }
   return found.sort((a, b) => a.index - b.index);
+}
+
+// --- phase-0-section / error-handling-section (CLAIM-41.10, Decision 5) ---
+//
+// CONTRIBUTING.md:300-306 requires every skill to open with a Phase 0
+// context-discovery section; :311-318 requires an Error Handling section.
+// CONTRIBUTING.md:128-129 claimed skill-lint already checked both — it did
+// not, and #295 is the Story that makes the claim true rather than softening
+// it (Decision 5 of docs/design/stories/41.md, CLAIM-41.10).
+//
+// SKILLS ONLY, gated exactly like reference-citation-count above: a contract
+// document under references/ or agents/ is not a skill body and must never
+// be asked for either heading — the same population split NEVER-35.7 relies
+// on for duplicate-contract.
+//
+// H2 ONLY, ANCHORED AT LINE START (the `m` flag on `^`). `### Phase 0` is a
+// subsection of something else, not the section itself, and requiring the
+// match to start the line is what keeps a mid-sentence "see Phase 0" from
+// counting.
+//
+// CASE-SENSITIVE. `## phase 0` is not the heading.
+//
+// `(?![0-9])` — same shape and rationale as routingForms' `(?![a-z0-9])`
+// above: without it "## Phase 01" would satisfy the "## Phase 0" pattern. A
+// suffix starting with anything OTHER than a digit — "## Phase 0: Context
+// Discovery" — is allowed, because the requirement is the heading text, not
+// an exact line.
+const PHASE_0_HEADING_RE = /^## Phase 0(?![0-9])/m;
+const ERROR_HANDLING_HEADING_RE = /^## Error Handling\b/m;
+
+// Strip fenced code blocks before detection, so a heading that appears only
+// as illustrative text inside a ``` fence does not satisfy the rule. Same
+// posture as packages/core/src/guards/claim-lint.ts's `inFence` toggle
+// (:138, :209-213) — reimplemented locally rather than imported because that
+// module's fence-skip is woven into a line-by-line structural parse this
+// rule has no other need for, and importing it would couple this rule's
+// population (skill and contract bodies) to claim-lint's (design docs and
+// test plans).
+function stripFencedCode(body: string): string {
+  const lines = body.split("\n");
+  const kept: string[] = [];
+  let inFence = false;
+  for (const line of lines) {
+    if (/^\s*(```|~~~)/.test(line)) {
+      inFence = !inFence;
+      kept.push("");
+      continue;
+    }
+    kept.push(inFence ? "" : line);
+  }
+  return kept.join("\n");
 }
 
 // The body rules. PURE over (path, body) — no fs, no discovery.
@@ -704,13 +758,44 @@ export function lintBodyRules(
         `domain-routing-form: this body hardcodes a routing decision on "${hit.form}". ` +
         (own === undefined
           ? `A Tier-1 verb reads the issue's label and loads that pack's binding; it may name ` +
-            `no domain at all (CONTRIBUTING.md:303-304). Adding a sixth domain must be one ` +
+            `no domain at all (CONTRIBUTING.md:339-340). Adding a sixth domain must be one ` +
             `binding file, not an edit here`
           : `This body owns "${own}" and may name that one, but not "${hit.domain}" ` +
-            `(CONTRIBUTING.md:303-304)`) +
+            `(CONTRIBUTING.md:339-340)`) +
         `. Naming a domain in PROSE is fine — only the routing form is banned (Decision 4 of ` +
         `docs/design/stories/41.md, ruled at the gate)`,
     });
+  }
+
+  // --- phase-0-section / error-handling-section (CLAIM-41.10) — SKILLS ONLY ---
+  if (options.isSkill) {
+    const stripped = stripFencedCode(body);
+    if (!PHASE_0_HEADING_RE.test(stripped)) {
+      violations.push({
+        file: filePath,
+        line: 1,
+        rule: "phase-0-section",
+        severity: "error",
+        message:
+          `phase-0-section: this skill body is missing a "## Phase 0" heading. Every ` +
+          `skill opens by establishing state from disk and GitHub before doing anything ` +
+          `else (CONTRIBUTING.md:300-306); a suffix such as "## Phase 0: Context ` +
+          `Discovery" is allowed`,
+      });
+    }
+    if (!ERROR_HANDLING_HEADING_RE.test(stripped)) {
+      violations.push({
+        file: filePath,
+        line: 1,
+        rule: "error-handling-section",
+        severity: "error",
+        message:
+          `error-handling-section: this skill body is missing an "## Error Handling" ` +
+          `heading. The heading's presence is all this rule checks — what it covers ` +
+          `(a missing resource, one that already exists, rate limiting, a partial ` +
+          `write) is author-judged and unenforced (CONTRIBUTING.md:311-318)`,
+      });
+    }
   }
 
   return violations;
@@ -772,7 +857,15 @@ export function lintSkillTree(root: string, repoRoot?: string): SkillViolation[]
   return violations;
 }
 
-const RULE_IDS: SkillRuleId[] = [
+// EXPORTED and self-checking. The SkillRuleId union (:37-61) and this array
+// are two hand-maintained copies of the same 17-member set; the `byRule`
+// Record below (printReport) is a third, and TypeScript already forces that
+// one to stay complete because a Record type rejects a missing key at
+// compile time. This array had no such guard, so it is given one here: a
+// union member missing from RULE_IDS is a TYPE ERROR via the exhaustiveness
+// check below, not a silently-uncounted rule discovered later by a human
+// re-reading two lists side by side (as CONTRIBUTING.md:128-129 was).
+export const RULE_IDS = [
   "frontmatter-missing",
   "frontmatter-unterminated",
   "field-required",
@@ -788,7 +881,18 @@ const RULE_IDS: SkillRuleId[] = [
   "reference-citation-count",
   "model-id-literal",
   "domain-routing-form",
-];
+  "phase-0-section",
+  "error-handling-section",
+] as const satisfies readonly SkillRuleId[];
+
+// Compile-time exhaustiveness guard. If a member is added to SkillRuleId
+// above and NOT to RULE_IDS, `Exclude<...>` is non-`never` and this
+// assignment fails to typecheck — the array cannot silently fall behind the
+// union the way the RULE_IDS/byRule pair was never checked against each
+// other before this task.
+type _RuleIdsExhaustive = Exclude<SkillRuleId, (typeof RULE_IDS)[number]> extends never ? true : never;
+const _ruleIdsExhaustive: _RuleIdsExhaustive = true;
+void _ruleIdsExhaustive;
 
 function pluralize(count: number, singular: string, plural: string): string {
   return count === 1 ? singular : plural;
@@ -827,6 +931,8 @@ function printReport(
     "reference-citation-count": 0,
     "model-id-literal": 0,
     "domain-routing-form": 0,
+    "phase-0-section": 0,
+    "error-handling-section": 0,
   };
   for (const violation of violations) byRule[violation.rule] += 1;
 
