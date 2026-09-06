@@ -372,18 +372,30 @@ describe("claim-lint per-scope breakdown (task #296)", () => {
     expect(printed).toBe(onDisk);
   });
 
-  // NOT YET DISCHARGED — modeled on test/skill-lint.test.ts's own admission
-  // that "the skill population is empty today, so NEVER-41.7 and the two
-  // section rules are NOT yet discharged over real bodies". `skills/` holds
-  // exactly one file today, `.gitkeep`, and zero `SKILL.md` files, so #296's
-  // claim-lint coverage of a SKILL.md's identifiers, anchors and path
-  // citations is asserted over an EMPTY population. This is NOT a regression:
-  // it goes red -- correctly -- the moment the first of #42-#45 lands a real
-  // SKILL.md, and at that point it must be UPDATED (to assert a non-zero
-  // SKILL.md count), not deleted.
-  test("skills/ contains zero SKILL.md files today -- #296 is not yet discharged over a real corpus", () => {
+  // WAS: "NOT YET DISCHARGED" -- modeled on test/skill-lint.test.ts's own
+  // admission that "the skill population is empty today, so NEVER-41.7 and
+  // the two section rules are NOT yet discharged over real bodies". At the
+  // time this test was written `skills/` held exactly one file, `.gitkeep`,
+  // and zero `SKILL.md` files, so it asserted:
+  //
+  //   expect(skillFiles.length).toBe(0);
+  //
+  // ...with a comment promising it would be UPDATED, not deleted, the moment
+  // the first of #42-#45 landed a real SKILL.md. Task #44 (`story-design`)
+  // is that first landing.
+  //
+  // NOW: the population is non-zero, so the zero-assertion is replaced by a
+  // non-zero one. This is deliberately NOT the run-time disk-equality that
+  // never needs editing again — that equality already exists two tests above
+  // ("the printed skills scope count equals the real file count under
+  // skills/ on disk") and duplicating it here would just be the same
+  // assertion twice. This test's remaining job is narrower and permanent: pin
+  // that #296's claim-lint coverage of `skills/` is exercised over a REAL,
+  // non-empty population, which — unlike a literal count — never goes stale
+  // as #42, #43 and #45 add their own SKILL.md files; it only gets truer.
+  test("skills/ now contains at least one real SKILL.md file -- #296's claim-lint coverage is no longer vacuous", () => {
     const skillFiles = findSkillMdFiles(join(repoRoot, "skills"));
-    expect(skillFiles.length).toBe(0);
+    expect(skillFiles.length).toBeGreaterThan(0);
   });
 });
 
