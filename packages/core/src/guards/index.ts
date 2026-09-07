@@ -16,6 +16,8 @@ export type {
   ClaimSeverity,
   ClaimViolation,
 } from "./claim-lint";
+export { DESIGN_SPINE, METADATA_MARKERS, lintDesignSpine } from "./design-spine";
+export type { DesignSpineReport } from "./design-spine";
 export {
   CORPUS_COLUMN,
   CORPUS_KINDS,

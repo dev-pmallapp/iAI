@@ -176,8 +176,8 @@ function isEvidenceTarget(candidate: string): boolean {
 }
 
 // Exclusion 3 -- template placeholders. The issue says "contains `{`...`}`",
-// which is incomplete: CONTRIBUTING.md:297 cites
-// `docs/design/NN-domain-<id>.md` and CONTRIBUTING.md:289 cites
+// which is incomplete: CONTRIBUTING.md:369 cites
+// `docs/design/NN-domain-<id>.md` and CONTRIBUTING.md:361 cites
 // `packages/domain-<id>/src/binding.ts`, both using `<`...`>`.
 function isPlaceholder(candidate: string): boolean {
   return (

@@ -1,19 +1,24 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import {
   BASELINE_REFERENCES,
   MAX_DISCRETIONARY_REFERENCES,
   MODEL_ID_EXEMPT_PATH,
   MODEL_ID_VENDORS,
+  RULE_IDS,
   discoverContractFiles,
   discretionaryReferences,
+  CONTRACT_DIRS,
   lintBodyRules,
+  ownDomainOf,
+  routingForms,
   lintContractTree,
   lintSkillSource,
   lintSkillTree,
 } from "../scripts/skill-lint";
+import { KNOWN_DOMAIN_IDS } from "../packages/core/src/index";
 // Contracts are IMPORTED, never restated — the rule under test polices
 // exactly this, and a test that restated them would be its own violation.
 import {
@@ -38,6 +43,18 @@ function writeSkillFile(root: string, skillName: string, content: string): strin
   writeFileSync(filePath, content, "utf8");
   return filePath;
 }
+
+// #295 added two SKILLS-ONLY body rules that fire on ABSENCE of a heading
+// rather than presence of a pattern, which is the opposite shape of every
+// body rule before them. A tiny snippet fixture written for an EARLIER rule
+// (duplicate-contract, reference-citation-count, model-id-literal,
+// domain-routing-form) has no reason to carry either heading, so appending
+// this to such a fixture's body is what keeps that older test asserting
+// exactly the one rule it was written to test, rather than also asserting
+// something about #295 it never meant to. Real skill bodies elsewhere in
+// this file carry both headings for real; this exists only to patch older,
+// narrower fixtures.
+const REQUIRED_SECTIONS_SUFFIX = "\n\n## Phase 0: Context Discovery\n\nx\n\n## Error Handling\n\nx\n";
 
 afterAll(() => {
   for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
@@ -250,7 +267,7 @@ describe("lintSkillTree", () => {
     writeSkillFile(
       dir,
       "foo",
-      ["---", "name: foo", "description: Does foo things.", "---", ""].join("\n"),
+      ["---", "name: foo", "description: Does foo things.", "---", ""].join("\n") + REQUIRED_SECTIONS_SUFFIX,
     );
     writeFileSync(join(dir, "foo", "domain.md"), "# not a skill\n", "utf8");
     const violations = lintSkillTree(dir);
@@ -290,7 +307,7 @@ describe("skill-lint CLI", () => {
     writeSkillFile(
       dir,
       "foo",
-      ["---", "name: foo", "description: Does foo things.", "---", ""].join("\n"),
+      ["---", "name: foo", "description: Does foo things.", "---", ""].join("\n") + REQUIRED_SECTIONS_SUFFIX,
     );
 
     const proc = Bun.spawn(["bun", join(repoRoot, "scripts", "skill-lint.ts"), dir], {
@@ -334,8 +351,10 @@ describe("skill-lint CLI", () => {
 // merged against an empty corpus reports success while checking nothing.
 
 describe("duplicate-contract (CLAIM-35.2, NEVER-35.7)", () => {
+  // REQUIRED_SECTIONS_SUFFIX keeps these skill fixtures satisfying the #295
+  // section rules so each test still asserts its own rule alone.
   test("a body restating the sentinel namespace prefix is reported", () => {
-    const v = lintBodyRules("skills/x/SKILL.md", `see ${SENTINEL_NAMESPACE_PREFIX}gate`);
+    const v = lintBodyRules("skills/x/SKILL.md", `see ${SENTINEL_NAMESPACE_PREFIX}gate` + REQUIRED_SECTIONS_SUFFIX);
     expect(v.map((x) => x.rule)).toEqual(["duplicate-contract"]);
     expect(v[0]?.message).toContain("sentinel namespace prefix");
     // Assert the REASON, not just the verdict: docs/evidence/33-... records
@@ -345,14 +364,14 @@ describe("duplicate-contract (CLAIM-35.2, NEVER-35.7)", () => {
   });
 
   test("a body restating the commit-subject regex is reported, distinctly", () => {
-    const v = lintBodyRules("skills/x/SKILL.md", `re ${COMMIT_PREFIX_RE.source}`);
+    const v = lintBodyRules("skills/x/SKILL.md", `re ${COMMIT_PREFIX_RE.source}` + REQUIRED_SECTIONS_SUFFIX);
     expect(v.map((x) => x.rule)).toEqual(["duplicate-contract"]);
     expect(v[0]?.message).toContain("commit-subject");
     expect(v[0]?.message).not.toContain("sentinel namespace");
   });
 
   test("a body restating the exclusive-label ARRAY is reported", () => {
-    const v = lintBodyRules("skills/x/SKILL.md", `arr ${JSON.stringify(EXCLUSIVE_LABEL_PREFIXES)}`);
+    const v = lintBodyRules("skills/x/SKILL.md", `arr ${JSON.stringify(EXCLUSIVE_LABEL_PREFIXES)}` + REQUIRED_SECTIONS_SUFFIX);
     expect(v.map((x) => x.rule)).toEqual(["duplicate-contract"]);
     expect(v[0]?.message).toContain("at-most-one-status");
   });
@@ -370,7 +389,7 @@ describe("duplicate-contract (CLAIM-35.2, NEVER-35.7)", () => {
   });
 
   test("citing the owning module by path is NOT reported", () => {
-    const v = lintBodyRules("skills/x/SKILL.md", "see packages/core/src/evidence/sentinel.ts:53");
+    const v = lintBodyRules("skills/x/SKILL.md", "see packages/core/src/evidence/sentinel.ts:53" + REQUIRED_SECTIONS_SUFFIX);
     expect(v).toEqual([]);
   });
 
@@ -444,19 +463,19 @@ describe("the fixtures name real files (#287 finding 4)", () => {
 describe("reference-citation-count (CLAIM-35.5)", () => {
   test("a SKILL one over the cap fails and names the offenders", () => {
     const cites = overCap();
-    const v = lintBodyRules("skills/x/SKILL.md", cites.join(" "));
+    const v = lintBodyRules("skills/x/SKILL.md", cites.join(" ") + REQUIRED_SECTIONS_SUFFIX);
     expect(v.map((x) => x.rule)).toEqual(["reference-citation-count"]);
     expect(v[0]?.message).toContain(cites[cites.length - 1] ?? "!");
   });
 
   test("a SKILL exactly at the cap passes — the boundary is inclusive", () => {
-    expect(lintBodyRules("skills/x/SKILL.md", atCap().join(" "))).toEqual([]);
+    expect(lintBodyRules("skills/x/SKILL.md", atCap().join(" ") + REQUIRED_SECTIONS_SUFFIX)).toEqual([]);
   });
 
   test("the same reference cited repeatedly counts once", () => {
     const one = realDiscretionary()[0] ?? "";
     const body = new Array(MAX_DISCRETIONARY_REFERENCES + 3).fill(one).join(" ");
-    expect(lintBodyRules("skills/x/SKILL.md", body)).toEqual([]);
+    expect(lintBodyRules("skills/x/SKILL.md", body + REQUIRED_SECTIONS_SUFFIX)).toEqual([]);
   });
 
   test("a REFERENCE document over the cap is NOT capped", () => {
@@ -467,14 +486,16 @@ describe("reference-citation-count (CLAIM-35.5)", () => {
     const body = overCap(3).join(" ");
     // Same body, both populations — the pair is the case.
     expect(lintBodyRules("references/workflow-states.md", body, { isSkill: false })).toEqual([]);
-    expect(lintBodyRules("skills/x/SKILL.md", body).map((v) => v.rule)).toEqual([
-      "reference-citation-count",
-    ]);
+    expect(
+      lintBodyRules("skills/x/SKILL.md", body + REQUIRED_SECTIONS_SUFFIX).map((v) => v.rule),
+    ).toEqual(["reference-citation-count"]);
   });
 
   test("the cap is the exported constant, not a literal in the rule", () => {
-    expect(lintBodyRules("skills/x/SKILL.md", atCap().join(" "))).toEqual([]);
-    expect(lintBodyRules("skills/x/SKILL.md", overCap().join(" ")).length).toBe(1);
+    expect(lintBodyRules("skills/x/SKILL.md", atCap().join(" ") + REQUIRED_SECTIONS_SUFFIX)).toEqual([]);
+    expect(
+      lintBodyRules("skills/x/SKILL.md", overCap().join(" ") + REQUIRED_SECTIONS_SUFFIX).length,
+    ).toBe(1);
   });
 });
 
@@ -498,14 +519,16 @@ describe("model-id-literal (CLAIM-35.3)", () => {
   });
 
   test("a repo-relative path is not mistaken for a model ID", () => {
-    const v = lintBodyRules("skills/x/SKILL.md", "see packages/core and docs/design/02-roles.md");
+    // REQUIRED_SECTIONS_SUFFIX keeps this skill fixture satisfying the #295
+    // section rules so this test still asserts model-id-literal alone.
+    const v = lintBodyRules("skills/x/SKILL.md", "see packages/core and docs/design/02-roles.md" + REQUIRED_SECTIONS_SUFFIX);
     expect(v).toEqual([]);
   });
 
   test("the vendor list is non-empty and each vendor is detected", () => {
     expect(MODEL_ID_VENDORS.length).toBeGreaterThan(0);
     for (const vendor of MODEL_ID_VENDORS) {
-      const v = lintBodyRules("skills/x/SKILL.md", `${vendor}/some-model-1`);
+      const v = lintBodyRules("skills/x/SKILL.md", `${vendor}/some-model-1` + REQUIRED_SECTIONS_SUFFIX);
       expect(v.map((x) => x.rule)).toEqual(["model-id-literal"]);
     }
   });
@@ -553,7 +576,7 @@ describe("the baseline is exempt from the cap (#287 part B)", () => {
   test("citing every baseline reference plus nothing else is 0 discretionary", () => {
     const body = BASELINE_REFERENCES.map((r) => `See \`${r}\`.`).join("\n");
     expect(discretionaryReferences(body)).toEqual([]);
-    expect(lintBodyRules("skills/x/SKILL.md", body)).toEqual([]);
+    expect(lintBodyRules("skills/x/SKILL.md", body + REQUIRED_SECTIONS_SUFFIX)).toEqual([]);
   });
 
   test("the baseline set is NON-EMPTY and every member is a real file", () => {
@@ -572,10 +595,10 @@ describe("the baseline is exempt from the cap (#287 part B)", () => {
     const extra = realDiscretionary()[MAX_DISCRETIONARY_REFERENCES] ?? "";
     const withBaseline = [...own, ...BASELINE_REFERENCES].join(" ");
     const withExtra = [...own, extra].join(" ");
-    expect(lintBodyRules("skills/x/SKILL.md", withBaseline)).toEqual([]);
-    expect(lintBodyRules("skills/x/SKILL.md", withExtra).map((v) => v.rule)).toEqual([
-      "reference-citation-count",
-    ]);
+    expect(lintBodyRules("skills/x/SKILL.md", withBaseline + REQUIRED_SECTIONS_SUFFIX)).toEqual([]);
+    expect(
+      lintBodyRules("skills/x/SKILL.md", withExtra + REQUIRED_SECTIONS_SUFFIX).map((v) => v.rule),
+    ).toEqual(["reference-citation-count"]);
   });
 
   test("the message says DISCRETIONARY and names the exemption", () => {
@@ -724,5 +747,733 @@ describe("live content, not fixtures (#287 finding 4)", () => {
         ),
     );
     expect(over).toEqual([]);
+  });
+});
+
+// --- domain-routing-form (CLAIM-41.6, NEVER-41.7), task #46 --------------
+//
+// EVERY POSITIVE CASE HERE READS A REAL FILE OFF DISK. The rule exists
+// because the SEEDED form of CLAIM-41.6 was measured against the real corpus
+// and found unsatisfiable: `know` appears 16 times in references/, 13 of them
+// ordinary English, and the seeded carve-out exempted 0 of 28 occurrences.
+// A suite that proved this rule only against invented bodies would repeat the
+// defect the rule was rewritten to avoid -- #287 and #289 both.
+
+const repoRootForDomains = join(import.meta.dir, "..");
+
+function readReal(relPath: string): string {
+  return readFileSync(join(repoRootForDomains, relPath), "utf8");
+}
+
+function realReferenceDocs(): { path: string; body: string }[] {
+  const dir = join(repoRootForDomains, "references");
+  return readdirSync(dir)
+    .filter((f) => f.endsWith(".md"))
+    .sort()
+    .map((f) => ({ path: `references/${f}`, body: readFileSync(join(dir, f), "utf8") }));
+}
+
+describe("domain-routing-form over the real corpus", () => {
+  test("no shipped reference document carries a routing form", () => {
+    const refs = realReferenceDocs();
+    expect(refs.length).toBeGreaterThanOrEqual(12);
+    for (const ref of refs) {
+      const v = lintBodyRules(ref.path, ref.body, { isSkill: false });
+      expect(v.filter((x) => x.rule === "domain-routing-form")).toEqual([]);
+    }
+  });
+
+  // CASE 13. This is the gate ruling G2 made executable.
+  test("the `know` family is present in quantity and produces zero violations", () => {
+    const refs = realReferenceDocs();
+    const hits = refs.reduce(
+      (n, r) => n + (r.body.match(/know/gi) ?? []).length,
+      0,
+    );
+    // The denominator IS the case: a rule that passed over zero occurrences of
+    // the word would prove nothing about dropping it from the ban.
+    expect(hits).toBeGreaterThanOrEqual(14);
+
+    for (const ref of refs) {
+      const v = lintBodyRules(ref.path, ref.body, { isSkill: false });
+      expect(v.filter((x) => x.rule === "domain-routing-form")).toEqual([]);
+    }
+
+    // And the specific ordinary-English forms are really there, so this cannot
+    // pass because the corpus quietly lost them.
+    const all = refs.map((r) => r.body).join("\n");
+    for (const word of ["known", "knows", "knowledge", "unknown"]) {
+      expect(all).toContain(word);
+    }
+  });
+
+  // CASE 14, AMENDED. The sharpest property of the whole rule, but it has to be
+  // stated over the right unit.
+  //
+  // The seeded CLAIM-41.6 banned the bare tokens, and under it these two
+  // documents violated the rule they define: 01-skill-hierarchy.md:33 states it
+  // using `trade`, and CONTRIBUTING.md:340 uses `know` twice. THAT is what case
+  // 14 was written to pin, and the ruled rule passes it.
+  //
+  // What case 14 could NOT be asked to pin is the whole FILE. A design document
+  // is not a skill body and is not in this rule's population; applying a
+  // skill-body rule to it is a category error -- the same one caught in #294,
+  // where a Design rule had been pointed at the skill linter. Second occurrence
+  // in two tasks.
+  //
+  // 01-skill-hierarchy.md legitimately carries routing forms because DOCUMENTING
+  // routing is its job: `:436` spells out "Read `domain:trade` -> load
+  // `skills/trade/domain.md`". A document that explains routing is not a body
+  // that performs it.
+  test("the sentences that DEFINE domain-agnosticism pass the rule that enforces it", () => {
+    const hierarchy = readReal("docs/design/01-skill-hierarchy.md");
+    const contributing = readReal("CONTRIBUTING.md");
+
+    // The exact doctrine sentences, read out of the real documents rather than
+    // retyped, so this cannot pass against a paraphrase that drifted.
+    const doctrine = [
+      'There is no `if (domain === "trade")`',
+      "A Tier-1 verb never hardcodes a domain",
+      "a Tier-1 verb may never know any",
+    ];
+    for (const sentence of doctrine) {
+      expect(hierarchy + contributing).toContain(sentence);
+      const v = lintBodyRules("skills/goal-create/SKILL.md", sentence);
+      expect(v.filter((x) => x.rule === "domain-routing-form")).toEqual([]);
+    }
+  });
+
+  // The out-of-population citations, asserted rather than hidden. If this ever
+  // goes to zero, someone has "cleaned up" a design document to satisfy a rule
+  // that was never meant to reach it.
+  test("the design document carries routing forms BECAUSE documenting routing is its job", () => {
+    const hierarchy = readReal("docs/design/01-skill-hierarchy.md");
+    expect(hierarchy).toContain("Read `domain:trade`");
+    expect(routingForms(hierarchy).length).toBeGreaterThanOrEqual(4);
+
+    // And it is out of population: skill-lint scans skills/, references/ and
+    // agents/. docs/ is claim-lint's, and claim-lint does not run this rule.
+    expect(CONTRACT_DIRS).not.toContain("docs");
+  });
+
+  // references/workflow-states.md owns the label namespaces and must be able to
+  // name `domain:` without an id.
+  test("a bare `domain:` namespace with no id is not a routing form", () => {
+    expect(readReal("references/workflow-states.md")).toContain("domain:");
+    expect(routingForms("the exclusive prefix `domain:` is one per issue")).toEqual([]);
+  });
+});
+
+describe("domain-routing-form negative fixtures and the own-domain carve-out", () => {
+  // REQUIRED_SECTIONS_SUFFIX keeps these skill fixtures satisfying the #295
+  // section rules so each test still asserts its own rule alone.
+
+  // CASE 10.
+  test("a Tier-1 body carrying a label routing form is reported, and only as that", () => {
+    const v = lintBodyRules("skills/story-design/SKILL.md", "route when `domain:trade` is set" + REQUIRED_SECTIONS_SUFFIX);
+    expect(v.map((x) => x.rule)).toEqual(["domain-routing-form"]);
+    expect(v[0]?.message).toContain("hardcodes a routing decision");
+    expect(v[0]?.message).toContain("domain:trade");
+    // Assert the REASON, not the verdict: no other body rule may be what
+    // rejected this fixture.
+    expect(v[0]?.message).not.toContain("restates");
+    expect(v[0]?.message).not.toContain("discretionary");
+    expect(v[0]?.message).not.toContain("literal model ID");
+  });
+
+  test("a Tier-1 body carrying a path routing form is reported", () => {
+    const v = lintBodyRules("skills/story-create/SKILL.md", "load `skills/health/domain.md`" + REQUIRED_SECTIONS_SUFFIX);
+    expect(v.map((x) => x.rule)).toEqual(["domain-routing-form"]);
+    expect(v[0]?.message).toContain("skills/health");
+  });
+
+  // CONTRIBUTING.md:339-340 exactly: "A leaf skill may know its own domain; a
+  // Tier-1 verb may never know any." The carve-out is DERIVED from the path,
+  // so no list of the fourteen verbs exists to go stale.
+  test("a Tier-2 leaf skill may name its OWN domain but not another", () => {
+    const own = lintBodyRules("skills/trade-backtest/SKILL.md", "this is `domain:trade` work" + REQUIRED_SECTIONS_SUFFIX);
+    expect(own.filter((x) => x.rule === "domain-routing-form")).toEqual([]);
+
+    const other = lintBodyRules("skills/trade-backtest/SKILL.md", "also `domain:health`" + REQUIRED_SECTIONS_SUFFIX);
+    expect(other.map((x) => x.rule)).toEqual(["domain-routing-form"]);
+    expect(other[0]?.message).toContain('owns "trade"');
+  });
+
+  test("ownDomainOf derives the carve-out from the path, and is undefined for Tier-1", () => {
+    expect(ownDomainOf("skills/trade-backtest/SKILL.md")).toBe("trade");
+    expect(ownDomainOf("skills/dev/domain.md")).toBe("dev");
+    expect(ownDomainOf("skills/goal-create/SKILL.md")).toBeUndefined();
+    expect(ownDomainOf("skills/story-test-plan/SKILL.md")).toBeUndefined();
+    expect(ownDomainOf("references/verification.md")).toBeUndefined();
+  });
+
+  // FOUND BY MUTATION M7, WHICH SURVIVED THE FIRST RUN.
+  //
+  // `ownDomainOf` grants the carve-out. Written as a bare prefix test --
+  // `dir.startsWith(id)` -- it hands `dev` to `skills/development-tools/` and
+  // `know` to `skills/knowledge-base/`, silently exempting a verb that is not a
+  // domain pack at all. The carve-out must be SHAPE-BASED: exactly the id, or
+  // the id followed by a hyphen.
+  //
+  // THIS IS THE THIRD OCCURRENCE OF ONE CLASS. docs/evidence/34-*.md: "an
+  // exemption expressed as a line range admits anything that fits inside the
+  // range." Case 7 of docs/test-plans/35-plan.md: a prefix match on the
+  // model-ID exemption "would additionally exempt a hypothetical
+  // model-routing-notes.md". Same defect, third shape: an exemption expressed
+  // as a prefix admits anything that starts with it.
+  //
+  // An over-broad exemption is the dangerous direction. A rule that fires too
+  // often is noisy and gets fixed; a carve-out that is too generous is silent
+  // and never does.
+  test("the own-domain carve-out is shape-based, not a bare prefix", () => {
+    expect(ownDomainOf("skills/development-tools/SKILL.md")).toBeUndefined();
+    expect(ownDomainOf("skills/knowledge-base/SKILL.md")).toBeUndefined();
+    expect(ownDomainOf("skills/devops/SKILL.md")).toBeUndefined();
+    expect(ownDomainOf("skills/wealthy-clients/SKILL.md")).toBeUndefined();
+
+    // ...and the two legal shapes still hold, so this did not fix the leak by
+    // breaking the carve-out.
+    expect(ownDomainOf("skills/dev/domain.md")).toBe("dev");
+    expect(ownDomainOf("skills/dev-coder/SKILL.md")).toBe("dev");
+
+    // The consequence the mutation exposed: a verb merely BEGINNING with a
+    // domain id must still be policed.
+    const v = lintBodyRules("skills/development-tools/SKILL.md", "route on `domain:dev`" + REQUIRED_SECTIONS_SUFFIX);
+    expect(v.map((x) => x.rule)).toEqual(["domain-routing-form"]);
+  });
+
+  test("a longer word beginning with a domain id is not a routing form", () => {
+    expect(routingForms("`domain:knowledge` and `skills/devops` and `domain:development`")).toEqual([]);
+  });
+
+  // CASE 22.
+  test("the rule reads KNOWN_DOMAIN_IDS and does not restate the five ids", () => {
+    // Every shipped id is enforced, derived from the export rather than listed.
+    for (const id of KNOWN_DOMAIN_IDS) {
+      const v = lintBodyRules("skills/goal-create/SKILL.md", `see \`domain:${id}\`` + REQUIRED_SECTIONS_SUFFIX);
+      expect(v.map((x) => x.rule)).toEqual(["domain-routing-form"]);
+    }
+    // And no second copy of the list exists in the linter source.
+    const source = readReal("scripts/skill-lint.ts");
+    const literalList = KNOWN_DOMAIN_IDS.map((id) => `"${id}"`).join(", ");
+    expect(source).not.toContain(literalList);
+    expect(source).toContain("KNOWN_DOMAIN_IDS");
+  });
+});
+
+// --- phase-0-section / error-handling-section (CLAIM-41.10, #295) --------
+//
+// Decision 5 of docs/design/stories/41.md: CONTRIBUTING.md:128-129 claimed
+// skill-lint already checked a Phase 0 section and an Error Handling section.
+// It did not. These two rules are what makes the sentence true rather than
+// softened, and case 23 of docs/test-plans/41-plan.md is what pins the two —
+// the rule set and the document's description of it — to never disagree
+// again.
+
+// A REAL BODY WITH ONE PERTURBATION, not an invented one, per the #289
+// posture recorded throughout this file (case 8 of the -plan.md is the same
+// shape one Story up). Both required headings are present, so this is the
+// vacuity guard's fixture and every "remove one heading" fixture below is
+// this string with exactly one line taken out.
+const VALID_SKILL_BODY = [
+  "# foo",
+  "",
+  "## Phase 0: Context Discovery",
+  "",
+  "Read state from disk and GitHub before doing anything else — never from",
+  "conversation memory.",
+  "",
+  "## Error Handling",
+  "",
+  "Handle a missing resource, an existing resource, rate limiting, and a",
+  "partial write.",
+  "",
+].join("\n");
+
+describe("phase-0-section and error-handling-section (CLAIM-41.10)", () => {
+  test("a minimal VALID skill body satisfies both new rules with 0 violations (vacuity guard)", () => {
+    // Without this, every negative fixture below could be failing the rule
+    // for an unrelated reason and this suite would never catch it.
+    const v = lintBodyRules("skills/x/SKILL.md", VALID_SKILL_BODY);
+    expect(v.filter((x) => x.rule === "phase-0-section" || x.rule === "error-handling-section")).toEqual(
+      [],
+    );
+  });
+
+  // REAL CONTENT WITH ONE PERTURBATION: take the complete valid body and
+  // remove exactly one heading, then assert the OTHER rule does not co-fire.
+  test("removing the Phase 0 heading fires phase-0-section ALONE", () => {
+    const body = VALID_SKILL_BODY.split("\n")
+      .filter((l) => !l.startsWith("## Phase 0"))
+      .join("\n");
+    const v = lintBodyRules("skills/x/SKILL.md", body);
+    expect(v.map((x) => x.rule)).toEqual(["phase-0-section"]);
+  });
+
+  test("removing the Error Handling heading fires error-handling-section ALONE", () => {
+    const body = VALID_SKILL_BODY.split("\n")
+      .filter((l) => !l.startsWith("## Error Handling"))
+      .join("\n");
+    const v = lintBodyRules("skills/x/SKILL.md", body);
+    expect(v.map((x) => x.rule)).toEqual(["error-handling-section"]);
+  });
+
+  // OVER-BROAD-MATCH NEGATIVES. Each keeps a real `## Error Handling` heading
+  // beside the mutated Phase 0 form, so each test also proves the sibling
+  // rule does not co-fire on the malformed heading.
+  test("a Phase 0 heading only inside a fenced code block does not satisfy the rule", () => {
+    const body = ["```", "## Phase 0", "```", "", "## Error Handling", "content"].join("\n");
+    const v = lintBodyRules("skills/x/SKILL.md", body);
+    expect(v.map((x) => x.rule)).toEqual(["phase-0-section"]);
+  });
+
+  test("### Phase 0 (H3) does not satisfy the rule — H2 only", () => {
+    const body = ["### Phase 0", "", "## Error Handling", "content"].join("\n");
+    const v = lintBodyRules("skills/x/SKILL.md", body);
+    expect(v.map((x) => x.rule)).toEqual(["phase-0-section"]);
+  });
+
+  test("## phase 0 (lowercase) does not satisfy the rule — case-sensitive", () => {
+    const body = ["## phase 0", "", "## Error Handling", "content"].join("\n");
+    const v = lintBodyRules("skills/x/SKILL.md", body);
+    expect(v.map((x) => x.rule)).toEqual(["phase-0-section"]);
+  });
+
+  test("## Phase 01 does not satisfy the rule — the negative lookahead excludes a longer number", () => {
+    const body = ["## Phase 01", "", "## Error Handling", "content"].join("\n");
+    const v = lintBodyRules("skills/x/SKILL.md", body);
+    expect(v.map((x) => x.rule)).toEqual(["phase-0-section"]);
+  });
+
+  // THE SIBLING BOUNDARY, asserted because mutation M8 of #295 survived
+  // without it. phase-0-section's `(?![0-9])` is pinned by the case above,
+  // but error-handling-section's `\b` was not pinned by anything: deleting
+  // it left the whole suite green while "## Error Handlingz" silently began
+  // to satisfy the rule. A heading rule that matches too EASILY is the
+  // dangerous direction — it never announces itself, it just stops asking
+  // for the section. Fourth occurrence of the over-broad-match class
+  // recorded at test/skill-lint.test.ts's own domain-routing-form block and
+  // in docs/evidence/46-*.md.
+  test("## Error Handlingz does not satisfy the rule — the word boundary excludes a longer word", () => {
+    const body = ["## Phase 0", "", "## Error Handlingz", "content"].join("\n");
+    const v = lintBodyRules("skills/x/SKILL.md", body);
+    expect(v.map((x) => x.rule)).toEqual(["error-handling-section"]);
+  });
+
+  test("## Phase 0: Context Discovery satisfies the rule — a suffix after the heading text is allowed", () => {
+    const body = ["## Phase 0: Context Discovery", "", "## Error Handling", "content"].join("\n");
+    const v = lintBodyRules("skills/x/SKILL.md", body);
+    expect(v.filter((x) => x.rule === "phase-0-section")).toEqual([]);
+  });
+
+  // THE POPULATION PAIR. Load-bearing: an isSkill:false-only assertion passes
+  // identically whether or not the rule is even wired up, because it is a
+  // no-op over that population either way. Only firing it BOTH ways over the
+  // SAME bodies proves the gate is doing anything. Same pattern as
+  // reference-citation-count's pair at :466-477.
+  test("real reference documents never fire a section rule as a CONTRACT, and the SAME bodies fire both as a SKILL", () => {
+    const refs = realReferenceDocs();
+    expect(refs.length).toBeGreaterThanOrEqual(12);
+    for (const ref of refs) {
+      const asContract = lintBodyRules(ref.path, ref.body, { isSkill: false });
+      expect(
+        asContract.filter((x) => x.rule === "phase-0-section" || x.rule === "error-handling-section"),
+      ).toEqual([]);
+
+      const asSkill = lintBodyRules(ref.path, ref.body, { isSkill: true });
+      const rules = asSkill.map((x) => x.rule);
+      expect(rules).toContain("phase-0-section");
+      expect(rules).toContain("error-handling-section");
+    }
+  });
+});
+
+// --- CONTRIBUTING.md and the linter agree (CLAIM-41.10, case 23) ---------
+describe("CONTRIBUTING.md's rule table agrees with the linter (CLAIM-41.10, case 23)", () => {
+  function splitTableRow(line: string): string[] {
+    const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+    return trimmed.split("|").map((cell) => cell.trim());
+  }
+
+  function unquote(cell: string): string {
+    return cell.replace(/^`+/, "").replace(/`+$/, "");
+  }
+
+  function ruleTableRows(): string[][] {
+    const doc = readFileSync(join(repoRoot, "CONTRIBUTING.md"), "utf8");
+    const lines = doc.split("\n");
+
+    const headerIndices: number[] = [];
+    for (let i = 0; i < lines.length; i += 1) {
+      if (/^\|\s*Rule id\s*\|/.test(lines[i] ?? "")) headerIndices.push(i);
+    }
+    // Guard against a silently-empty slice: exactly one such table.
+    expect(headerIndices.length, "expected exactly one rule-id table in CONTRIBUTING.md").toBe(1);
+
+    const start = headerIndices[0]!;
+    const rows: string[][] = [];
+    // start+1 is the `|---|---|---|` separator row; data rows follow until a
+    // line that is not a table row.
+    for (let i = start + 2; i < lines.length; i += 1) {
+      const line = lines[i] ?? "";
+      if (!line.trim().startsWith("|")) break;
+      rows.push(splitTableRow(line));
+    }
+    return rows;
+  }
+
+  // NEVER a rule id literal is restated here — every id comes from the
+  // imported RULE_IDS, so this test cannot drift into agreeing with itself.
+  test("the doc's rule-id column and RULE_IDS are the SAME SET, asserted both directions, with no duplicate rows", () => {
+    const rows = ruleTableRows();
+    const docIds = rows.map((r) => unquote(r[0] ?? ""));
+    const docIdSet = new Set(docIds);
+    const linterIdSet = new Set<string>(RULE_IDS);
+
+    for (const id of docIdSet) {
+      expect(linterIdSet.has(id), `CONTRIBUTING.md documents rule id "${id}", which is not a real rule`).toBe(
+        true,
+      );
+    }
+    for (const id of linterIdSet) {
+      expect(docIdSet.has(id), `RULE_IDS contains "${id}", which CONTRIBUTING.md's table does not document`).toBe(
+        true,
+      );
+    }
+    // Row count equal to RULE_IDS.length catches a duplicate row that set
+    // equality alone would hide.
+    expect(rows.length).toBe(RULE_IDS.length);
+  });
+});
+
+// ===========================================================================
+// THE FIRST REAL SKILL (task #44, `story-design`) — history and rewrite note
+// ===========================================================================
+//
+// THIS BLOCK USED TO ASSERT THE OPPOSITE OF WHAT IT ASSERTS NOW. Until task
+// #44 landed `skills/story-design/SKILL.md`, the single test here was:
+//
+//   test("the skill population is empty today, so NEVER-41.7 and the two
+//   section rules are NOT yet discharged over real bodies", () => {
+//     ...
+//     expect(skillFiles).toHaveLength(0);
+//   });
+//
+// NEVER-41.7 says "proved over the real four-skill corpus, not a fixture".
+// THE FOUR SKILLS DID NOT EXIST YET when #46 shipped domain-routing-form —
+// they are #42-#45, and #44 (story-design) is the first of the four to land.
+// That rule shipped BEFORE its own skill corpus, which is the opposite of how
+// #280 was sequenced, and finding 36 of the S2.1 evidence is explicit that
+// sequencing a rule after its corpus is what stopped it shipping wrong and
+// green. The trade was deliberate and recorded on #46; what protected it was
+// that the skill denominator was ASSERTED to be zero, so nobody could mistake
+// a green run for a verified claim.
+//
+// That denominator is no longer zero. The tests below are the update the old
+// comment promised ("Update it then; do not delete it.") — rewritten per the
+// governing principle: prefer RUN-TIME EQUALITIES read from disk on BOTH
+// sides, so nothing here needs editing again as #42, #43 and #45 land. Only
+// ONE assertion in this file still needs editing, and it is isolated at the
+// bottom of this block, edited exactly once, when the fourth verb lands.
+
+function realSkillFiles(): { relPath: string; body: string }[] {
+  const skillsDir = join(repoRootForDomains, "skills");
+  const out: { relPath: string; body: string }[] = [];
+  for (const entry of readdirSync(skillsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const filePath = join(skillsDir, entry.name, "SKILL.md");
+    if (!existsSync(filePath)) continue;
+    out.push({ relPath: `skills/${entry.name}/SKILL.md`, body: readFileSync(filePath, "utf8") });
+  }
+  return out;
+}
+
+describe("NEVER-41.9: skill-lint's SKILL.md count is real, not vacuous", () => {
+  // NEVER-41.9: "the scanned count is asserted non-zero and equal to the
+  // number of verb directories on disk" (docs/design/stories/41.md:325-327;
+  // case 18 of docs/test-plans/41-plan.md). BOTH SIDES ARE READ FROM DISK AT
+  // RUN TIME, so this assertion never needs editing as #42, #43 and #45 add
+  // their own verb directories — a fifth directory or a dropped one is caught
+  // by the same equality, not by a literal that has to be bumped by hand.
+  test("the SKILL.md count is non-zero and equals the number of verb directories", () => {
+    const skillsDir = join(repoRootForDomains, "skills");
+    const verbDirs = readdirSync(skillsDir, { withFileTypes: true }).filter((e) => e.isDirectory());
+    const dirsWithSkillMd = verbDirs.filter((e) => existsSync(join(skillsDir, e.name, "SKILL.md")));
+
+    expect(dirsWithSkillMd.length).toBeGreaterThan(0);
+    expect(dirsWithSkillMd.length).toBe(verbDirs.length);
+  });
+});
+
+describe("NEVER-41.7 and the #295 section rules over the real skill corpus", () => {
+  // NEVER-41.7: "Proved over the real four-skill corpus, not a fixture."
+  // #295's phase-0-section and error-handling-section ride along for the same
+  // reason recorded in the old comment here: they were unproved over a real
+  // skill body because the corpus was the same four verbs.
+  //
+  // The count is asserted NON-ZERO FIRST, so the loop below cannot pass
+  // vacuously — the exact defect this whole block used to be a placeholder
+  // against.
+  test("every real SKILL.md on disk has 0 domain-routing-form, phase-0-section and error-handling-section violations", () => {
+    const files = realSkillFiles();
+    expect(files.length).toBeGreaterThan(0);
+
+    for (const file of files) {
+      const violations = lintBodyRules(file.relPath, file.body, { isSkill: true });
+      expect(violations.filter((v) => v.rule === "domain-routing-form"), file.relPath).toEqual([]);
+      expect(violations.filter((v) => v.rule === "phase-0-section"), file.relPath).toEqual([]);
+      expect(violations.filter((v) => v.rule === "error-handling-section"), file.relPath).toEqual([]);
+    }
+  });
+
+  test("the contract population is NOT empty either, so neither rule is vacuous over references/", () => {
+    expect(realReferenceDocs().length).toBeGreaterThanOrEqual(12);
+  });
+});
+
+// The ONE assertion in this block that still needs editing, and the ONLY one:
+// docs/test-plans/41-plan.md case 6 requires "4 of 4, with the count asserted
+// first" for CLAIM-41.5. Today the corpus is 1 of 4. Stating the
+// incompleteness explicitly — rather than omitting it — means the gap is
+// asserted, not hidden, and there is exactly one place to update: this
+// constant and the `toBeLessThan` below become the `toBe`-4 assertion case 6
+// actually requires, the moment the last of #42/#43/#45 lands. Do not
+// hardcode `4` anywhere else in this file for this purpose.
+const CASE_6_REQUIRED_SKILL_COUNT = 4; // docs/test-plans/41-plan.md:119, "4 of 4"
+
+describe("case 6's 4-of-4 threshold (docs/test-plans/41-plan.md:119)", () => {
+  // FLIPPED BY #45, the last of the four verbs, which is the single edit this
+  // assertion was written to require. It read `toBeLessThan(4)` from #44 until
+  // now, so the shortfall was stated on every run rather than assumed away.
+  //
+  // NEVER-41.7 said "proved over the real four-skill corpus, not a fixture".
+  // This is the line that makes the denominator in that sentence real: the
+  // loops above assert zero violations over whatever exists, and this asserts
+  // that what exists is the four the case names. Without it those loops stay
+  // green over a corpus that quietly shrank.
+  //
+  // It is deliberately NOT a run-time equality. Every other assertion added by
+  // #44 and #296 reads both sides from disk and needs no editing; this one
+  // hardcodes the number the PLAN specifies, because "4" here is a claim about
+  // what S2.2 committed to build, not a fact about the filesystem. A disk-read
+  // denominator on both sides would pass a corpus of three verbs and a deleted
+  // one, which is exactly the drift case 6 exists to catch.
+  test("the real skill corpus is 4 of 4 — case 6's denominator is met", () => {
+    const files = realSkillFiles();
+    expect(files.length).toBe(CASE_6_REQUIRED_SKILL_COUNT);
+  });
+});
+
+// ===========================================================================
+// CASE 6 (docs/test-plans/41-plan.md:119, CLAIM-41.5) — over the real corpus
+// ===========================================================================
+//
+// "Each of the four skills reads the `domain:` label and carries the
+// hard-failure block ... Each body names the label read **before** any step
+// that would need the binding, so the ordering is checked and not just the
+// presence."
+//
+// ANCHOR CHOICES, and why each was picked narrowly rather than broadly —
+// this repo has been bitten five times by an over-broad match (see
+// docs/evidence/46-*.md, case 7 of docs/test-plans/35-plan.md, and #295's
+// mutation M8, all recorded elsewhere in this file):
+//
+// 1. THE LABEL-READ ANCHOR is `` `domain:`\s*label `` — a backtick-quoted
+//    literal "domain:" token immediately followed by the word "label". This
+//    is narrower than searching for the bare word "domain" (which would match
+//    the routing-form fixtures, the `domain-routing-form` rule's own name,
+//    and any of the twelve references that describe the `domain:` label
+//    namespace) and it is exactly the phrase the real body uses at
+//    skills/story-design/SKILL.md:23: "**The Story's `domain:` label.**".
+//
+// 2. THE BINDING-USED ANCHOR is the literal path "references/domain-binding.md"
+//    — not the bare word "binding", which appears EARLIER in the same
+//    sentence as the label-read anchor ("before any step that needs a
+//    binding", skills/story-design/SKILL.md:24) and would make the ordering
+//    check trivially true regardless of what the body actually does. The
+//    reference path is where the binding is actually resolved ("The binding
+//    for that label, resolved through the registry described in
+//    `references/domain-binding.md`", :27-28) — a real step, not a mention of
+//    the word. Every one of the four skills must cite this contract to
+//    resolve a label into a binding (references/domain-binding.md is the
+//    shared registry contract, per Dependencies: S1.5 "the binding interface
+//    and KNOWN_DOMAIN_IDS"), so this anchor is expected to generalise.
+//
+// 3. THE HARD-FAILURE ANCHOR is the house convention's fixed first line,
+//    `^HARD FAILURE in Phase \d+ \(...\):`, specified verbatim at
+//    docs/design/02-roles.md:277 ("HARD FAILURE in Phase {N} ({skill}):")
+//    and used unmodified by every hard-failure block in the repository
+//    (docs/design/03-workflow.md:499, :05/:06-domain design docs, etc.). It is
+//    NOT specific to story-design, so it is expected to match goal-create,
+//    story-create and story-test-plan's blocks too.
+const DOMAIN_LABEL_READ_RE = /`domain:`\s*label/i;
+const BINDING_RESOLUTION_MARKER = "references/domain-binding.md";
+const HARD_FAILURE_BLOCK_RE = /^HARD FAILURE in Phase \d+ \([^)]+\):\n(?:- .+\n?)+/m;
+
+describe("case 6: each real skill reads the domain: label before resolving the binding, and carries the hard-failure block", () => {
+  test("the real skill corpus is non-zero, so the loop below cannot pass vacuously", () => {
+    expect(realSkillFiles().length).toBeGreaterThan(0);
+  });
+
+  // THE EXEMPTION IS NAMED, COUNTED AND ASSERTED — never derived from a
+  // pattern. #307 records why one is needed at all: CLAIM-41.5 says "each of
+  // the four skills resolves the binding from the Story's `domain:` label",
+  // and `goal-create` HAS NO STORY. It runs before any Story exists, and a
+  // milestone carries no labels, so "the Story's domain: label" has no
+  // referent for it. The doctrine it does share -- absence is a hard failure,
+  // not a default -- is asserted over ALL bodies below and in case 12.
+  //
+  // A DERIVED exemption ("bodies that do not cite domain-binding.md") would be
+  // the silent direction, and this repository has recorded that failure five
+  // times. So the list is literal, its size is asserted, and every member must
+  // exist on disk -- a stale exemption for a skill that was renamed or that
+  // later grew a binding read cannot sit here unnoticed.
+  const DOMAIN_ORDERING_EXEMPT: readonly string[] = ["goal-create"];
+
+  test("the domain-ordering exemption is exactly one skill, and it exists on disk", () => {
+    expect(DOMAIN_ORDERING_EXEMPT).toHaveLength(1);
+    const names = new Set(realSkillFiles().map((f) => basename(dirname(f.relPath))));
+    for (const exempt of DOMAIN_ORDERING_EXEMPT) {
+      expect(names.has(exempt), `exempt skill "${exempt}" is not on disk -- retire the exemption`).toBe(true);
+    }
+  });
+
+  test("every real skill body: label-read precedes binding-resolution, and the hard-failure block is present", () => {
+    const files = realSkillFiles();
+    expect(files.length).toBeGreaterThan(0); // denominator first, per case 6's own wording
+
+    for (const file of files) {
+      // The hard-failure block is required of EVERY body, exempt or not: it is
+      // the doctrine, and only its trigger differs.
+      expect(file.body, `${file.relPath} must carry the house hard-failure block`).toMatch(HARD_FAILURE_BLOCK_RE);
+
+      if (DOMAIN_ORDERING_EXEMPT.includes(basename(dirname(file.relPath)))) {
+        // Exempt from the ORDERING half only, and it must say why in its own
+        // body rather than relying on this list to explain it.
+        expect(
+          file.body,
+          `${file.relPath} is exempt from the domain ordering, so it must state that it reads no domain`,
+        ).toMatch(/reads no `domain:` label/i);
+        continue;
+      }
+
+      const labelIdx = file.body.search(DOMAIN_LABEL_READ_RE);
+      expect(labelIdx, `${file.relPath} must name reading the domain: label`).toBeGreaterThanOrEqual(0);
+
+      const bindingIdx = file.body.indexOf(BINDING_RESOLUTION_MARKER);
+      expect(
+        bindingIdx,
+        `${file.relPath} must cite ${BINDING_RESOLUTION_MARKER} to resolve the binding`,
+      ).toBeGreaterThanOrEqual(0);
+
+      // ORDERING IS THE POINT OF THE CASE, not presence alone (the plan's own
+      // words). A body that resolved the binding before naming the label read
+      // would pass every "presence" assertion above and still be wrong.
+      expect(
+        labelIdx,
+        `${file.relPath} must name the label read BEFORE the step that resolves the binding`,
+      ).toBeLessThan(bindingIdx);
+    }
+  });
+});
+
+// ===========================================================================
+// CASE 12 (docs/test-plans/41-plan.md:130, CLAIM-41.5 + CLAIM-41.1)
+// ===========================================================================
+//
+// "A Story with no `domain:*` label produces the hard-failure block, not an
+// assumed domain ... Asserting the absence of a default is the case: a skill
+// that silently picked `dev` would pass any test that only checked it did not
+// crash."
+//
+// WHAT THIS TEST CAN PROVE: that the real skill body's TEXT never states a
+// fallback domain and never spells any of the five known domain ids as a bare
+// word anywhere in its own prose — which is what "a Tier-1 verb may never
+// know any [domain]" (CONTRIBUTING.md:339-340) means for a body whose whole
+// job is to stay domain-agnostic.
+//
+// WHAT THIS TEST CANNOT PROVE: that no host or model interpreting this
+// markdown would ever *behave* as though a domain were assumed. A skill is
+// prose read by an LLM host (Decision 6 of docs/design/stories/41.md); there
+// is no harness to execute it (#293). This is a textual, not a behavioural,
+// guarantee — the same limit CLAIM-41.8 names for the whole file.
+//
+// WHY THIS DOES NOT MERELY DUPLICATE domain-routing-form: that rule bans the
+// ROUTING FORM (`domain:<id>` or `skills/<id>/`) and explicitly permits prose
+// naming a domain (Decision 4: "Naming a domain in PROSE is fine"; proved at
+// case 14 above for the doctrine-illustration sentences). Case 12 asks a
+// narrower, different question about a narrower population: within the part
+// of a Tier-1 skill body that handles the ABSENCE of the domain: label, does
+// the text name ANY specific domain id at all, in any form, as a fallback?
+// domain-routing-form's carve-out for prose does not answer that; this test
+// adds the part it does not cover.
+describe("case 12: absence of the domain: label produces the hard-failure block, not an assumed default", () => {
+  test("the real skill corpus is non-zero, so the loop below cannot pass vacuously", () => {
+    expect(realSkillFiles().length).toBeGreaterThan(0);
+  });
+
+  test("every real skill body: the hard-failure block is tied to ABSENCE, and no domain id is named as a default", () => {
+    const files = realSkillFiles();
+    expect(files.length).toBeGreaterThan(0);
+
+    for (const file of files) {
+      const block = HARD_FAILURE_BLOCK_RE.exec(file.body)?.[0];
+      expect(block, `${file.relPath} must carry the hard-failure block`).toBeDefined();
+
+      // Tied to ABSENCE, not merely present. Asserted on the SHAPE of the
+      // block rather than on the literal token "domain:", because #307
+      // establishes that the required input differs per verb -- goal-create
+      // hard-fails on an unresolvable goal, story-design on a missing
+      // `domain:` label -- while the doctrine does not. The block must name
+      // what it expected and record that none was found, so an unrelated
+      // hard failure the body happens to emit cannot satisfy this case.
+      expect(
+        block ?? "",
+        `${file.relPath}'s hard-failure block must name what it expected`,
+      ).toMatch(/^- Expected: .+$/m);
+      expect(
+        block ?? "",
+        `${file.relPath}'s hard-failure block must record the input's absence, not merely fail`,
+      ).toMatch(/^- Found: none$/m);
+
+      // The explicit refusal doctrine, read verbatim off the real body
+      // (skills/story-design/SKILL.md:40, itself echoing
+      // docs/design/03-workflow.md:406's house phrase). Presence alone is not
+      // the case (per the plan's own words), so this is only ONE of the two
+      // halves asserted here.
+      expect(file.body, `${file.relPath} must state the refusal explicitly`).toMatch(/\bnot a default\b/i);
+
+      // ABSENCE OF A DEFAULT — and the honest limit of what this can assert.
+      //
+      // The obvious assertion is "no domain id appears as a bare word
+      // anywhere in a Tier-1 body". IT IS WRONG, and it must not be
+      // reintroduced. Gate ruling G2 DROPPED `know` from the ban entirely
+      // (Decision 4, docs/design/stories/41.md), because #46 measured the
+      // real corpus and found `know` is an ordinary English word that a
+      // whole-word rule does not save — 3 whole-word hits across the twelve
+      // references. And references/domain-binding.md:13 states the very
+      // doctrine these skills implement as "The kernel does not know what
+      // `trade` or `health` means": a skill body quoting its own doctrine
+      // would fail. Banning the words makes the owning document unwritable —
+      // the bind recorded against NEVER-35.7, hit for a third time here.
+      //
+      // What IS machine-checkable is the ROUTING FORM, and that is
+      // domain-routing-form's job, asserted over this same real corpus by the
+      // NEVER-41.7 block above. Duplicating it here would add no coverage.
+      //
+      // So the two halves asserted above — a hard-failure block tied to the
+      // label's ABSENCE, and an explicit refusal to default — are what this
+      // case can prove over a body. The plan's own words are that "asserting
+      // the absence of a default is the case"; a body that both refuses in
+      // terms and carries no routing form has no remaining place to keep a
+      // silent fallback. That is weaker than proving a runtime behaviour,
+      // and #293's execution harness is what would close the gap.
+      expect(
+        lintBodyRules(file.relPath, file.body, { isSkill: true }).filter(
+          (v) => v.rule === "domain-routing-form",
+        ),
+        `${file.relPath} must carry no routing form for any domain id`,
+      ).toEqual([]);
+    }
   });
 });

@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import {
   lintClaimDocs,
+  lintDesignSpine,
   lintPathRefs,
   lintTestPlanCorpus,
   staleAllowListEntries,
@@ -10,6 +11,7 @@ import {
   type ClaimDoc,
   type ClaimViolation,
   type ClaimRuleId,
+  type DesignSpineReport,
   type TestPlanCorpusReport,
 } from "../packages/core/src/index";
 
@@ -31,11 +33,29 @@ import {
 
 const SKIP_DIRS = new Set(["node_modules", "dist"]);
 
-// The directories CLAIM-194.1 puts in scope: "No file under `docs/`,
-// `scripts/`, `.github/` or the root markdown set". Note the claim says *file*,
-// not *markdown file* — the retired token is banned from shell scripts and
+// claim-lint's own scope — the directories this shim walks in full, plus the
+// root-markdown pseudo-scope handled separately below. CLAIM-194.1's scope
+// ("No file under `docs/`, `scripts/`, `.github/` or the root markdown set")
+// is a SUBSET of this list, not the whole of it: `docs`, `scripts`, `.github`
+// and root markdown are what that one claim governs, but SCOPE_DIRS is what
+// every rule in this file gets to see. Note the claim says *file*, not
+// *markdown file* — the retired token is banned from shell scripts and
 // workflow YAML too, which is where it had been hiding.
-const SCOPE_DIRS = ["docs", "scripts", ".github"];
+//
+// `skills` was added by Build Target 7 of docs/design/stories/41.md (task
+// #296) and is NOT part of CLAIM-194.1's four. It is in claim-lint's scope
+// anyway because, before this change, a SKILL.md could carry a malformed
+// claim identifier, a duplicate identifier, an anti-claim missing `NEVER-`, a
+// dangling `anchors_to`, or a dangling path citation, and every one of
+// `identifier-malformed`, `identifier-duplicate`, `anticlaim-not-never`,
+// `anchor-dangling` and `path-dangling` would have missed it — nothing
+// cross-checked `skills/` against the linter that is supposed to cover it.
+// That gap is also why `CONTRIBUTING.md:128-129` was false for four Stories:
+// the document describing the linter was never itself linted. Decision 5 of
+// docs/design/stories/41.md names the failure mode directly: "nobody thought
+// about it" is how the sentence survived, and it must not be the reason a
+// second directory goes unchecked.
+export const SCOPE_DIRS = ["docs", "scripts", ".github", "skills"];
 
 function discoverFiles(dir: string, markdownOnly: boolean): string[] {
   const files: string[] = [];
@@ -51,24 +71,60 @@ function discoverFiles(dir: string, markdownOnly: boolean): string[] {
   return files;
 }
 
-/** Every file CLAIM-194.1 governs: the three scope directories in full, plus
- *  markdown sitting at the repo root (README, CONTRIBUTING, PLAN, ARCHITECTURE).
+// The root-markdown pseudo-scope's label in the per-scope breakdown printed by
+// `printReport`. It is a pseudo-scope, not a member of SCOPE_DIRS: there is no
+// `<root>` directory to walk, only the loose markdown files sitting beside
+// this repo's directories (README, CONTRIBUTING, PLAN, ARCHITECTURE). Named
+// once, exported, and imported by test/claim-lint.test.ts and referenced by
+// CONTRIBUTING.md's claim-lint scope table, so the breakdown and that
+// documentation cannot drift apart from a re-typed literal.
+export const ROOT_SCOPE_LABEL = "<root>";
+
+// One entry of the per-scope breakdown: a scope's label (a member of
+// SCOPE_DIRS, or ROOT_SCOPE_LABEL) paired with the files discovered under it.
+type ScopeGroup = { readonly scope: string; readonly files: string[] };
+
+function flattenScopeFiles(groups: readonly ScopeGroup[]): string[] {
+  return groups.flatMap((group) => group.files);
+}
+
+/** Every file CLAIM-194.1 governs, plus `skills/` (Build Target 7 of
+ *  docs/design/stories/41.md, task #296): each SCOPE_DIRS entry in full, plus
+ *  markdown sitting at the repo root (README, CONTRIBUTING, PLAN, ARCHITECTURE)
+ *  under ROOT_SCOPE_LABEL.
  *
  *  Scanning only `docs/` — which is what this shim did when it shipped, and
  *  what the CI job invoked — under-implements the claim by three quarters. It
  *  also made the guard unable to see its own violation: the first thing the
  *  widened scope caught was this file and CONTRIBUTING.md, both of which had
- *  acquired the retired token while describing the rule that bans it. */
-function discoverScopeFiles(repoRoot: string): string[] {
-  const files: string[] = [];
-  for (const name of SCOPE_DIRS) {
+ *  acquired the retired token while describing the rule that bans it.
+ *
+ *  Returns one group PER scope, in SCOPE_DIRS order with the root pseudo-scope
+ *  last, rather than a flat list. `printReport`'s per-scope breakdown and the
+ *  flat file list handed to the guards are both derived from this same
+ *  return value (see `flattenScopeFiles`), so the two cannot disagree about
+ *  what was scanned — there is exactly one traversal, not one for the total
+ *  and a second for the breakdown that could drift out of step with it. */
+function discoverScopeFiles(repoRoot: string): ScopeGroup[] {
+  // Every SCOPE_DIRS entry — `skills` included — is walked with
+  // `markdownOnly: false`, same as `docs`, `scripts` and `.github` always
+  // were. Treating all four the same way needs no justification; carving out
+  // `skills` to scan only `SKILL.md` would, and there is no such reason: a
+  // shell script or workflow file could hide the retired token same as any
+  // other, and a non-`.md` file under `skills/` is exactly as much in scope
+  // as one under `scripts/`.
+  const groups: ScopeGroup[] = SCOPE_DIRS.map((name) => {
     const dir = join(repoRoot, name);
-    if (existsSync(dir)) files.push(...discoverFiles(dir, false));
-  }
+    return { scope: name, files: existsSync(dir) ? discoverFiles(dir, false) : [] };
+  });
+
+  const rootFiles: string[] = [];
   for (const entry of readdirSync(repoRoot, { withFileTypes: true })) {
-    if (entry.isFile() && entry.name.endsWith(".md")) files.push(join(repoRoot, entry.name));
+    if (entry.isFile() && entry.name.endsWith(".md")) rootFiles.push(join(repoRoot, entry.name));
   }
-  return files;
+  groups.push({ scope: ROOT_SCOPE_LABEL, files: rootFiles });
+
+  return groups;
 }
 
 function toRepoRelative(repoRoot: string, absoluteFile: string): string {
@@ -198,6 +254,7 @@ const RULE_IDS: ClaimRuleId[] = [
   "path-dangling",
   "allowlist-stale",
   "testplan-corpus",
+  "design-spine",
 ];
 
 function pluralize(count: number, singular: string, plural: string): string {
@@ -208,6 +265,8 @@ function printReport(
   violations: ClaimViolation[],
   fileCount: number,
   corpus: TestPlanCorpusReport,
+  spine: DesignSpineReport,
+  scopeGroups: readonly ScopeGroup[],
 ): void {
   const sorted = [...violations].sort((a, b) => {
     if (a.file !== b.file) return a.file < b.file ? -1 : 1;
@@ -234,6 +293,7 @@ function printReport(
     "path-dangling": 0,
     "allowlist-stale": 0,
     "testplan-corpus": 0,
+    "design-spine": 0,
   };
   for (const violation of violations) byRule[violation.rule] += 1;
 
@@ -242,6 +302,28 @@ function printReport(
     const count = byRule[ruleId];
     console.log(
       `claim-lint: ${ruleId.padEnd(padded)}  ${count} ${pluralize(count, "violation", "violations")}`,
+    );
+  }
+
+  // The per-scope breakdown, printed unconditionally for the same reason
+  // `testplan-corpus` and `design-spine` print their denominators below:
+  // one conflated `N files scanned` cannot distinguish "`skills/` is in scope
+  // but its four `SKILL.md` files have not landed yet" from "`skills/` was
+  // silently dropped from SCOPE_DIRS" — both look like zero contribution to
+  // a total that stays large either way. A scope that goes empty says so on
+  // its own line instead of hiding inside a total that remains plausible
+  // without it.
+  //
+  // The counts come from `scopeGroups`, the SAME return value `flattenScopeFiles`
+  // built the flat file list from (see `discoverScopeFiles`), so this block
+  // and the `N files scanned` line below are two views of one traversal and
+  // cannot disagree about what was scanned.
+  const scopeLabelWidth = Math.max(...scopeGroups.map((group) => group.scope.length));
+  const scopeCountWidth = Math.max(...scopeGroups.map((group) => String(group.files.length).length));
+  for (const group of scopeGroups) {
+    const count = group.files.length;
+    console.log(
+      `claim-lint: scope ${group.scope.padEnd(scopeLabelWidth)}  ${String(count).padStart(scopeCountWidth)} ${pluralize(count, "file", "files")}`,
     );
   }
 
@@ -255,6 +337,16 @@ function printReport(
     `claim-lint: testplan-corpus scanned ${corpus.plans} ${pluralize(corpus.plans, "plan", "plans")}, ` +
       `${corpus.tables} ${pluralize(corpus.tables, "case table", "case tables")}, ` +
       `${corpus.cases} ${pluralize(corpus.cases, "case", "cases")}`,
+  );
+
+  // The denominator for design-spine, printed for the same reason: a rule that
+  // stopped recognising Design documents -- a renamed directory, a changed
+  // filename shape -- would otherwise keep reporting 0 violations forever.
+  // Both numbers are printed because a Design whose headings stopped parsing
+  // has a non-zero document count and a zero section count.
+  console.log(
+    `claim-lint: design-spine scanned ${spine.designs} ${pluralize(spine.designs, "Design", "Designs")}, ` +
+      `${spine.sections} ${pluralize(spine.sections, "section", "sections")}`,
   );
 
   const errorCount = violations.filter((v) => v.severity === "error").length;
@@ -310,10 +402,20 @@ function main(): void {
   // With no positional argument the guard walks CLAIM-194.1's full scope, not
   // just docs/. A positional argument narrows it, which is what test case 20
   // (`claim-lint docs/milestones`) exercises.
-  const files =
-    positional === undefined
-      ? discoverScopeFiles(repoRoot)
-      : discoverFiles(resolve(positional), true);
+  //
+  // `scopeGroups` is always populated, even when narrowed: a single positional
+  // argument becomes a single group named after the argument itself, so the
+  // per-scope breakdown printed below is never skipped and its counts always
+  // sum to the same total as the flat file list `files` derives from it.
+  let files: string[];
+  let scopeGroups: ScopeGroup[];
+  if (positional === undefined) {
+    scopeGroups = discoverScopeFiles(repoRoot);
+    files = flattenScopeFiles(scopeGroups);
+  } else {
+    files = discoverFiles(resolve(positional), true);
+    scopeGroups = [{ scope: positional, files }];
+  }
 
   if (mapIndex !== -1) {
     runMap(repoRoot, files, args[mapIndex + 1]);
@@ -342,10 +444,20 @@ function main(): void {
   // pass — which is why the counts are printed even when they are zero.
   const corpus = lintTestPlanCorpus(markdownDocs);
 
+  // design-spine (CLAIM-41.3, gate rulings G1a and G1b). Same markdown subset;
+  // the rule selects docs/design/stories/ itself.
+  const spine = lintDesignSpine(markdownDocs);
+
   const violations = pathsOnly
-    ? [...pathViolations, ...staleViolations, ...corpus.violations]
-    : [...lintClaimDocs(docs), ...pathViolations, ...staleViolations, ...corpus.violations];
-  printReport(violations, docs.length, corpus);
+    ? [...pathViolations, ...staleViolations, ...corpus.violations, ...spine.violations]
+    : [
+        ...lintClaimDocs(docs),
+        ...pathViolations,
+        ...staleViolations,
+        ...corpus.violations,
+        ...spine.violations,
+      ];
+  printReport(violations, docs.length, corpus, spine, scopeGroups);
 
   const hasError = violations.some((v) => v.severity === "error");
   process.exit(hasError ? 1 : 0);

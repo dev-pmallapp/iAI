@@ -26,9 +26,9 @@ milestone's indicative task table** (`PLAN.md:200-203`).
 
 ---
 
-## Frontmatter
+## Frontmatter — the convention, not the keys
 
-Four keys: `phase`, `progress`, `task`, `slug`.
+**No YAML frontmatter.** An H1 title over a bolded metadata block, ruled G1b.
 
 The format is **v2.21.0**, inherited from LifeOS, where the same structure is
 called an ISA. iAI keeps the structure and drops the acronym.
@@ -37,17 +37,17 @@ called an ISA. iAI keeps the structure and drops the acronym.
 
 ## Body sections — ordered, not fixed
 
-The body reaches **seventeen** sections at v2.19.0.
+The body carries a **ten-section ordered spine**, measured 9 of 9.
 
-> **They are ordered, not fixed.** `docs/design/verification-pass.md:515` (row
-> 461) verdicts this `corrected`: the upstream specification states *"Empty
-> sections are excluded entirely"*, so a Design that omits an inapplicable
-> section is conforming, not defective.
+> **Ruled at the gate (G1a).** The seventeen-section reading is retired. The
+> ten names live in `packages/core/src/guards/design-spine.ts`, enforced by
+> `claim-lint`'s `design-spine` rule — cited here, not copied, because a
+> second list is one that drifts from the rule that checks it.
 >
-> `docs/milestones/M2.md:85` requires "all seventeen body sections", which reads
-> as a completeness rule. **The two disagree**, and the disagreement is carried,
-> not resolved here — it bites at `CLAIM-41.3` in S2.2, which is the first Story
-> that lints a Design against this contract.
+> `docs/design/verification-pass.md:515` (row 461) had already verdicted the
+> "seventeen, fixed" reading `corrected`: *"Empty sections are excluded
+> entirely"*. `docs/milestones/M2.md:85`'s "all seventeen" is **annotated,
+> not falsified** — `CLAIM-41.3` is where the disagreement was discharged.
 
 A conforming Design therefore preserves **relative order**; it does not pad.
 
@@ -140,9 +140,9 @@ S1.5, then S2.1. The Build Targets table is where that work is declared so
 | Statement | Source | Verdict |
 |---|---|---|
 | Stored at `docs/design/stories/{issue}.md` | `docs/design/01-skill-hierarchy.md:63` | confirmed |
-| Frontmatter keys, v2.21.0 | `docs/design/01-skill-hierarchy.md:63` | confirmed |
-| Seventeen body sections | `docs/design/01-skill-hierarchy.md:63` | confirmed |
-| Sections are **ordered, not fixed** | `docs/design/verification-pass.md:515` (row 461) | **carried** — contradicts `docs/milestones/M2.md:85`'s "all seventeen". Owner: `CLAIM-41.3`, S2.2 |
+| Frontmatter keys, v2.21.0 | `docs/design/01-skill-hierarchy.md:63` | **corrected** — gate ruling **G1b**. 8 of 9 shipped Designs carry no frontmatter at all; the one that does has *seven* keys with stale values. The convention, not the keys, is the rule |
+| Seventeen body sections | `docs/design/01-skill-hierarchy.md:63` | **corrected** — gate ruling **G1a**. The measured spine is **ten**, 9 of 9. The list is held by `packages/core/src/guards/design-spine.ts`, not restated here |
+| Sections are **ordered, not fixed** | `docs/design/verification-pass.md:515` (row 461) | **discharged** — was `carried` against `docs/milestones/M2.md:85`'s "all seventeen"; resolved by Decision 3 of `docs/design/stories/41.md`, ruled G1a. `CLAIM-41.3` |
 | Claim grammar and `(after: ID)` dependencies | `docs/design/01-skill-hierarchy.md:63` | confirmed |
 | Anti-claims use the `NEVER-` prefix | `claim-lint`'s `anticlaim-not-never` rule | confirmed — enforced, not conventional |
 | Restatement posture | Decision 3 of `docs/design/stories/26.md`, Decision 1 of `docs/design/stories/31.md` | confirmed |

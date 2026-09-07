@@ -125,8 +125,36 @@ intersection schema** — `name` (required, 1–64 chars, matching
 name**), `description` (required, 1–1024 chars), and the optional `license`,
 `compatibility`, `metadata`. **Any other frontmatter key is an error**, because
 both hosts ignore unknown fields silently and a typo would otherwise ship
-unnoticed. Also checks: description length under 300 characters, a Phase 0
-context-discovery section, and an Error Handling section.
+unnoticed.
+
+The complete rule set is 17 ids. **This table is the normative list** — the
+prose above and below it is descriptive and may drift; `test/skill-lint.test.ts`
+asserts the table and `scripts/skill-lint.ts`'s exported `RULE_IDS` name exactly
+the same set, in both directions. "Scope" records two independent things per
+rule: whether it inspects the **frontmatter** block or the **body**, and
+whether it runs over skills only or over both populations (`skills/` **and**
+the contract documents under `references/` and `agents/` — the `isSkill` gate
+described above).
+
+| Rule id | What it checks | Scope |
+|---|---|---|
+| `frontmatter-missing` | The file starts with a line containing only `---` | frontmatter, skills only |
+| `frontmatter-unterminated` | An opened frontmatter block is closed by a second `---` line | frontmatter, skills only |
+| `field-required` | `name` and `description` are both present | frontmatter, skills only |
+| `field-unknown` | No key outside `name`, `description`, `license`, `compatibility`, `metadata` | frontmatter, skills only |
+| `field-duplicate` | No frontmatter key appears twice | frontmatter, skills only |
+| `name-format` | `name` is 1–64 chars matching `^[a-z0-9]+(-[a-z0-9]+)*$` | frontmatter, skills only |
+| `name-directory-mismatch` | `name` equals the containing directory's name | frontmatter, skills only |
+| `description-length` | `description` is 1–1024 chars (error), and warns over 300 | frontmatter, skills only |
+| `metadata-not-a-map` | `metadata`, if present, is a map | frontmatter, skills only |
+| `metadata-value-unquoted` | Every `metadata` value is a quoted scalar | frontmatter, skills only |
+| `metadata-nested` | No `metadata` entry nests a map or sequence one level deeper | frontmatter, skills only |
+| `duplicate-contract` | The body does not restate a value owned by a `packages/core` module — cite the module instead | body, both populations |
+| `reference-citation-count` | Discretionary `references/*.md` citations (the baseline three excluded) do not exceed the exported cap | body, skills only |
+| `model-id-literal` | No literal vendor model ID (`amd-anthropic/…`, `amd-unified/…`) outside the one exempt reference | body, both populations |
+| `domain-routing-form` | No hardcoded routing form (`domain:<id>` or `skills/<id>/`) for a domain the body does not itself own | body, both populations |
+| `phase-0-section` | A `## Phase 0` heading is present | body, skills only |
+| `error-handling-section` | A `## Error Handling` heading is present — **the heading only**; what it should cover is author-judged and unenforced (see [Adding a skill](#adding-a-skill)) | body, skills only |
 
 ### claim-lint
 
@@ -134,12 +162,39 @@ context-discovery section, and an Error Handling section.
 bun run claim-lint
 ```
 
-Passes when: exit code 0. Validates claim identifiers across `docs/`,
-`scripts/`, `.github/` and the root markdown set, per
+Passes when: exit code 0. Validates claim identifiers per
 `docs/design/stories/194.md` — the retired prefix appears nowhere outside the
 four allow-listed paths, every identifier is Story-qualified and unique, every
 anti-claim carries `NEVER-`, no `anchors_to` dangles, and **every test-plan case
 declares a `Corpus`** (#289; the vocabulary is in `references/verification.md`).
+
+**Scope is a checkable list, not prose.** `test/claim-lint.test.ts` asserts
+this table and `scripts/claim-lint.ts`'s exported `SCOPE_DIRS` name exactly the
+same set, in both directions — the same mechanism the `skill-lint` rule table
+above uses against `RULE_IDS`. `<root>` is a pseudo-scope, not a member of
+`SCOPE_DIRS` — there is no `<root>` directory to walk, only the loose markdown
+files sitting beside the repository's own directories — and the test treats it
+separately for exactly that reason, rather than folding it into the set
+comparison.
+
+| Scope | What it covers |
+|---|---|
+| `docs` | Every file under `docs/`, not markdown only |
+| `scripts` | Every file under `scripts/` |
+| `.github` | Every file under `.github/` |
+| `skills` | Every file under `skills/` |
+| `<root>` | The root-markdown pseudo-scope: `.md` files sitting directly at the repo root (README, CONTRIBUTING, PLAN, ARCHITECTURE) |
+
+CLAIM-194.1 itself governs only four of these — `docs/`, `scripts/`, `.github/`
+and the root markdown set. `skills/` was added by Build Target 7 of
+`docs/design/stories/41.md` (task #296): before it, a `SKILL.md` could carry a
+malformed or duplicate claim identifier, an anti-claim missing `NEVER-`, a
+dangling `anchors_to`, or a dangling path citation, and nothing checked for
+any of it. That gap is also why the `skill-lint` rule table above once
+asserted two rules (`phase-0-section`, `error-handling-section`) that did not
+yet exist (Decision 5 of `docs/design/stories/41.md`): nothing cross-checked
+this document against the linter it describes, because the directory that
+would have caught the mismatch was itself out of scope.
 
 ### install-dry
 
@@ -269,17 +324,26 @@ through this checklist in order.
       cholesterol improving"`, not `"Analyses health biomarker data."` A summary
       routes nothing. Keep it under 300 characters; the cost is per-turn and
       permanent.
-- [ ] **Phase 0 must run context discovery.** Every skill opens by establishing
-      state from disk and GitHub — never from conversation memory. `context-discovery`
+- [ ] **Phase 0 must run context discovery, under a `## Phase 0` heading.**
+      The required heading is exactly `## Phase 0`; a suffix such as `## Phase 0:
+      Context Discovery` is allowed, and `skill-lint`'s `phase-0-section` rule
+      enforces the heading's presence. Every skill opens by establishing state
+      from disk and GitHub — never from conversation memory. `context-discovery`
       is **baseline**: the router reads it on route, so you need not cite it and it
       does **not** count against your reference budget (#287).
 - [ ] **Cite references, do not restate contracts.** The label scheme lives in
       `references/gh-operations.md` — also **baseline**, also uncounted. Twenty
       copies of a contract drift within a month — that is forge's lesson,
       and it is why `references/` exists as a separate build target.
-- [ ] **Add an Error Handling section.** `references/gh-error-handling.md` is the
-      third **baseline** reference — uncounted. Cover at minimum: the resource does
-      not exist, the resource already exists, rate limiting, and a partial write.
+- [ ] **Add an Error Handling section, under a `## Error Handling` heading.**
+      The required heading is exactly `## Error Handling`, and `skill-lint`'s
+      `error-handling-section` rule enforces the heading's presence — that is
+      **all** it enforces. `references/gh-error-handling.md` is the third
+      **baseline** reference — uncounted. Cover at minimum: the resource does
+      not exist, the resource already exists, rate limiting, and a partial write
+      — these four conditions remain **author-judged and unenforced**
+      (TODO(#301): a content-level check for the four conditions, to be decided
+      against the real corpus once the four verbs land).
 - [ ] **The skill must be idempotent.** Re-running detects existing state and
       addresses only the gaps. Every skill is re-run — after a crash, after a
       context compaction, after a human edits something mid-flight.
