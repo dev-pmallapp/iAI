@@ -1315,27 +1315,48 @@ describe("case 6: each real skill reads the domain: label before resolving the b
     expect(realSkillFiles().length).toBeGreaterThan(0);
   });
 
-  // THE EXEMPTION IS NAMED, COUNTED AND ASSERTED — never derived from a
-  // pattern. #307 records why one is needed at all: CLAIM-41.5 says "each of
-  // the four skills resolves the binding from the Story's `domain:` label",
-  // and `goal-create` HAS NO STORY. It runs before any Story exists, and a
-  // milestone carries no labels, so "the Story's domain: label" has no
-  // referent for it. The doctrine it does share -- absence is a hard failure,
-  // not a default -- is asserted over ALL bodies below and in case 12.
+  // THE EXEMPTION IS RETIRED. #307 was ruled on 2026-09-07 by the repository
+  // owner and CLAIM-41.5 is restated (docs/design/stories/41.md:310-312): every
+  // skill hard-fails on the absence of ITS OWN required input, and only those
+  // that resolve a domain binding must read the label first.
   //
-  // A DERIVED exemption ("bodies that do not cite domain-binding.md") would be
-  // the silent direction, and this repository has recorded that failure five
-  // times. So the list is literal, its size is asserted, and every member must
-  // exist on disk -- a stale exemption for a skill that was renamed or that
-  // later grew a binding read cannot sit here unnoticed.
-  const DOMAIN_ORDERING_EXEMPT: readonly string[] = ["goal-create"];
+  // What replaces the exemption is a PARTITION, not a derivation. The previous
+  // shape was a carve-out of one, and an over-broad carve-out never announces
+  // itself -- a noisy rule gets fixed, a generous exemption does not. A DERIVED
+  // split ("bodies that do not cite domain-binding.md") is the same silent
+  // direction, recorded five times in this repository and warned against by
+  // #307 in terms.
+  //
+  // So BOTH populations are literal, both counts are asserted, and the two are
+  // asserted to partition the real corpus EXACTLY. A new verb that is in
+  // neither list breaks the total, and a verb that changes category must be
+  // moved deliberately. Neither failure can be silent.
+  const DOMAIN_RESOLVING_SKILLS: readonly string[] = ["story-create", "story-design", "story-test-plan"];
+  const OWN_INPUT_ONLY_SKILLS: readonly string[] = ["goal-create"];
 
-  test("the domain-ordering exemption is exactly one skill, and it exists on disk", () => {
-    expect(DOMAIN_ORDERING_EXEMPT).toHaveLength(1);
-    const names = new Set(realSkillFiles().map((f) => basename(dirname(f.relPath))));
-    for (const exempt of DOMAIN_ORDERING_EXEMPT) {
-      expect(names.has(exempt), `exempt skill "${exempt}" is not on disk -- retire the exemption`).toBe(true);
+  test("the two populations are named, counted, and partition the real corpus exactly", () => {
+    expect(DOMAIN_RESOLVING_SKILLS).toHaveLength(3);
+    expect(OWN_INPUT_ONLY_SKILLS).toHaveLength(1);
+
+    const onDisk = new Set(realSkillFiles().map((f) => basename(dirname(f.relPath))));
+    expect(onDisk.size).toBeGreaterThan(0); // denominator first
+
+    // No overlap: a skill cannot be in both halves.
+    for (const name of DOMAIN_RESOLVING_SKILLS) {
+      expect(OWN_INPUT_ONLY_SKILLS.includes(name), `"${name}" is in both populations`).toBe(false);
     }
+
+    // Every named skill exists -- a stale entry for a renamed verb cannot sit here.
+    for (const name of [...DOMAIN_RESOLVING_SKILLS, ...OWN_INPUT_ONLY_SKILLS]) {
+      expect(onDisk.has(name), `"${name}" is named in a population but is not on disk`).toBe(true);
+    }
+
+    // AND the union covers the corpus: this is the half a carve-out never had.
+    // A fifth verb added without classifying it fails HERE, loudly.
+    expect(
+      DOMAIN_RESOLVING_SKILLS.length + OWN_INPUT_ONLY_SKILLS.length,
+      "every skill on disk must be classified into exactly one population",
+    ).toBe(onDisk.size);
   });
 
   test("every real skill body: label-read precedes binding-resolution, and the hard-failure block is present", () => {
@@ -1347,12 +1368,13 @@ describe("case 6: each real skill reads the domain: label before resolving the b
       // the doctrine, and only its trigger differs.
       expect(file.body, `${file.relPath} must carry the house hard-failure block`).toMatch(HARD_FAILURE_BLOCK_RE);
 
-      if (DOMAIN_ORDERING_EXEMPT.includes(basename(dirname(file.relPath)))) {
-        // Exempt from the ORDERING half only, and it must say why in its own
-        // body rather than relying on this list to explain it.
+      if (OWN_INPUT_ONLY_SKILLS.includes(basename(dirname(file.relPath)))) {
+        // Resolves no domain binding, so the ORDERING half has no referent for
+        // it -- the restated CLAIM-41.5's whole point. It must still say so in
+        // its own body rather than relying on this list to explain it.
         expect(
           file.body,
-          `${file.relPath} is exempt from the domain ordering, so it must state that it reads no domain`,
+          `${file.relPath} resolves no domain binding, so it must state that it reads no domain`,
         ).toMatch(/reads no `domain:` label/i);
         continue;
       }
