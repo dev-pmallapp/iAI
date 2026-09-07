@@ -57,6 +57,13 @@
       "name": "iai-domain-wealth",
       "version": "0.0.0",
     },
+    "packages/exec": {
+      "name": "iai-exec",
+      "version": "0.0.0",
+      "dependencies": {
+        "iai-core": "workspace:*",
+      },
+    },
     "packages/installer": {
       "name": "iai-installer",
       "version": "0.0.0",
@@ -136,6 +143,8 @@
     "iai-domain-trade": ["iai-domain-trade@workspace:packages/domain-trade"],
 
     "iai-domain-wealth": ["iai-domain-wealth@workspace:packages/domain-wealth"],
+
+    "iai-exec": ["iai-exec@workspace:packages/exec"],
 
     "iai-installer": ["iai-installer@workspace:packages/installer"],
 
