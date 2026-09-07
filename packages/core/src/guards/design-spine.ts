@@ -23,8 +23,10 @@
 // The repository had already ruled against it. docs/design/verification-pass.md
 // :515 (row 461) verdicts the "17 fixed" reading `corrected`, on the ground
 // that the upstream spec itself says "Empty sections are excluded entirely".
-// references/design-format.md:38-52 carries the disagreement and :145 names
-// CLAIM-41.3 as its owner. It was routed to S2.2 deliberately.
+// references/design-format.md:38-52 CARRIED the disagreement and :145 named
+// CLAIM-41.3 as its owner. It was routed to S2.2 deliberately, and #297 has
+// since discharged both: :38-52 now states this spine and cites this file for
+// the ten names rather than restating them, and :145 reads `discharged`.
 //
 // What the corpus supports instead is stronger and checkable: a ten-section
 // spine, identical in name and order in 9 of 9 files, with exactly two
