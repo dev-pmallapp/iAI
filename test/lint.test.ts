@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
+import { createTempDirs } from "../packages/harness/src/tempdir";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,12 +7,10 @@ import { lintSource, lintTree } from "../scripts/lint";
 
 const repoRoot = join(import.meta.dir, "..");
 
-const tempDirs: string[] = [];
+const temps = createTempDirs();
 
 function makeTempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "iai-lint-"));
-  tempDirs.push(dir);
-  return dir;
+  return temps.create("iai-lint-");
 }
 
 function writePackageFile(root: string, packageName: string, relativePath: string, content: string): string {
@@ -21,9 +20,7 @@ function writePackageFile(root: string, packageName: string, relativePath: strin
   return filePath;
 }
 
-afterAll(() => {
-  for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
-});
+afterAll(() => temps.cleanup());
 
 describe("lintSource", () => {
   test("clean core file has 0 violations", () => {

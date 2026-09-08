@@ -5,6 +5,7 @@
     { "path": "packages/adapter-opencode" },
     { "path": "packages/adapter-claude" },
     { "path": "packages/exec" },
+    { "path": "packages/harness" },
     { "path": "packages/installer" },
     { "path": "packages/domain-dev" },
     { "path": "packages/domain-trade" },

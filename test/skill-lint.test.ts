@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
+import { createTempDirs } from "../packages/harness/src/tempdir";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
@@ -29,12 +30,10 @@ import {
 
 const repoRoot = join(import.meta.dir, "..");
 
-const tempDirs: string[] = [];
+const temps = createTempDirs();
 
 function makeTempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "iai-skill-lint-"));
-  tempDirs.push(dir);
-  return dir;
+  return temps.create("iai-skill-lint-");
 }
 
 function writeSkillFile(root: string, skillName: string, content: string): string {
@@ -56,9 +55,7 @@ function writeSkillFile(root: string, skillName: string, content: string): strin
 // narrower fixtures.
 const REQUIRED_SECTIONS_SUFFIX = "\n\n## Phase 0: Context Discovery\n\nx\n\n## Error Handling\n\nx\n";
 
-afterAll(() => {
-  for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
-});
+afterAll(() => temps.cleanup());
 
 describe("lintSkillSource", () => {
   test("valid minimal skill has 0 violations", () => {
