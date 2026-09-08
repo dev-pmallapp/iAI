@@ -151,9 +151,27 @@ describe("the synthetic goals fixture is DECLARED synthetic, with the reason in 
   test("the declaration names both independent reasons a real corpus is unusable", () => {
     // references/verification.md:102-106 forbids an UNDECLARED or UNREASONED
     // synthetic corpus, not a synthetic one. Both halves must be present.
+    //
+    // MUTATION M3 SURVIVED THE FIRST VERSION OF THIS TEST, and the reason is
+    // the S1.5 lesson arriving in a new place. The first version asserted
+    // `toContain("private")` for reason 1 and `toContain("PRIVATE")` for
+    // reason 2 -- two assertions that differ only in CASE. Deleting the
+    // egress clause entirely left "is PRIVATE by fail-safe default" behind,
+    // so both assertions still passed and the mutation was invisible.
+    //
+    // Two assertions that differ only in the case of the value they quote are
+    // ONE assertion. Each reason now names a phrase belonging to exactly one
+    // of them, and asserts the OTHER's phrase is absent from its own half.
+    const CANNOT_CHECK_OUT = "no public checkout";
+    const CANNOT_REACH_A_MODEL = "no cloud model may receive it";
+
     expect(GOALS_FIXTURE_CORPUS_DECLARATION).toContain("synthetic");
-    expect(GOALS_FIXTURE_CORPUS_DECLARATION).toContain("private"); // cannot be checked out
-    expect(GOALS_FIXTURE_CORPUS_DECLARATION).toContain("PRIVATE"); // may not reach a model
+    expect(GOALS_FIXTURE_CORPUS_DECLARATION).toContain(CANNOT_CHECK_OUT);
+    expect(GOALS_FIXTURE_CORPUS_DECLARATION).toContain(CANNOT_REACH_A_MODEL);
+    // Distinctness: the two phrases are not substrings of one another, so
+    // neither can satisfy the other's assertion.
+    expect(CANNOT_CHECK_OUT.includes(CANNOT_REACH_A_MODEL)).toBe(false);
+    expect(CANNOT_REACH_A_MODEL.includes(CANNOT_CHECK_OUT)).toBe(false);
   });
 
   test("the declaration is long enough to satisfy the Corpus column's own rule", () => {
