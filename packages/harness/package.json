@@ -1,5 +1,5 @@
 {
-  "name": "iai-exec",
+  "name": "iai-harness",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -16,6 +16,7 @@
     "build": "tsc -b tsconfig.json"
   },
   "dependencies": {
-    "iai-core": "workspace:*"
+    "iai-core": "workspace:*",
+    "iai-exec": "workspace:*"
   }
 }

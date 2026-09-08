@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
+import { createTempDirs } from "../packages/harness/src/tempdir";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -20,12 +21,10 @@ const cli = join(repoRoot, "scripts", "claim-lint.ts");
 
 const RETIRED = "ISC-";
 
-const tempDirs: string[] = [];
+const temps = createTempDirs();
 
 function makeTempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "iai-claim-lint-"));
-  tempDirs.push(dir);
-  return dir;
+  return temps.create("iai-claim-lint-");
 }
 
 async function run(...args: string[]): Promise<{ stdout: string; stderr: string; code: number }> {
@@ -38,9 +37,7 @@ async function run(...args: string[]): Promise<{ stdout: string; stderr: string;
   return { stdout, stderr, code };
 }
 
-afterAll(() => {
-  for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
-});
+afterAll(() => temps.cleanup());
 
 describe("claim-lint CLI against the real repository", () => {
   // THE regression test. If this goes red, either the tree has drifted or the
