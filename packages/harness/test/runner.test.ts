@@ -9,7 +9,7 @@
 // `new Set(...)` is used wherever cardinality (not length) is the property.
 
 import { afterAll, describe, expect, test } from "bun:test";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createRealPort } from "iai-exec";
 import {
@@ -29,6 +29,7 @@ import {
 } from "../src/index";
 
 const runnerSourcePath = join(import.meta.dir, "..", "src", "runner.ts");
+const repoRoot = join(import.meta.dir, "../../..");
 
 const temps = createTempDirs();
 afterAll(() => temps.cleanup());
@@ -618,6 +619,27 @@ describe("22. success-phrase and failure-vocabulary seeding cannot fool the verd
 
     expect(verdict.exitCode).toBe(0);
     expect(verdict.failures).toEqual([]);
+  });
+
+  test("the corpus is not hypothetical: docs/evidence/ already contains this runner's own success phrases", () => {
+    // WHY THIS ASSERTION EXISTS. Case 22's premise is that a fixture can
+    // legitimately contain the very strings the runner prints on success, so
+    // a verdict decided by grepping text would be fooled by its own corpus.
+    // `docs/evidence/` is an IMMUTABLE, committed directory that quotes this
+    // runner's output verbatim -- which makes the premise a measured fact
+    // rather than a hypothetical. If this ever goes red, the trap above has
+    // become hypothetical again and case 22 is weaker than it reads.
+    const evidenceDir = join(repoRoot, "docs/evidence");
+    const files = readdirSync(evidenceDir).filter((f) => f.endsWith(".md"));
+    expect(files.length).toBeGreaterThan(0); // denominator first
+    expect(SUCCESS_PHRASES.length).toBeGreaterThan(0);
+
+    const carrying = files.filter((f) => {
+      const text = readFileSync(join(evidenceDir, f), "utf8");
+      return SUCCESS_PHRASES.some((phrase) => text.includes(phrase));
+    });
+    // The LIST, not the count: a failure names the corpus that was searched.
+    expect(carrying.length).toBeGreaterThan(0);
   });
 });
 
