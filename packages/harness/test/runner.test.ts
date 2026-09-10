@@ -496,3 +496,125 @@ describe("12. failure messages are pairwise distinct and self-distinguishing", (
     }
   });
 });
+
+// ===========================================================================
+// 22. The runner's own vocabulary, seeded into a fixture, cannot fool it
+// ===========================================================================
+//
+// Step C of #322. `decideVerdict` is pure over typed observations
+// (`Denominators`, `ScenarioResult[]`) and never reads a byte of fixture
+// content or a spawned process's stdout -- but nothing in this file had ever
+// PROVED that by seeding the runner's own success and failure vocabulary
+// into a fixture and checking the verdict does not flip. Two directions,
+// because either alone is satisfiable by the wrong fix (see direction B's
+// own comment below).
+
+describe("22. success-phrase and failure-vocabulary seeding cannot fool the verdict", () => {
+  // --- Direction A -----------------------------------------------------
+  //
+  // A scenario whose run 1 mutates nothing is the correct-FAIL case
+  // (`run-1-made-no-mutation`, same shape as case 3 above). Its fixture is
+  // seeded with the runner's own SUCCESS_PHRASES in THREE places at once:
+  //
+  //   (a) the CONTENTS of a tracked file;
+  //   (b) the NAME of a tracked file;
+  //   (c) nothing else is needed -- (b) is the sharp one. `git status
+  //       --porcelain` (mutation-recorder.ts's own probe, which the
+  //       recorder parses into the boolean `dirty`) emits the PATH of every
+  //       tracked-then-changed file, so a phrase living in a file NAME
+  //       reaches that probe's raw stdout; a phrase living only in file
+  //       CONTENTS never does, because `git status --porcelain` never
+  //       echoes a tracked file's bytes. If any part of this pipeline ever
+  //       decided a verdict by scanning raw git stdout for a success
+  //       phrase rather than from `dirty`'s typed boolean, (b) is what
+  //       would catch it and (a) alone could not.
+  //
+  // BUILT FROM THE EXPORTED CONSTANT, NEVER A COPY-PASTED STRING. A
+  // hand-typed trap fixture goes stale the first time a message in
+  // SUCCESS_PHRASE_BY_CODE changes, and a stale trap that still happens to
+  // pass is a token gesture, not a check -- the same lesson this file's own
+  // `overCap`/`atCap` builders in sibling suites exist to enforce for
+  // reference-citation-count.
+  test("direction A: SUCCESS_PHRASES seeded into a vacuous run 1's fixture still fails as run-1-made-no-mutation", async () => {
+    expect(SUCCESS_PHRASES.length).toBeGreaterThan(0);
+    const phraseContents = SUCCESS_PHRASES.join("\n");
+    const phraseAsFileName = `${(SUCCESS_PHRASES[0] ?? "").replace(/[^a-zA-Z0-9_-]/g, "-")}.md`;
+
+    const seededVacuousScenario: Scenario = {
+      id: "case-22-direction-a-vacuous",
+      skill: ALPHA,
+      corpus: "synthetic — built for #322 step C's case 22 (direction A)",
+      files: [
+        { path: "SEED.md", contents: "seed for case-22-direction-a-vacuous\n" },
+        // (a) contents
+        { path: "SUCCESS-PHRASES-IN-CONTENT.md", contents: phraseContents },
+        // (b) the sharp one — the name itself
+        { path: phraseAsFileName, contents: "seed for case 22 direction A, file (b)\n" },
+      ],
+      async run(ctx: ScenarioContext): Promise<void> {
+        // Never mutates — the run-1-vacuous shape, same as case 3's
+        // `makeVacuousScenario` above.
+        await ctx.read(1, [...GH_READ_ARGV]);
+      },
+    };
+
+    const roster: readonly Scenario[] = [seededVacuousScenario, makeHappyScenario("happy-beta-case-22-a", BETA)];
+    const verdict = await runHarness(runOptions(roster));
+
+    expect(verdict.exitCode).toBe(1);
+    expect(verdict.failures[0]?.code).toBe("run-1-made-no-mutation");
+    expect(verdict.verdict).toBe("fail");
+  });
+
+  // --- Direction B -----------------------------------------------------
+  //
+  // Direction A alone would be satisfied by a runner that inverted a grep --
+  // one that failed BECAUSE it found a success phrase rather than despite
+  // finding one. Direction B is what stops "invert the grep" being the fix:
+  // seed a scenario whose correct verdict is PASS with the runner's own
+  // FAILURE vocabulary (real failure messages, collected from real failing
+  // verdicts produced earlier in this file, never restated by hand) and
+  // require the verdict to still be a clean pass.
+  test("direction B: real failure messages seeded into a passing scenario's fixture still pass", async () => {
+    const [empty, partial, pinnedMismatch, run2Mutates, underRead, duplicateSeed, badAttribution] = await Promise.all([
+      runHarness(runOptions([])),
+      partialVerdictPromise,
+      pinnedMismatchVerdictPromise,
+      run2MutatesVerdictPromise,
+      underReadVerdictPromise,
+      duplicateSeedVerdictPromise,
+      badAttributionVerdictPromise,
+    ]);
+    const failureMessages = [empty, partial, pinnedMismatch, run2Mutates, underRead, duplicateSeed, badAttribution].flatMap(
+      (v) => v.failures.map((f) => f.message),
+    );
+    // Denominator first: a corpus of zero failure messages would make the
+    // seeding below vacuous.
+    expect(failureMessages.length).toBeGreaterThan(0);
+
+    const seededPassingScenario: Scenario = {
+      id: "case-22-direction-b-passing",
+      skill: ALPHA,
+      corpus: "synthetic — built for #322 step C's case 22 (direction B)",
+      files: [
+        { path: "SEED.md", contents: "seed for case-22-direction-b-passing\n" },
+        { path: "FAILURE-VOCABULARY.md", contents: failureMessages.join("\n") },
+      ],
+      async run(ctx: ScenarioContext): Promise<void> {
+        if (ctx.runIndex === 1) {
+          ctx.writeFile("OUTPUT.md", "created by case-22-direction-b-passing\n");
+          return;
+        }
+        for (let row = 1; row <= rowCountFor(ALPHA); row += 1) {
+          await ctx.read(row, [...GH_READ_ARGV]);
+        }
+      },
+    };
+
+    const roster: readonly Scenario[] = [seededPassingScenario, makeHappyScenario("happy-beta-case-22-b", BETA)];
+    const verdict = await runHarness(runOptions(roster));
+
+    expect(verdict.exitCode).toBe(0);
+    expect(verdict.failures).toEqual([]);
+  });
+});
