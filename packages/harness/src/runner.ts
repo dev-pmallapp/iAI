@@ -141,17 +141,28 @@ export interface RunObservation {
   readonly calls: readonly RecordedCall[];
 }
 
-export type ScenarioStatus = "ok" | "run-1-vacuous";
+export type ScenarioStatus = "ok" | "run-1-vacuous" | "threw";
 
 export interface ScenarioResult {
   readonly id: string;
   readonly skill: string;
   readonly corpus: string;
   readonly seedTreeHash: string;
-  readonly run1: RunObservation;
-  /** `null` iff run 1 was vacuous and run 2 was NOT executed. */
+  /** `null` iff `status === "threw"` and the throw happened before run 1's
+   *  observation could be recorded (during setup or during run 1 itself).
+   *  For every other status this is always populated. */
+  readonly run1: RunObservation | null;
+  /** `null` iff run 1 was vacuous and run 2 was NOT executed, OR iff
+   *  `status === "threw"` and the throw happened during or before run 2. */
   readonly run2: RunObservation | null;
   readonly status: ScenarioStatus;
+  /** Present iff `status === "threw"`. Which run the scenario was executing
+   *  (or about to execute, if the throw happened during setup) and the
+   *  caught error's own message -- carried here, rather than pushed
+   *  straight into a `Failure` at the catch site, so `decideVerdict` stays
+   *  the ONE place a `Failure` is constructed and the ONE place an exit
+   *  code is decided, exactly as its own header states. */
+  readonly threw?: { readonly runIndex: 1 | 2; readonly message: string };
 }
 
 // ===========================================================================
@@ -193,7 +204,8 @@ export type FailureCode =
   | "run-2-reads-below-re-entry-rows"
   | "run-2-tree-hash-changed"
   | "read-attribution-invalid"
-  | "unclassified-argv";
+  | "unclassified-argv"
+  | "scenario-threw";
 
 // A CLOSED SET, and checked exhaustive at compile time -- the same doctrine
 // scripts/skill-lint.ts:868-895 applies to its own rule-id union, so a code
@@ -214,6 +226,7 @@ const ALL_FAILURE_CODES = [
   "run-2-tree-hash-changed",
   "read-attribution-invalid",
   "unclassified-argv",
+  "scenario-threw",
 ] as const satisfies readonly FailureCode[];
 
 type _FailureCodesExhaustive = Exclude<FailureCode, (typeof ALL_FAILURE_CODES)[number]> extends never
@@ -285,6 +298,7 @@ const SUCCESS_PHRASE_BY_CODE: Readonly<Record<FailureCode, string>> = {
   "read-attribution-invalid":
     "read-attribution-invalid: every declared read attribution resolves to a real, in-bounds call",
   "unclassified-argv": "unclassified-argv: no recorded argv classified as unclassified",
+  "scenario-threw": "scenario-threw: no scenario's setup or run threw an uncaught error",
 };
 
 const VERDICT_PASS_PHRASE = "verdict: pass";
@@ -482,6 +496,33 @@ export function decideVerdict(input: {
 
   // 10-13, per scenario.
   for (const scenario of input.scenarios) {
+    if (scenario.status === "threw") {
+      const runIndex = scenario.threw?.runIndex ?? 1;
+      const errorMessage = scenario.threw?.message ?? "(no error message was captured)";
+      failures.push({
+        code: "scenario-threw",
+        scenario: scenario.id,
+        message:
+          `scenario-threw: scenario "${scenario.id}" (skill "${scenario.skill}") threw an uncaught ` +
+          `error during run ${String(runIndex)}, before that run's observation could be completed: ` +
+          errorMessage,
+      });
+      // ONE CAUSE, ONE FAILURE. A scenario that threw carries no completed
+      // run 1 observation to grade honestly (`run1` may be `null`, and even
+      // when it is populated the throw happened before run 2 could be
+      // attempted) -- evaluating `run-1-made-no-mutation` or any of #11-13
+      // against that incomplete state would report the SAME root cause a
+      // second time under a different code. `continue` skips this
+      // scenario's remaining checks entirely; `scenario-threw` above is the
+      // only failure it contributes.
+      continue;
+    }
+
+    // Invariant: every non-"threw" status always carries a completed run 1
+    // observation (`runHarness` never pushes an "ok" or "run-1-vacuous"
+    // result without one). This narrows the type for the checks below.
+    if (scenario.run1 === null) continue;
+
     if (scenario.run1.mutations === 0) {
       failures.push({
         code: "run-1-made-no-mutation",
@@ -536,8 +577,10 @@ export function decideVerdict(input: {
     }
   }
 
-  // Two extra checks, NOT counted among the thirteen.
+  // Two extra checks, NOT counted among the thirteen. Skipped for "threw"
+  // scenarios for the same one-cause-one-failure reason as the loop above.
   for (const scenario of input.scenarios) {
+    if (scenario.status === "threw" || scenario.run1 === null) continue;
     const threshold = d.reEntryRows[scenario.skill] ?? 0;
     checkAttributions(scenario, 1, scenario.run1, threshold, failures);
     if (scenario.run2 !== null) checkAttributions(scenario, 2, scenario.run2, threshold, failures);
@@ -625,14 +668,6 @@ export async function runHarness(options: RunHarnessOptions): Promise<HarnessVer
     // calls (which a scenario is equally free to issue) would desynchronise.
     const recordingPort = recorder.port as unknown as RecordingPort;
 
-    const repo = await createFixtureRepo(recorder.port, root, { name: scenario.id, files: scenario.files });
-    const seedTreeHash = await repo.treeHash();
-    seedTreeHashes.push(seedTreeHash);
-
-    // Seed BEFORE the first window opens, on the RAW fake -- never through
-    // the recorder, so seeding is never itself scored as a mutation.
-    await scenario.seed?.(forge);
-
     function contextFor(runIndex: 1 | 2, attributions: ReadAttribution[]): ScenarioContext {
       return {
         root,
@@ -650,43 +685,82 @@ export async function runHarness(options: RunHarnessOptions): Promise<HarnessVer
       };
     }
 
-    const attributions1: ReadAttribution[] = [];
-    await recorder.begin(repo);
-    await scenario.run(contextFor(1, attributions1));
-    const report1 = await recorder.end();
-    const run1 = observe(report1, attributions1);
+    // EVERYTHING a scenario itself controls -- its setup (fixture creation,
+    // seeding) and both runs -- is wrapped here. A scenario's `run()` (or its
+    // `seed()`) is arbitrary, human- or tool-authored code; an uncaught
+    // throw from it must become a recorded, named `Failure` rather than an
+    // exception that escapes `runHarness` and leaves no verdict and no
+    // artifact behind (the exact defect a prior mutation run exposed: a
+    // transcription's `JSON Parse error` killed the process with nothing
+    // written).
+    let runIndexAtFailure: 1 | 2 = 1;
+    let seedTreeHash: string | null = null;
+    let run1: RunObservation | null = null;
+    try {
+      const repo = await createFixtureRepo(recorder.port, root, { name: scenario.id, files: scenario.files });
+      seedTreeHash = await repo.treeHash();
+      seedTreeHashes.push(seedTreeHash);
 
-    if (run1.mutations === 0) {
-      // MUST NOT run 2. That ordering is what makes "a vacuous run 1 cannot
-      // license a run-2 claim" observable in the artifact rather than merely
-      // structural -- `run2` is `null`, not a second, empty `RunObservation`.
+      // Seed BEFORE the first window opens, on the RAW fake -- never through
+      // the recorder, so seeding is never itself scored as a mutation.
+      await scenario.seed?.(forge);
+
+      const attributions1: ReadAttribution[] = [];
+      await recorder.begin(repo);
+      await scenario.run(contextFor(1, attributions1));
+      const report1 = await recorder.end();
+      run1 = observe(report1, attributions1);
+
+      if (run1.mutations === 0) {
+        // MUST NOT run 2. That ordering is what makes "a vacuous run 1
+        // cannot license a run-2 claim" observable in the artifact rather
+        // than merely structural -- `run2` is `null`, not a second, empty
+        // `RunObservation`.
+        scenarios.push({
+          id: scenario.id,
+          skill: scenario.skill,
+          corpus: scenario.corpus,
+          seedTreeHash,
+          run1,
+          run2: null,
+          status: "run-1-vacuous",
+        });
+        continue;
+      }
+
+      runIndexAtFailure = 2;
+      const attributions2: ReadAttribution[] = [];
+      await recorder.begin(repo);
+      await scenario.run(contextFor(2, attributions2));
+      const report2 = await recorder.end();
+      const run2 = observe(report2, attributions2);
+
       scenarios.push({
         id: scenario.id,
         skill: scenario.skill,
         corpus: scenario.corpus,
         seedTreeHash,
         run1,
-        run2: null,
-        status: "run-1-vacuous",
+        run2,
+        status: "ok",
       });
-      continue;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      scenarios.push({
+        id: scenario.id,
+        skill: scenario.skill,
+        corpus: scenario.corpus,
+        seedTreeHash: seedTreeHash ?? "",
+        // Whatever observation was completed before the throw -- `null` if
+        // it threw during setup or during run 1 itself.
+        run1,
+        // Always `null`: a throw either happened before run 2 started, or
+        // during run 2, so run 2 never produced a completed observation.
+        run2: null,
+        status: "threw",
+        threw: { runIndex: runIndexAtFailure, message },
+      });
     }
-
-    const attributions2: ReadAttribution[] = [];
-    await recorder.begin(repo);
-    await scenario.run(contextFor(2, attributions2));
-    const report2 = await recorder.end();
-    const run2 = observe(report2, attributions2);
-
-    scenarios.push({
-      id: scenario.id,
-      skill: scenario.skill,
-      corpus: scenario.corpus,
-      seedTreeHash,
-      run1,
-      run2,
-      status: "ok",
-    });
   }
 
   const skillsCovered = [...new Set(options.roster.map((s) => s.skill))].sort();
@@ -750,13 +824,19 @@ export function renderReport(verdict: HarnessVerdict): string {
   }
 
   for (const scenario of verdict.scenarios) {
+    const run1Summary =
+      scenario.run1 === null
+        ? "run 1 not completed (scenario threw)"
+        : `run 1: mutations=${String(scenario.run1.mutations)} reads=${String(scenario.run1.reads)}`;
     const run2Summary =
       scenario.run2 === null
-        ? "run 2 not executed (run 1 was vacuous)"
+        ? scenario.status === "threw"
+          ? "run 2 not executed (scenario threw)"
+          : "run 2 not executed (run 1 was vacuous)"
         : `run 2: mutations=${String(scenario.run2.mutations)} reads=${String(scenario.run2.reads)} treeHash=${scenario.run2.treeHash}`;
     lines.push(
       `harness: scenario "${scenario.id}" (skill "${scenario.skill}", status ${scenario.status}): ` +
-        `run 1: mutations=${String(scenario.run1.mutations)} reads=${String(scenario.run1.reads)}; ${run2Summary}`,
+        `${run1Summary}; ${run2Summary}`,
     );
   }
 

@@ -9,7 +9,7 @@
 // `new Set(...)` is used wherever cardinality (not length) is the property.
 
 import { afterAll, describe, expect, test } from "bun:test";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createRealPort } from "iai-exec";
 import {
@@ -27,6 +27,8 @@ import {
   type ScenarioContext,
   type ScenarioResult,
 } from "../src/index";
+
+const runnerSourcePath = join(import.meta.dir, "..", "src", "runner.ts");
 
 const temps = createTempDirs();
 afterAll(() => temps.cleanup());
@@ -616,5 +618,187 @@ describe("22. success-phrase and failure-vocabulary seeding cannot fool the verd
 
     expect(verdict.exitCode).toBe(0);
     expect(verdict.failures).toEqual([]);
+  });
+});
+
+// ===========================================================================
+// 23. renderArtifact's verdict and exitCode agree, both with the source
+// verdict and with each other -- on a PASSING run AND a FAILING run.
+// ===========================================================================
+//
+// Closes mutation gap M12: `renderArtifact` forcing `verdict: "pass"`
+// unconditionally, with `exitCode` untouched, survived because nothing here
+// exercised it against a FAILING verdict -- the case where a forced "pass"
+// and an untouched `exitCode: 1` disagree with each other. #323's CI job may
+// read this artifact rather than the process's own exit code, so an
+// artifact that disagrees with its own process is a defect that would
+// surface as a green CI job over a red run.
+
+describe("23. renderArtifact agrees with its source verdict, in both directions, on pass and fail", () => {
+  test("verdict and exitCode round-trip, and verdict === \"pass\" iff exitCode === 0, for both a passing and a failing verdict", async () => {
+    const passing = await happyVerdictPromise;
+    const failing = await vacuousVerdictPromise;
+
+    expect(passing.verdict).toBe("pass");
+    expect(passing.exitCode).toBe(0);
+    expect(failing.verdict).toBe("fail");
+    expect(failing.exitCode).toBe(1);
+
+    for (const source of [passing, failing]) {
+      const parsed = JSON.parse(renderArtifact(source)) as { verdict: "pass" | "fail"; exitCode: 0 | 1 };
+
+      // Agrees with the source verdict object.
+      expect(parsed.verdict).toBe(source.verdict);
+      expect(parsed.exitCode).toBe(source.exitCode);
+
+      // Agrees with itself, both directions.
+      if (parsed.verdict === "pass") expect(parsed.exitCode).toBe(0);
+      if (parsed.exitCode === 0) expect(parsed.verdict).toBe("pass");
+      if (parsed.verdict === "fail") expect(parsed.exitCode).toBe(1);
+      if (parsed.exitCode === 1) expect(parsed.verdict).toBe("fail");
+    }
+  });
+});
+
+// ===========================================================================
+// 24. decideVerdict's source never re-derives the verdict from rendered
+// TEXT -- a STATIC check, because the mutation it kills is behaviourally
+// equivalent over every fixture in this file.
+// ===========================================================================
+//
+// Closes mutation gap M11: deriving `exitCode` from
+// `renderReport(...).includes("verdict: pass")` is behaviourally identical
+// to the real implementation over the current corpus, so no DYNAMIC test
+// can kill it -- any input that makes the real `decideVerdict` fail also
+// makes `renderReport` omit "verdict: pass", and vice versa. Case 21 of
+// docs/test-plans/293-plan.md already establishes the house pattern for
+// exactly this shape: the verdict is the exit code plus a JSON artifact,
+// and is NEVER a grep of text -- and that finding's shape (37: a harness
+// that decided on a substring of its own output) is recorded against no
+// specific module, because it is a defect ANY future harness can reintroduce.
+// The check below is therefore static: it inspects `decideVerdict`'s own
+// source text for the tokens that would make such a substring-of-output
+// decision possible, rather than trying to reach it through behaviour no
+// fixture can distinguish.
+
+function skipBalancedBraceGroup(source: string, from: number): number {
+  let j = from;
+  while (source[j] !== "{") j += 1;
+  let depth = 0;
+  for (; j < source.length; j += 1) {
+    if (source[j] === "{") depth += 1;
+    else if (source[j] === "}") {
+      depth -= 1;
+      if (depth === 0) return j + 1;
+    }
+  }
+  throw new Error("unbalanced braces: no matching close found");
+}
+
+/** Extracts `export function decideVerdict(...) {...}`'s full source, from
+ *  the marker to its OWN matching close -- not the first brace to return to
+ *  depth zero, which (for this function) would be the parameter list's own
+ *  type-literal closing brace, well short of the function body. Skips the
+ *  parameter list (by paren depth, which the type literal's braces cannot
+ *  perturb), then the return-type annotation if it is itself an object
+ *  literal, then reads the function body's own balanced brace group. */
+function extractFunctionSource(source: string, marker: string): string {
+  const startIdx = source.indexOf(marker);
+  if (startIdx === -1) throw new Error(`marker not found in source: ${marker}`);
+
+  let i = startIdx + marker.length;
+  let parenDepth = 1; // the marker's own trailing "(" is already consumed
+  for (; i < source.length && parenDepth > 0; i += 1) {
+    if (source[i] === "(") parenDepth += 1;
+    else if (source[i] === ")") parenDepth -= 1;
+  }
+
+  let j = i;
+  while (/\s/.test(source[j] ?? "")) j += 1;
+  if (source[j] === ":") {
+    j += 1;
+    while (/\s/.test(source[j] ?? "")) j += 1;
+    if (source[j] === "{") {
+      j = skipBalancedBraceGroup(source, j);
+    } else {
+      while (source[j] !== "{") j += 1;
+    }
+  }
+  while (/\s/.test(source[j] ?? "")) j += 1;
+
+  const bodyEnd = skipBalancedBraceGroup(source, j);
+  return source.slice(startIdx, bodyEnd);
+}
+
+describe("24. decideVerdict's own source never re-derives a verdict from rendered text", () => {
+  test("the extracted function body is non-empty, and contains none of the forbidden tokens", () => {
+    const source = readFileSync(runnerSourcePath, "utf8");
+    const decideVerdictSource = extractFunctionSource(source, "export function decideVerdict(");
+
+    // FIRST: a failed extraction (an empty or near-empty string) must not
+    // be able to pass the checks below vacuously.
+    expect(decideVerdictSource.length).toBeGreaterThan(0);
+    // A stronger sanity floor than `> 0` alone -- catches an extraction that
+    // technically returned a non-empty but truncated (and therefore
+    // meaningless) slice.
+    expect(decideVerdictSource.length).toBeGreaterThan(500);
+    expect(decideVerdictSource).toContain("return { verdict, exitCode, failures");
+
+    const forbiddenTokens = ["renderReport", "renderArtifact", "SUCCESS_PHRASES", '.includes("', "stdout"] as const;
+    const found = forbiddenTokens.filter((token) => decideVerdictSource.includes(token));
+    expect(found).toEqual([]);
+  });
+});
+
+// ===========================================================================
+// 25. A scenario that throws does not escape runHarness, and is reported as
+// exactly one failure naming the scenario.
+// ===========================================================================
+//
+// Closes mutation gap M10. Re-seeding the fake forge between runs made a
+// real transcription's parsing throw (`JSON Parse error`), and the process
+// died with no verdict and no artifact -- a runner whose failure mode is an
+// uncaught rejection cannot report which scenario failed, and the artifact
+// (which #323 will read) is absent exactly when it is most needed.
+
+function makeThrowingScenario(id: string, skill: string): Scenario {
+  return {
+    id,
+    skill,
+    corpus: "synthetic — built for #322 step B1's runner tests (gap 3, scenario-threw)",
+    files: [{ path: "SEED.md", contents: `seed for ${id}\n` }],
+    async run(): Promise<void> {
+      throw new Error(`synthetic throw from scenario "${id}"`);
+    },
+  };
+}
+
+describe("25. a scenario whose run throws is recorded as scenario-threw, not an uncaught rejection", () => {
+  test("runHarness resolves (never rejects); exitCode is 1; failures has exactly one scenario-threw entry naming the scenario", async () => {
+    const throwingRoster: readonly Scenario[] = [
+      makeThrowingScenario("throws-alpha", ALPHA),
+      makeHappyScenario("happy-beta-case-25", BETA),
+    ];
+
+    // `runHarness` itself must not reject: awaiting it must resolve to a
+    // verdict, never throw out of this `await`.
+    const verdict = await runHarness(runOptions(throwingRoster));
+
+    expect(verdict.exitCode).toBe(1);
+
+    const threwFailures = verdict.failures.filter((f) => f.code === "scenario-threw");
+    expect(threwFailures.length).toBe(1);
+    expect(threwFailures[0]?.scenario).toBe("throws-alpha");
+    expect(threwFailures[0]?.message).toContain("throws-alpha");
+    expect(threwFailures[0]?.message).toContain("synthetic throw from scenario");
+
+    // Exactly one entry overall in `failures` -- the throw must not ALSO be
+    // reported as `run-1-made-no-mutation` (one cause, one failure).
+    expect(verdict.failures.length).toBe(1);
+
+    const result = verdict.scenarios.find((s) => s.id === "throws-alpha");
+    expect(result).toBeDefined();
+    expect(result?.status).toBe("threw");
+    expect(result?.run2).toBeNull();
   });
 });

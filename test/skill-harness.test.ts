@@ -63,14 +63,19 @@ describe("skill-harness CLI over the real roster", () => {
     expect(artifact.failures).toEqual([]);
   });
 
-  test("2. the artifact's exitCode and the observed process exitCode agree", async () => {
+  test("2. the artifact's exitCode and the observed process exitCode agree, and its verdict is pass", async () => {
     // A verdict that disagreed with its own artifact is the defect this
     // pins -- #323's CI job may read this file rather than the process's
-    // own exit code, so the two must never diverge.
+    // own exit code, so the two must never diverge. `verdict` is pinned
+    // here too (not only `exitCode`): a `renderArtifact` that forced
+    // `verdict: "pass"` unconditionally would still make `exitCode` agree
+    // with the process on this passing real run, so `exitCode` alone
+    // cannot catch a forced verdict field on this path.
     const outPath = join(temps.create("iai-skill-harness-out-"), "report.json");
     const spawned = await spawnHarness(["--out", outPath]);
     const artifact = JSON.parse(readFileSync(outPath, "utf8")) as HarnessArtifact;
     expect(artifact.exitCode).toBe(spawned.exitCode);
+    expect(artifact.verdict).toBe("pass");
   });
 
   test("3. every denominator in the artifact is non-zero, and any zero-valued one is named", async () => {
