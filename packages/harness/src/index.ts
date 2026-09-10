@@ -51,3 +51,25 @@ export {
   reEntryRows,
 } from "./re-entry";
 export type { ReEntryRow, SkillBody } from "./re-entry";
+
+export {
+  decideVerdict,
+  PINNED_SKILL_COUNT,
+  renderArtifact,
+  renderReport,
+  runHarness,
+  SUCCESS_PHRASES,
+} from "./runner";
+export type {
+  Denominators,
+  Failure,
+  FailureCode,
+  HarnessVerdict,
+  ReadAttribution,
+  RunHarnessOptions,
+  RunObservation,
+  Scenario,
+  ScenarioContext,
+  ScenarioResult,
+  ScenarioStatus,
+} from "./runner";
