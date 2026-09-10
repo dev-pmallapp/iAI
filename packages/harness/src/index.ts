@@ -25,3 +25,13 @@ export type {
   FakeIssue,
   FakeMilestone,
 } from "./fake-forge";
+
+export { checkWritePath, createMutationRecorder, mutationEvidence, MutationRecorderError } from "./mutation-recorder";
+export type {
+  MutationRecorder,
+  MutationReport,
+  RecordedWrite,
+  WorktreeSample,
+  WriteCheck,
+  WritePathRefusalKind,
+} from "./mutation-recorder";
