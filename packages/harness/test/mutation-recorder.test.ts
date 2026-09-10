@@ -506,8 +506,33 @@ describe("the write-seam enforcement lint", () => {
     "tempdir.ts", // creates and removes the disposable temp roots
   ] as const;
 
-  const FS_WRITE_RE =
-    /\b(writeFileSync|writeFile|appendFileSync|mkdirSync|mkdtempSync|rmSync|rmdirSync|unlinkSync|renameSync|cpSync|copyFileSync|createWriteStream)\b|\bBun\.write\b/;
+  // DETECT THE CAPABILITY, NOT THE CALL SHAPE.
+  //
+  // The first version of this regex matched the bare words -- `writeFile`,
+  // `mkdirSync` and the rest -- anywhere in the source. #322's `runner.ts`
+  // exposes a `writeFile(relPath, contents)` method on its scenario context
+  // that does nothing but delegate to `recorder.writeFile`, and the bare-word
+  // form scored that delegation as a filesystem write. It was RED AGAINST
+  // CORRECT CODE, over a module that imports no fs at all.
+  //
+  // The repository had already recorded this exact lesson in the opposite
+  // direction: packages/exec/test/port.test.ts:93-111 rewrote its own
+  // launcher detector from a call shape to an import after
+  // `RegExp.prototype.exec(` false-positived, and the standing rule is that
+  // for an ASSERTION -- as opposed to a ban -- a false positive is red against
+  // correct code and must be fixed rather than tolerated.
+  //
+  // So the capability is read off the IMPORT LIST: a module has the ability to
+  // write only if it binds a writing function out of `node:fs`, or reaches for
+  // `Bun.write`. A method named `writeFile` on some other object is not the
+  // capability, and a module importing only `readFileSync`/`readdirSync` from
+  // `node:fs` -- as `re-entry.ts` does -- is a reader, not a writer.
+  const FS_WRITE_NAMES =
+    "writeFileSync|writeFile|appendFileSync|mkdirSync|mkdtempSync|rmSync|rmdirSync|unlinkSync|renameSync|cpSync|copyFileSync|createWriteStream";
+  const FS_WRITE_RE = new RegExp(
+    `import\\s*\\{[^}]*\\b(${FS_WRITE_NAMES})\\b[^}]*\\}\\s*from\\s*["']node:fs["']|\\bBun\\.write\\b`,
+    "s",
+  );
 
   test("every .ts file under packages/harness/src partitions into writers and non-writers, summing to the whole", () => {
     const dir = join(repoRoot, "packages/harness/src");
@@ -530,6 +555,20 @@ describe("the write-seam enforcement lint", () => {
     // this list, in front of a reviewer -- packages/exec/src/port.ts:51-57's
     // doctrine for a closed executable allow-list applies here to writers.
     expect(writers.sort()).toEqual([...SANCTIONED_WRITERS]);
+  });
+
+  test("a module that only DELEGATES to recorder.writeFile is a non-writer, and the file proving it is named", () => {
+    // The regression this pins. `runner.ts` contains the literal text
+    // `writeFile` and imports nothing from `node:fs`; under the bare-word form
+    // of the regex it was a fourth writer, which is a false positive against
+    // correct code. Both halves are asserted: the text really is there, and
+    // the classification is still non-writer.
+    const dir = join(repoRoot, "packages/harness/src");
+    const runner = join(dir, "runner.ts");
+    const source = readFileSync(runner, "utf8");
+    expect(source).toContain("writeFile");
+    expect(source).not.toContain('from "node:fs"');
+    expect(FS_WRITE_RE.test(source)).toBe(false);
   });
 });
 
