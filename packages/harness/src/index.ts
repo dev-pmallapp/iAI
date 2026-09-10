@@ -35,3 +35,19 @@ export type {
   WriteCheck,
   WritePathRefusalKind,
 } from "./mutation-recorder";
+
+export {
+  classifyArgv,
+  countReads,
+  GIT_READ_VERBS,
+  GIT_WRITE_VERBS,
+} from "./argv-kind";
+export type { ArgvKind } from "./argv-kind";
+
+export {
+  countReEntryRows,
+  readSkillBodies,
+  readSkillNames,
+  reEntryRows,
+} from "./re-entry";
+export type { ReEntryRow, SkillBody } from "./re-entry";

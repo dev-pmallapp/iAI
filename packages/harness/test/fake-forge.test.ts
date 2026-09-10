@@ -18,10 +18,12 @@
 // commits.
 
 import { afterAll, describe, expect, test } from "bun:test";
-import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { classifyRateLimit, shouldRetryResponse } from "iai-core";
 import { createRealPort, createRecordingPort, REFUSED_EXIT_CODE } from "iai-exec";
+// `readSkillBodies` and `reEntryRows` were promoted to
+// packages/harness/src/re-entry.ts for #322, so there is exactly one parser.
 import {
   createFakeForge,
   createFixtureRepo,
@@ -31,6 +33,8 @@ import {
   isMutatingGhArgv,
   RATE_LIMIT_HEADERS_LOWER_CASE,
   RATE_LIMIT_HEADERS_MIXED_CASE,
+  readSkillBodies,
+  reEntryRows,
   type FailureMode,
 } from "../src/index";
 
@@ -43,11 +47,8 @@ afterAll(() => temps.cleanup());
  *  reading the directory alone would score 0 of 0 as "all of them". */
 const PINNED_SKILL_COUNT = 4;
 
-function skillBodies(): { readonly name: string; readonly text: string }[] {
-  return readdirSync(skillsDir)
-    .filter((name) => statSync(join(skillsDir, name)).isDirectory())
-    .map((name) => ({ name, text: readFileSync(join(skillsDir, name, "SKILL.md"), "utf8") }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+function skillBodies() {
+  return readSkillBodies(skillsDir);
 }
 
 // ===========================================================================
@@ -147,27 +148,8 @@ const ROW_CLASS: Readonly<Record<string, IdentityClass | NonIdentityClass>> = {
 
 const PINNED_REENTRY_ROWS = 16;
 
-function reentryRows(): { readonly skill: string; readonly read: string }[] {
-  const rows: { skill: string; read: string }[] = [];
-  for (const body of skillBodies()) {
-    const lines = body.text.split("\n");
-    const start = lines.findIndex((l) => l.trim() === "## Re-entry");
-    if (start === -1) continue;
-    let end = lines.length;
-    for (let i = start + 1; i < lines.length; i += 1) {
-      if ((lines[i] as string).startsWith("## ")) {
-        end = i;
-        break;
-      }
-    }
-    const tableLines = lines.slice(start, end).filter((l) => l.startsWith("|"));
-    // Drop the header row and the `|---|---|` separator.
-    for (const line of tableLines.slice(2)) {
-      const cell = (line.split("|")[1] ?? "").trim();
-      if (cell.length > 0) rows.push({ skill: body.name, read: cell });
-    }
-  }
-  return rows;
+function reentryRows() {
+  return reEntryRows(skillsDir);
 }
 
 describe("case 8: the identity keys are enumerated from the four bodies", () => {
