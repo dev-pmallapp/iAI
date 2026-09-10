@@ -73,3 +73,15 @@ export type {
   ScenarioResult,
   ScenarioStatus,
 } from "./runner";
+
+export { runGoalCreate } from "./transcription-goal-create";
+export type { GoalCreateParams } from "./transcription-goal-create";
+
+export { runStoryCreate } from "./transcription-story-create";
+export type { StoryCreateOutcome, StoryCreateParams } from "./transcription-story-create";
+
+export { runStoryDesign } from "./transcription-story-design";
+export type { StoryDesignParams } from "./transcription-story-design";
+
+export { runStoryTestPlan } from "./transcription-story-test-plan";
+export type { StoryTestPlanOutcome, StoryTestPlanParams } from "./transcription-story-test-plan";
