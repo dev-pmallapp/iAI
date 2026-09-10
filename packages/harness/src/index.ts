@@ -85,3 +85,6 @@ export type { StoryDesignParams } from "./transcription-story-design";
 
 export { runStoryTestPlan } from "./transcription-story-test-plan";
 export type { StoryTestPlanOutcome, StoryTestPlanParams } from "./transcription-story-test-plan";
+
+export { SCENARIO_ROSTER } from "./scenario-roster";
+export type { ScenarioId } from "./scenario-roster";
