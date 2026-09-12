@@ -25,18 +25,34 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { createRealPort } from "../packages/exec/src/index";
-import { createTempDirs, renderArtifact, renderReport, runHarness, SCENARIO_ROSTER } from "../packages/harness/src/index";
+import {
+  createTempDirs,
+  INJECTION_ROSTER,
+  renderArtifact,
+  renderReport,
+  runHarness,
+  SCENARIO_ROSTER,
+} from "../packages/harness/src/index";
 
 const DEFAULT_OUT_RELATIVE = join(".harness", "skill-harness-report.json");
 
 interface ParsedArgs {
   readonly skillsDir: string;
   readonly out: string;
+  /** Case 9 of docs/test-plans/293-plan.md. Selects `INJECTION_ROSTER`
+   *  (five scenarios, one per `FailureMode`, `packages/harness/src/
+   *  injection-roster.ts`) in place of `SCENARIO_ROSTER`. A SWITCH between
+   *  two frozen constants, never a parameter that shapes either one -- see
+   *  `injection-roster.ts`'s own header for why that does not reopen the
+   *  vacuity hole `scenario-roster.ts`'s "NO FLAG, NO PARAMETERISATION, NO
+   *  INJECTION POINT" forbids. */
+  readonly inject: boolean;
 }
 
 function parseArgs(argv: readonly string[], repoRoot: string): ParsedArgs {
   let skillsDir = join(repoRoot, "skills");
   let out = join(repoRoot, DEFAULT_OUT_RELATIVE);
+  let inject = false;
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -60,9 +76,13 @@ function parseArgs(argv: readonly string[], repoRoot: string): ParsedArgs {
       i += 1;
       continue;
     }
+    if (arg === "--inject") {
+      inject = true;
+      continue;
+    }
   }
 
-  return { skillsDir, out };
+  return { skillsDir, out, inject };
 }
 
 async function main(): Promise<void> {
@@ -78,7 +98,7 @@ async function main(): Promise<void> {
   let exitCode: 0 | 1;
   try {
     const verdict = await runHarness({
-      roster: SCENARIO_ROSTER,
+      roster: args.inject ? INJECTION_ROSTER : SCENARIO_ROSTER,
       skillsDir: args.skillsDir,
       temps,
       makePort: () => createRealPort(),
@@ -89,7 +109,28 @@ async function main(): Promise<void> {
 
     console.log(renderReport(verdict));
     console.log(`skill-harness: artifact written to ${args.out}`);
+    if (args.inject) {
+      console.log(
+        "skill-harness: --inject ran the five-scenario INJECTION_ROSTER, not the six-scenario " +
+          "SCENARIO_ROSTER. A non-zero exit below is the SUCCESS condition of this mode.",
+      );
+    }
 
+    // A NON-ZERO EXIT UNDER `--inject` IS THE SUCCESS CONDITION OF THIS MODE
+    // AND MUST NEVER BE "FIXED". `INJECTION_ROSTER`'s truncated-list
+    // scenario is BUILT to make run 2 issue a duplicate create (this
+    // module's own header, and `injection-roster.ts`'s), so `verdict.
+    // exitCode` for an `--inject` run is EXPECTED to be 1 -- that failing
+    // exit code IS the proof, required by case 9 of
+    // docs/test-plans/293-plan.md, that this harness can fail. Inverting it
+    // (returning 0 when `--inject` "worked"), suppressing it, or special-
+    // casing `args.inject` anywhere near `exitCode` below would reintroduce
+    // EXACTLY the branch-on-the-verdict shape case 24 of
+    // packages/harness/test/runner.test.ts statically forbids
+    // `decideVerdict` from creating in the first place -- moving that
+    // branch one file over to this wrapper does not make it not a branch.
+    // `exitCode` is assigned from `verdict.exitCode` UNCONDITIONALLY, for
+    // both rosters, exactly as it always was.
     exitCode = verdict.exitCode;
   } finally {
     // `process.exit` below is called AFTER this finally has run -- calling

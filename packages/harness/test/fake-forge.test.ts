@@ -1,16 +1,20 @@
 // #320, build target 4 of docs/design/stories/293.md.
 // Cases 8, 9 and 20 of docs/test-plans/293-plan.md.
 //
-// CASE 9 IS PARTIAL AT THIS COMMIT AND CLAIM-293.6 IS NOT MET. Case 9's
-// "Passes when" is two independent conjuncts and its Command column names
-// `bun run skill-harness --inject`, a script that does not exist in any
-// package.json in this tree. Half (i) -- all five modes injectable, each
-// distinct -- is this task's, and is met below. Half (ii) -- "the truncated
-// list mode makes at least one SKILL's run 2 issue a duplicate create" --
-// needs a transcribed skill body and a runner, which are build targets 5, 6
-// and 7 (#321, #322, #323). Recording case 9 as PASS here would be the G2
-// mechanism (docs/design/stories/293.md:504-511) one layer down: a green read
-// off a rung that never ran the thing the claim is about.
+// CASE 9 WAS PARTIAL AT #320's COMMIT; CLAIM-293.6 IS NOW MET BY #323. Case
+// 9's "Passes when" is two independent conjuncts and its Command column names
+// `bun run skill-harness --inject`. Half (i) -- all five modes injectable,
+// each distinct AT THIS FAKE'S OWN RESPONSE LEVEL -- is this task's (#320),
+// and is met below. Half (ii) -- "the truncated list mode makes at least one
+// SKILL's run 2 issue a duplicate create, and the harness reports it" --
+// needed a transcribed skill body and a runner, built by #321, #322 and
+// #323; #323's `packages/harness/src/injection-roster.ts` and
+// `scripts/skill-harness.ts --inject` close it, and
+// `packages/harness/test/injection-roster.test.ts` and
+// `test/skill-harness.test.ts` (the `--inject` cases) are that closure's own
+// tests. This file is left exactly as #320 wrote it below (its own
+// half-(i) evidence does not change), and its top comment is corrected only
+// to stop claiming a gap #323 has since closed.
 //
 // Corpus: `synthetic` throughout for the forge -- a real forge cannot be made
 // to rate-limit on demand, which is case 9's own stated reason. `real` for the

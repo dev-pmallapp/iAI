@@ -48,6 +48,9 @@ interface HarnessArtifact {
   readonly notVerified: readonly string[];
 }
 
+// Explicit 120 s timeout on every test below that spawns a subprocess: each
+// spawn runs a real git fixture + fake forge over the whole roster; inheriting
+// the 5 s default made the required `test` CI job flaky under parallel load.
 describe("skill-harness CLI over the real roster", () => {
   test("1. exits 0, and the artifact is a passing verdict with zero failures", async () => {
     const outPath = join(temps.create("iai-skill-harness-out-"), "report.json");
@@ -61,7 +64,7 @@ describe("skill-harness CLI over the real roster", () => {
     expect(artifact.verdict).toBe("pass");
     expect(artifact.exitCode).toBe(0);
     expect(artifact.failures).toEqual([]);
-  });
+  }, 120_000);
 
   test("2. the artifact's exitCode and the observed process exitCode agree, and its verdict is pass", async () => {
     // A verdict that disagreed with its own artifact is the defect this
@@ -76,7 +79,7 @@ describe("skill-harness CLI over the real roster", () => {
     const artifact = JSON.parse(readFileSync(outPath, "utf8")) as HarnessArtifact;
     expect(artifact.exitCode).toBe(spawned.exitCode);
     expect(artifact.verdict).toBe("pass");
-  });
+  }, 120_000);
 
   test("3. every denominator in the artifact is non-zero, and any zero-valued one is named", async () => {
     const outPath = join(temps.create("iai-skill-harness-out-"), "report.json");
@@ -98,7 +101,7 @@ describe("skill-harness CLI over the real roster", () => {
 
     // ASSERT THE LIST, NOT THE COUNT. A failure must name the denominator.
     expect(zero).toEqual([]);
-  });
+  }, 120_000);
 
   test("4. notVerified is present, non-empty, and mentions CLAIM-41.8", async () => {
     // A FUTURE READER WILL WANT TO DELETE THIS ASSERTION AS NOISE. Do not:
@@ -111,7 +114,7 @@ describe("skill-harness CLI over the real roster", () => {
     const artifact = JSON.parse(readFileSync(outPath, "utf8")) as HarnessArtifact;
     expect(artifact.notVerified.length).toBeGreaterThan(0);
     expect(artifact.notVerified.some((s) => s.includes("CLAIM-41.8"))).toBe(true);
-  });
+  }, 120_000);
 });
 
 describe("skill-harness CLI error paths, each with its own distinct message", () => {
@@ -124,7 +127,7 @@ describe("skill-harness CLI error paths, each with its own distinct message", ()
     const combined = spawned.stdout + spawned.stderr;
     expect(combined).toContain("no-skills-on-disk");
     expect(combined).not.toContain("empty-roster: the scenario roster passed to runHarness has zero entries");
-  });
+  }, 120_000);
 
   test("6. a nonexistent --skills-dir exits 1 with its own distinct message", async () => {
     const missing = join(tmpdir(), "iai-skill-harness-does-not-exist-xyz");
@@ -136,7 +139,7 @@ describe("skill-harness CLI error paths, each with its own distinct message", ()
     // Distinct from the empty-directory message (case 5): a directory that
     // does not exist is not the same defect as one that exists and is empty.
     expect(combined).not.toContain("no-skills-on-disk");
-  });
+  }, 120_000);
 });
 
 // ===========================================================================
@@ -156,6 +159,58 @@ const SPAWN_RE =
 // the two files that decide or emit the verdict may construct a `Response`
 // over a child's stdout or stderr.
 const STDOUT_RESPONSE_RE = /new Response\(\s*\w+\.(stdout|stderr)/;
+
+// ===========================================================================
+// Case 9 of docs/test-plans/293-plan.md, `bun run skill-harness --inject`.
+// Task #323, closing CLAIM-293.6 half (ii).
+// ===========================================================================
+
+describe("skill-harness CLI over --inject (the five-scenario INJECTION_ROSTER)", () => {
+  test("exits NON-ZERO, the artifact's verdict is fail, and failures is non-empty -- THIS NON-ZERO EXIT IS THE SUCCESS CONDITION OF THIS MODE", async () => {
+    const outPath = join(temps.create("iai-skill-harness-inject-out-"), "report.json");
+    const spawned = await spawnHarness(["--inject", "--out", outPath]);
+
+    // THE EXIT CODE FIRST -- and it must be 1, never 0. A `--inject` run
+    // that exits 0 would mean the injected roster's own duplicate-create
+    // scenario was not reached, or was reached and not reported: either way
+    // the one thing case 9 requires ("this is the case that proves the
+    // harness can fail") would be false.
+    expect(spawned.exitCode).toBe(1);
+
+    expect(existsSync(outPath)).toBe(true);
+    const artifact = JSON.parse(readFileSync(outPath, "utf8")) as HarnessArtifact;
+    expect(artifact.verdict).toBe("fail");
+    expect(artifact.exitCode).toBe(1);
+    expect(artifact.failures.length).toBeGreaterThan(0); // denominator first
+  }, 120_000);
+
+  test("the artifact's exitCode agrees with the observed process exitCode, both non-zero", async () => {
+    const outPath = join(temps.create("iai-skill-harness-inject-out-"), "report.json");
+    const spawned = await spawnHarness(["--inject", "--out", outPath]);
+    const artifact = JSON.parse(readFileSync(outPath, "utf8")) as HarnessArtifact;
+    expect(artifact.exitCode).toBe(spawned.exitCode);
+    expect(artifact.exitCode).toBe(1);
+  }, 120_000);
+
+  test("the roster length under --inject is 5, distinct from the default roster's 6", async () => {
+    const outPath = join(temps.create("iai-skill-harness-inject-out-"), "report.json");
+    await spawnHarness(["--inject", "--out", outPath]);
+    const artifact = JSON.parse(readFileSync(outPath, "utf8")) as HarnessArtifact;
+    expect(artifact.denominators.rosterLength).toBe(5);
+    expect(artifact.denominators.scenariosExecuted).toBe(5);
+  }, 120_000);
+});
+
+describe("skill-harness CLI without --inject: the default path is unchanged", () => {
+  test("still exits 0 over the real roster, and SCENARIO_ROSTER.length is still 6", async () => {
+    const outPath = join(temps.create("iai-skill-harness-default-out-"), "report.json");
+    const spawned = await spawnHarness(["--out", outPath]);
+    expect(spawned.exitCode).toBe(0);
+    const artifact = JSON.parse(readFileSync(outPath, "utf8")) as HarnessArtifact;
+    expect(artifact.verdict).toBe("pass");
+    expect(artifact.denominators.rosterLength).toBe(6);
+  }, 120_000);
+});
 
 describe("case 21: neither the wrapper nor the runner spawns a process or reads a child's raw stdout", () => {
   const scannedFiles = [

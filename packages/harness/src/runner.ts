@@ -41,7 +41,7 @@
 
 import type { ExecResult, Port, RecordedCall, RecordingPort } from "iai-exec";
 import { classifyArgv, countReads } from "./argv-kind";
-import { createFakeForge, type FakeForge } from "./fake-forge";
+import { createFakeForge, type FailureMode, type FakeForge } from "./fake-forge";
 import { createFixtureRepo, type FixtureFile } from "./fixture-repo";
 import { createMutationRecorder, mutationEvidence, type MutationReport } from "./mutation-recorder";
 import { countReEntryRows, readSkillNames } from "./re-entry";
@@ -96,6 +96,25 @@ export interface Scenario {
    *  mutation the subject made. */
   seed?(forge: FakeForge): Promise<void>;
   run(ctx: ScenarioContext): Promise<void>;
+  /** Case 9 of docs/test-plans/293-plan.md. Arm one of the fake forge's five
+   *  lies (`fake-forge.ts`'s `FailureMode`) AFTER run 1 completes and BEFORE
+   *  run 2 begins -- never before run 1, and this is not an oversight to
+   *  "simplify" later.
+   *
+   *  RUN 1 MUST BE ALLOWED TO ESTABLISH REAL STATE. Every one of the five
+   *  lies is a lie about what run 2 SEES; if it were also armed for run 1,
+   *  run 1 could never create the milestone, issue or comment that run 2's
+   *  lied read is then asked to misreport. A "duplicate create" is only a
+   *  duplicate of something -- lying to run 1 leaves nothing for run 2's
+   *  create to duplicate, and the harness would have proven nothing.
+   *
+   *  Absent (the default for all six of `scenario-roster.ts`'s frozen
+   *  scenarios) means exactly what it always meant before this field
+   *  existed: `runHarness` still calls `forge.inject(null)` between the
+   *  runs, which is a no-op against a forge that starts with `injected =
+   *  null` and was never armed. The six frozen scenarios are bit-for-bit
+   *  unaffected by this field's existence. */
+  readonly injectBeforeRun2?: FailureMode;
 }
 
 // ===========================================================================
@@ -727,6 +746,15 @@ export async function runHarness(options: RunHarnessOptions): Promise<HarnessVer
         });
         continue;
       }
+
+      // Case 9 of docs/test-plans/293-plan.md's seam: armed HERE, between
+      // the two runs, never earlier. `Scenario.injectBeforeRun2`'s own
+      // comment states why -- run 1 must be allowed to establish real state
+      // honestly, or run 2's lied read has nothing genuine to misreport and
+      // no duplicate it creates would actually duplicate anything. Absent
+      // (`?? null`) reproduces exactly what every call site before this
+      // field existed already did implicitly: a forge that is never armed.
+      forge.inject(scenario.injectBeforeRun2 ?? null);
 
       runIndexAtFailure = 2;
       const attributions2: ReadAttribution[] = [];
