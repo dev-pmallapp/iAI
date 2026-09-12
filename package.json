@@ -11,7 +11,8 @@
     "typecheck": "tsc -b tsconfig.json --force",
     "skill-lint": "bun scripts/skill-lint.ts",
     "claim-lint": "bun scripts/claim-lint.ts",
-    "skill-harness": "bun scripts/skill-harness.ts"
+    "skill-harness": "bun scripts/skill-harness.ts",
+    "live-rung": "bun scripts/live-rung.ts"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

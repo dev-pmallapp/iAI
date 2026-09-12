@@ -91,3 +91,6 @@ export type { ScenarioId } from "./scenario-roster";
 
 export { INJECTION_ROSTER } from "./injection-roster";
 export type { InjectionScenarioId } from "./injection-roster";
+
+export { admitToLiveModel, inspectLiveEgress, LiveEgressRefusal } from "./live-egress";
+export type { LiveEgressAdmitted, LiveEgressInspection } from "./live-egress";
