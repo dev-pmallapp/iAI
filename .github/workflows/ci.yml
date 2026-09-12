@@ -169,10 +169,14 @@ jobs:
   #      now would permanently block PR #313 and every S2.3 task PR, since
   #      their heads predate this commit and can never report this context.
   #
-  # PROMOTION PROCEDURE (a follow-up commit, once the two reasons above no
-  # longer hold). All FOUR of the following in-tree sites must be edited in
-  # ONE commit, or the four-way agreement the tests in
-  # test/ci-workflow.test.ts assert on will go red:
+  # PROMOTION PROCEDURE — TRACKED AS ISSUE #334, which carries this list as
+  # a checklist and records both unblocking conditions. It is deliberately
+  # NOT a sub-issue of #293: the promotion cannot happen while S2.6 is in
+  # flight, so that Story's exit must not depend on it.
+  #
+  # All FOUR of the following in-tree sites must be edited in ONE commit, or
+  # the four-way agreement the tests in test/ci-workflow.test.ts assert on
+  # will go red:
   #   (i)   scripts/verify-required-checks.sh's REQUIRED_CONTEXTS array
   #   (ii)  the same file's inline `required_status_checks.contexts[]=`
   #         list in the branch-protection help text (the `gh api` example
