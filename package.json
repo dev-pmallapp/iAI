@@ -10,7 +10,8 @@
     "lint": "bun scripts/lint.ts",
     "typecheck": "tsc -b tsconfig.json --force",
     "skill-lint": "bun scripts/skill-lint.ts",
-    "claim-lint": "bun scripts/claim-lint.ts"
+    "claim-lint": "bun scripts/claim-lint.ts",
+    "skill-harness": "bun scripts/skill-harness.ts"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
