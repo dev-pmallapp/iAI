@@ -17,11 +17,13 @@ import { join } from "node:path";
 
 const repoRoot = join(import.meta.dir, "..");
 const ciYmlPath = join(repoRoot, ".github", "workflows", "ci.yml");
+const liveYmlPath = join(repoRoot, ".github", "workflows", "live.yml");
 const requiredChecksPath = join(repoRoot, "scripts", "verify-required-checks.sh");
 const workflowHygienePath = join(repoRoot, "scripts", "verify-workflow-hygiene.sh");
 const packageJsonPath = join(repoRoot, "package.json");
 
 const ciYmlText = readFileSync(ciYmlPath, "utf8");
+const liveYmlText = readFileSync(liveYmlPath, "utf8");
 const requiredChecksText = readFileSync(requiredChecksPath, "utf8");
 const workflowHygieneText = readFileSync(workflowHygienePath, "utf8");
 const packageJsonText = readFileSync(packageJsonPath, "utf8");
@@ -80,6 +82,50 @@ describe("job names parsed from ci.yml's `jobs:` block", () => {
 
 const ciJobNames = ciJobs.map((j) => j.name);
 const ciJobNameSet = new Set(ciJobNames);
+
+// ===========================================================================
+// live.yml — Task #324's NEVER-293.10 seam check. Parsed with the SAME job
+// parser as ci.yml (parseCiYmlJobs takes a `text` argument; it is not
+// actually specific to ci.yml's filename, only to the `jobs:`-block shape
+// every workflow file shares), plus a small trigger-block parser for `on:`.
+// ===========================================================================
+
+function parseWorkflowTriggers(text: string): ReadonlySet<string> {
+  const lines = text.split("\n");
+  const onIdx = lines.findIndex((l) => l === "on:");
+  if (onIdx === -1) throw new Error("`on:` top-level key not found in workflow file");
+
+  const triggers = new Set<string>();
+  for (let i = onIdx + 1; i < lines.length; i += 1) {
+    const line = lines[i] as string;
+    if (line.trim().length === 0) continue;
+    const nested = /^ {2}([A-Za-z0-9_-]+):/.exec(line);
+    if (nested) {
+      triggers.add(nested[1] as string);
+      continue;
+    }
+    // A non-blank line that is NOT a 2-space-indented key means the `on:`
+    // block has dedented back to a top-level key (e.g. `env:`) — stop here
+    // rather than scanning the rest of the file.
+    break;
+  }
+  return triggers;
+}
+
+const liveJobs = parseCiYmlJobs(liveYmlText);
+const liveJobNames = liveJobs.map((j) => j.name);
+const liveJobNameSet = new Set(liveJobNames);
+const liveTriggers = parseWorkflowTriggers(liveYmlText);
+
+describe("live.yml job names parsed from its `jobs:` block", () => {
+  test("0. denominator non-zero first: at least one job was parsed", () => {
+    expect(liveJobs.length).toBeGreaterThan(0);
+  });
+
+  test("job names are unique (cardinality equals count)", () => {
+    expect(liveJobNameSet.size).toBe(liveJobNames.length);
+  });
+});
 
 // ===========================================================================
 // The FOUR hardcoded lists. Each parse MUST assert it matched before its
@@ -282,6 +328,146 @@ describe("no required job carries a job-level `if:` (NEVER-9.8, all six)", () =>
 // The seam job's command must resolve to a real script — a typo here would
 // silently no-op (or error) only when the job actually runs in CI.
 // ===========================================================================
+
+// ===========================================================================
+// NEVER-293.10 (Task #324, cases 13 and 14 of docs/test-plans/293-plan.md):
+// the live rung is never a required CI check. `live.yml` is a SEPARATE
+// workflow file, on purpose (see its own header comment for the full
+// argument); these tests assert the pin mechanically, from both files, read
+// from disk at run time.
+// ===========================================================================
+
+describe("NEVER-293.10 case 13: the live job is absent from all four hardcoded required lists, and the required count agrees before and after", () => {
+  test("0. denominator non-zero first: all four hardcoded lists are non-empty", () => {
+    expect(requiredContextsArray.length).toBeGreaterThan(0);
+    expect(inlineContextsList.length).toBeGreaterThan(0);
+    expect(requiredJobsArray.length).toBeGreaterThan(0);
+    expect(pythonRequiredList.length).toBeGreaterThan(0);
+  });
+
+  test("the four lists still agree with each other here too (re-asserted, not assumed from the earlier block)", () => {
+    expect(requiredContextsArray).toEqual(inlineContextsList);
+    expect(requiredContextsArray).toEqual(requiredJobsArray);
+    expect(requiredContextsArray).toEqual(pythonRequiredList);
+  });
+
+  // The count is read, never hardcoded to `6`: issue #334 will promote
+  // `seam` and make this seven. A test that hardcoded 6 here would have to
+  // be edited the moment that promotion lands, which is exactly the
+  // coupling case 13 exists to prevent for a DIFFERENT job (`live`) — this
+  // test must not reintroduce that same coupling for its own assertion.
+  test("the required-context count agrees BEFORE and AFTER an independent, later re-read of the same file from disk", () => {
+    const before = requiredContextsArray.length;
+    expect(before).toBeGreaterThan(0);
+
+    const freshText = readFileSync(requiredChecksPath, "utf8");
+    const freshMatch = /REQUIRED_CONTEXTS=\(([^)]*)\)/.exec(freshText);
+    expect(freshMatch).not.toBeNull();
+    const freshArray = ((freshMatch as RegExpExecArray)[1] as string).trim().split(/\s+/);
+    const after = freshArray.length;
+
+    expect(after).toBeGreaterThan(0);
+    expect(after).toBe(before);
+  });
+
+  test("the live job actually exists in live.yml (sanity: there is something to check the absence of)", () => {
+    expect(liveJobNameSet.has("live")).toBe(true);
+  });
+
+  test("the live job's name is absent from all four hardcoded required lists", () => {
+    expect(requiredContextsArray).not.toContain("live");
+    expect(inlineContextsList).not.toContain("live");
+    expect(requiredJobsArray).not.toContain("live");
+    expect(pythonRequiredList).not.toContain("live");
+  });
+});
+
+describe("NEVER-293.10 case 14: every required job in ci.yml carries no `if:` key", () => {
+  test("0. denominator non-zero first: the required-job count is non-zero", () => {
+    expect(requiredContextsArray.length).toBeGreaterThan(0);
+  });
+
+  test("none of the required jobs carry a job-level `if:` key", () => {
+    const withIf = requiredContextsArray.filter((name) => hasJobLevelIf(jobBlockByName(name)));
+    expect(withIf).toEqual([]);
+  });
+});
+
+describe("live.yml's triggers are exactly {workflow_dispatch}", () => {
+  test("0. denominator non-zero first: at least one trigger key was parsed from live.yml's `on:` block", () => {
+    expect(liveTriggers.size).toBeGreaterThan(0);
+  });
+
+  test("the trigger set equals EXACTLY {workflow_dispatch} — a `pull_request` trigger added later must fail this test", () => {
+    expect([...liveTriggers].sort()).toEqual(["workflow_dispatch"]);
+  });
+});
+
+describe("live.yml's job set is disjoint from every required list, and from ci.yml's job set", () => {
+  test("0. denominator non-zero first: live.yml has at least one job, and ci.yml's job set is non-empty", () => {
+    expect(liveJobNameSet.size).toBeGreaterThan(0);
+    expect(ciJobNameSet.size).toBeGreaterThan(0);
+  });
+
+  test("no job in live.yml appears in any of the four hardcoded required lists", () => {
+    for (const name of liveJobNames) {
+      expect(requiredContextsArray).not.toContain(name);
+      expect(inlineContextsList).not.toContain(name);
+      expect(requiredJobsArray).not.toContain(name);
+      expect(pythonRequiredList).not.toContain(name);
+    }
+  });
+
+  test("live.yml's job set and ci.yml's job set are disjoint, in both directions", () => {
+    const overlapLiveInCi = liveJobNames.filter((n) => ciJobNameSet.has(n));
+    const overlapCiInLive = ciJobNames.filter((n) => liveJobNameSet.has(n));
+    expect(overlapLiveInCi).toEqual([]);
+    expect(overlapCiInLive).toEqual([]);
+  });
+});
+
+// live.yml's own not-required classification. Kept as its own record (not
+// merged into ci.yml's NOT_REQUIRED) because job names are only unique
+// WITHIN a workflow file — a flat merged dictionary would silently collide
+// if some future job in either file reused a name.
+const LIVE_NOT_REQUIRED: Readonly<Record<string, string>> = {
+  live: "workflow_dispatch-only seam check for scripts/live-rung.ts; see live.yml's own header comment for the full argument — this job structurally cannot fire on a pull_request, so it can never report on one and can never be validly promoted to required (NEVER-293.10)",
+};
+
+describe("THE PARTITION, EXTENDED ACROSS WORKFLOW FILES: required ∪ NOT_REQUIRED(ci.yml) ∪ NOT_REQUIRED(live.yml) == ci.yml's jobs ∪ live.yml's jobs", () => {
+  test("0. denominator non-zero first: required, NOT_REQUIRED and LIVE_NOT_REQUIRED are all non-empty", () => {
+    expect(requiredContextsArray.length).toBeGreaterThan(0);
+    expect(Object.keys(NOT_REQUIRED).length).toBeGreaterThan(0);
+    expect(Object.keys(LIVE_NOT_REQUIRED).length).toBeGreaterThan(0);
+  });
+
+  test("the three classification sets are pairwise disjoint", () => {
+    const requiredSet = new Set(requiredContextsArray);
+    const notRequiredKeys = Object.keys(NOT_REQUIRED);
+    const liveNotRequiredKeys = Object.keys(LIVE_NOT_REQUIRED);
+
+    expect(notRequiredKeys.filter((k) => requiredSet.has(k))).toEqual([]);
+    expect(liveNotRequiredKeys.filter((k) => requiredSet.has(k))).toEqual([]);
+    expect(liveNotRequiredKeys.filter((k) => notRequiredKeys.includes(k))).toEqual([]);
+  });
+
+  test("the union equals ci.yml's job set UNION live.yml's job set EXACTLY — a new, unclassified job in either file fails here", () => {
+    const unionSet = new Set([
+      ...requiredContextsArray,
+      ...Object.keys(NOT_REQUIRED),
+      ...Object.keys(LIVE_NOT_REQUIRED),
+    ]);
+    const allJobsSet = new Set([...ciJobNames, ...liveJobNames]);
+
+    expect(unionSet.size).toBe(allJobsSet.size);
+    expect([...unionSet].sort()).toEqual([...allJobsSet].sort());
+
+    const missingFromWorkflows = [...unionSet].filter((j) => !allJobsSet.has(j));
+    const missingFromPartition = [...allJobsSet].filter((j) => !unionSet.has(j));
+    expect(missingFromWorkflows).toEqual([]);
+    expect(missingFromPartition).toEqual([]);
+  });
+});
 
 describe("`skill-harness` is a real script in the root package.json", () => {
   const pkg = JSON.parse(packageJsonText) as { scripts?: Record<string, string> };
