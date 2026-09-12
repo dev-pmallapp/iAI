@@ -112,15 +112,27 @@ jobs:
       - run: bun run skill-lint skills/
 
   # claim-lint enforces CLAIM-194.1 through CLAIM-194.4 of
-  # docs/design/stories/194.md. It is intentionally NOT in branch protection
-  # or ruleset 21656025 yet. Per the decision recorded on issue #204, a
-  # required context that has never reported sits at "pending" forever and
-  # blocks every PR permanently, so the context must first merge to main and
-  # report on a real PR before it can be made required. Making it required is
-  # a follow-up commit that must also update scripts/verify-required-checks.sh
-  # and scripts/verify-workflow-hygiene.sh (each hardcodes the job list twice)
-  # in that same commit. Unlike smoke-install, this job can meaningfully fail
-  # today — it is a real check, merely not yet enforced.
+  # docs/design/stories/194.md. It HAS SINCE BEEN PROMOTED: it is now one of
+  # the six required contexts in both main's branch protection and ruleset
+  # 21656025 — verified live via `gh api repos/.../branches/main/protection`
+  # and the ruleset, each listing claim-lint among exactly six contexts.
+  # scripts/verify-required-checks.sh and scripts/verify-workflow-hygiene.sh
+  # were updated in that same promotion commit, 15e5a36 ("#204: make
+  # claim-lint the sixth required check") — each hardcodes the job list
+  # twice, and one commit carries all four sites.
+  #
+  # THIS COMMENT WAS FALSE FOR AS LONG AS THE PROMOTION HAD BEEN DONE. It
+  # asserted the opposite of the live configuration, in the same file that
+  # tells the next person how to promote a job. Re-read a comment's claim
+  # against the thing it describes before you copy its advice.
+  #
+  # The durable lesson from getting here stands, because the new `seam` job
+  # below depends on it: per the decision recorded on issue #204, a required
+  # context that has never reported sits at "pending" forever and blocks
+  # every PR permanently, so a context must first merge to main and report on
+  # a real PR before it can be made required. That sequencing worked for
+  # claim-lint; `seam` is currently at the "merged but not yet required"
+  # stage claim-lint itself just passed through.
   claim-lint:
     runs-on: ubuntu-latest
     steps:
@@ -133,6 +145,65 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - run: bun install
       - run: bun run claim-lint
+
+  # seam is build target 7 of docs/design/stories/293.md: the deterministic,
+  # offline, secret-free seam rung. It runs the skill harness's default
+  # scenario roster (`bun run skill-harness`, no --inject) against the
+  # in-memory fake forge, never a real one, so it needs no token and cannot
+  # flake on network state. Unlike smoke-install below, this job can
+  # MEANINGFULLY FAIL today: `bun run skill-harness --inject` is the proof —
+  # each of the five injectable failure modes (a zeroed rate-limit budget,
+  # the header-absent third state, a truncated unpaginated list, a silent
+  # no-op mutation, a transient connection error) makes the harness report a
+  # real, non-vacuous failure, per docs/test-plans/293-plan.md case 9. This
+  # job runs the plain (non-`--inject`) roster, so it is the everyday check;
+  # the `--inject` roster is exercised by test, not by this job.
+  #
+  # It is deliberately NOT YET REQUIRED, same reasoning that governed
+  # claim-lint above, for two independently sufficient reasons:
+  #   1. A required context that has never reported sits at "pending"
+  #      forever and blocks every PR permanently (issue #204, restated
+  #      above). This job must first merge to main and report on a real PR.
+  #   2. story/47-s2-3-execution-skills and its six open task issues have no
+  #      seam job on their branch heads yet. Promoting this job to required
+  #      now would permanently block PR #313 and every S2.3 task PR, since
+  #      their heads predate this commit and can never report this context.
+  #
+  # PROMOTION PROCEDURE (a follow-up commit, once the two reasons above no
+  # longer hold). All FOUR of the following in-tree sites must be edited in
+  # ONE commit, or the four-way agreement the tests in
+  # test/ci-workflow.test.ts assert on will go red:
+  #   (i)   scripts/verify-required-checks.sh's REQUIRED_CONTEXTS array
+  #   (ii)  the same file's inline `required_status_checks.contexts[]=`
+  #         list in the branch-protection help text (the `gh api` example
+  #         under the 404 branch)
+  #   (iii) scripts/verify-workflow-hygiene.sh's REQUIRED_JOBS array
+  #   (iv)  the `required = [...]` Python list inside that same file's
+  #         `<<'PYEOF'` heredoc (run_yaml_parse) — THIS FOURTH ONE IS THE
+  #         ONE THAT GETS MISSED, because it is nested inside a heredoc and
+  #         does not show up in a plain grep for REQUIRED_JOBS or
+  #         REQUIRED_CONTEXTS.
+  # Beyond the four in-tree sites, TWO OUT-OF-TREE settings must also be
+  # updated by a human, as a SEPARATE action taken only after this job has
+  # actually reported on main at least once:
+  #   - main's branch protection required status checks
+  #   - ruleset 21656025 (story-branch-checks, covering refs/heads/story/**)
+  #
+  # NEVER-9.8 still applies to this job even though it is not required: no
+  # `if:`, no `strategy:`/matrix, no `paths:` filter — a skipped job reports
+  # success, and a job that cannot fail is worse than useless as a signal.
+  seam:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: bun install
+      - run: bun run skill-harness
 
   # This job is intentionally NOT added to branch protection and must never
   # be made required. docs/milestones/M1.md and PLAN.md's risk table both

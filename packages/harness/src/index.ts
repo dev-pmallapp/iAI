@@ -88,3 +88,6 @@ export type { StoryTestPlanOutcome, StoryTestPlanParams } from "./transcription-
 
 export { SCENARIO_ROSTER } from "./scenario-roster";
 export type { ScenarioId } from "./scenario-roster";
+
+export { INJECTION_ROSTER } from "./injection-roster";
+export type { InjectionScenarioId } from "./injection-roster";

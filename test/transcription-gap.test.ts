@@ -180,6 +180,10 @@ describe("case 16 (P0, NEVER-293.5): mutating a SKILL.md leaves the seam rung gr
   // distinguishing evidence separately: a copy carrying a FIFTH skill, which
   // no scenario covers, must turn the harness RED. If it does not, the flag
   // is not being honoured and every assertion below is worthless.
+  //
+  // Explicit 120 s timeout: each spawn runs a real git fixture + fake forge
+  // over the whole roster; inheriting the 5 s default made the required
+  // `test` CI job flaky under parallel load.
   test("0b. control: --skills-dir is load-bearing, so the four runs below are not vacuous", async () => {
     const controlDir = temps.create("iai-transcription-gap-control-");
     cpSync(realSkillsDir, controlDir, { recursive: true });
@@ -198,7 +202,7 @@ describe("case 16 (P0, NEVER-293.5): mutating a SKILL.md leaves the seam rung gr
     const artifact = JSON.parse(readFileSync(outPath, "utf8")) as HarnessArtifact;
     expect(artifact.verdict).toBe("fail");
     expect(artifact.failures.length).toBeGreaterThan(0);
-  });
+  }, 120_000);
 
   // Driven one at a time -- 4 separate `test()` calls -- rather than a
   // single loop-wrapped assertion, so each skill's pass/fail is its own
@@ -253,7 +257,7 @@ describe("case 16 (P0, NEVER-293.5): mutating a SKILL.md leaves the seam rung gr
       const artifact = JSON.parse(readFileSync(outPath, "utf8")) as HarnessArtifact;
       expect(artifact.verdict).toBe("pass");
       expect(artifact.failures).toEqual([]);
-    });
+    }, 120_000);
   }
 });
 
