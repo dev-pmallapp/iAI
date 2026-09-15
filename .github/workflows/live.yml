@@ -1,0 +1,72 @@
+# This workflow implements build target 8 of docs/design/stories/293.md: the
+# live rung. Task #324, anchoring NEVER-293.10.
+#
+# NEVER-293.10 (anti-claim): the live rung is NEVER a required CI check, and
+# it NEVER sends PRIVATE-class content to a cloud model.
+#
+# WHY A SEPARATE FILE, ON PURPOSE, RATHER THAN A JOB IN ci.yml:
+#
+#   A job added to ci.yml runs on every `pull_request` — that file's `on:`
+#   block (ci.yml:30-36) triggers on `pull_request`, bare, with no
+#   `branches:` filter. A live job must NEVER run on a PR. ci.yml
+#   deliberately carries no `paths:` filter and no `branches:` filter
+#   anywhere (NEVER-9.8, ci.yml:16-22), because a filtered workflow leaves
+#   its required checks stuck at "pending" forever — so there is no way to
+#   carve out a non-PR-triggering job inside that file without reintroducing
+#   the exact filter NEVER-9.8 forbids.
+#
+#   A separate `workflow_dispatch`-only workflow is the only shape that
+#   CANNOT fire on a PR. That is precisely what makes it safe from ever
+#   being accidentally promoted to required: a required context that never
+#   reports on a PR blocks every PR permanently (issue #204's rule, restated
+#   in ci.yml's comment above the `seam` job) — so a context that can never
+#   report on a PR is structurally disqualified from ever being made
+#   required, not merely policy-disqualified.
+#
+#   A third, independent reason: `pull_request` from a fork receives no
+#   secrets. A required live job on a fork PR could never authenticate to a
+#   cloud model even if someone tried to wire it up. This is Problem 7a of
+#   docs/design/stories/293.md — three independently sufficient reasons a
+#   required live job is structurally illegal, not merely inadvisable.
+#
+# WHAT THIS JOB ACTUALLY DOES — AND WHAT IT DOES NOT DO:
+#
+#   This job does NOT run the live rung end to end. A real conformance run
+#   is MODEL-DRIVEN by a human operator (see scripts/live-rung.ts's own
+#   header): the operator's agent host reads a SKILL.md and performs it
+#   against a real forge, issuing one `bun run live-rung exec` per tool
+#   call. `scripts/live-rung.ts` is only the RECORDING SEAM that run is
+#   driven through, not the run itself, and no CI job can stand in for a
+#   human operator driving a model.
+#
+#   What this job DOES do is prove the seam still works, safely and without
+#   touching any forge: it runs `bun run live-rung --help` (prints usage,
+#   exits 0, touches no filesystem or network) and `bun test
+#   test/live-rung.test.ts` (the seam's own unit suite, entirely against
+#   fixtures and the fake port). It creates no session, resolves no real
+#   commit, spawns no real `gh`/`git` beyond what the test suite itself
+#   sandboxes, and reaches no cloud model.
+
+name: Live rung seam check
+
+on:
+  workflow_dispatch:
+
+env:
+  BUN_VERSION: "1.4.0"
+  NODE_VERSION: "20"
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: bun install
+      - run: bun run live-rung --help
+      - run: bun test test/live-rung.test.ts
