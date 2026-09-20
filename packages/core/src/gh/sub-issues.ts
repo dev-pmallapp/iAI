@@ -293,12 +293,40 @@ export function withTasksChecklist(
     }
   }
 
+  // ONLY THE ENTRIES ARE REWRITTEN, NEVER THE WHOLE SECTION.
+  //
+  // Every real Story body puts load-bearing prose INSIDE `## Tasks`, after the
+  // entries: #47 carries the dependency ordering and the "must not be built
+  // twice" ruling there, #293 carries its sequencing rulings there and the
+  // section runs to the end of the body. Replacing the section wholesale would
+  // delete all of it — the defect this function exists to remove, one level
+  // down. So the rewrite covers the leading run of entry lines and nothing else.
+  let cursor = at + 1;
+  while (cursor < end && lines[cursor] === "") cursor += 1;
+  const entriesAt = cursor;
+  while (cursor < end && CHECKLIST_ENTRY_RE.test(lines[cursor] ?? "")) cursor += 1;
+  const entriesEnd = cursor;
+
+  // AND THE STRUCTURE IS ASSERTED, NOT ASSUMED. Taking "the first contiguous
+  // run" and trusting it is how a parser reads the right rows by accident and
+  // then cannot report a violation of the shape it depends on — measured on
+  // #323's audit parser. Entries split by prose have no single answer to
+  // "which of these is the checklist", so they are refused and named.
+  for (let i = entriesEnd; i < end; i += 1) {
+    if (CHECKLIST_ENTRY_RE.test(lines[i] ?? "")) {
+      return ghFail(
+        `story body splits its ${TASKS_HEADING} entries with prose at line ${i + 1}, ` +
+          "refusing to guess which run is the checklist",
+      );
+    }
+  }
+
   // A tick is body content, and the caller does not always know about it: the
   // parent checklist is ticked by hand as tasks merge, and re-running
-  // task-create would otherwise silently unick every box. An item that states
+  // task-create would otherwise silently untick every box. An item that states
   // `checked` wins; an item that is silent inherits what the body says.
   const ticked = new Set<number>();
-  for (let i = at + 1; i < end; i += 1) {
+  for (let i = entriesAt; i < entriesEnd; i += 1) {
     const match = CHECKLIST_ENTRY_RE.exec(lines[i] ?? "");
     if (match && match[1] !== " ") ticked.add(Number(match[2]));
   }
@@ -323,19 +351,15 @@ export function withTasksChecklist(
   const rendered = tasksChecklist(merged);
   if (!rendered.ok) return rendered;
 
-  // The section's own trailing blank lines belong to what follows it, not to
-  // the checklist, so they are carried across. Dropping them would make the
-  // function non-idempotent on any body ending in a newline.
-  let keep = end;
-  while (keep > at + 1 && lines[keep - 1] === "") keep -= 1;
-  const separators = lines.slice(keep, end);
-
+  // Everything from the end of the entry run onward is carried verbatim: the
+  // section's own trailing blank lines, whatever prose follows the entries, and
+  // the rest of the body. `rendered` supplies the heading and the blank beneath
+  // it, so the lines between the heading and the entries are not re-emitted.
   return ghOk(
     [
       ...lines.slice(0, at),
       ...rendered.value.split("\n"),
-      ...separators,
-      ...lines.slice(end),
+      ...lines.slice(entriesEnd),
     ].join("\n"),
   );
 }

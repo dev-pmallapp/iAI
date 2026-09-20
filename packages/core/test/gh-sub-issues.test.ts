@@ -509,3 +509,64 @@ describe("withTasksChecklist — case 2 (P0, CLAIM-47.7): a ## Tasks checklist m
     }
   });
 });
+
+describe("withTasksChecklist — case 2 (P0, CLAIM-47.7): prose INSIDE the ## Tasks section survives too", () => {
+  // Synthetic, but modelled line for line on the real shape: #293 and #47 both
+  // carry load-bearing prose inside `## Tasks`, after the entries — sequencing
+  // rulings, "must not be built twice", the reason a sibling was closed — and
+  // on #293 that section runs to the end of the body, so there is no following
+  // heading to stop a section-wide rewrite. No live Story is touched by a test.
+  const REAL_SHAPE = [
+    "## Tasks",
+    "",
+    "- [x] #318 The adapter port",
+    "- [ ] #325 The corrections, line-neutral",
+    "",
+    "**Eight tasks.** The Design measured ten build targets.",
+    "",
+    "**The port in #318 is SHARED with #47's task-do.** It must not be built twice.",
+    "",
+  ].join("\n");
+
+  test("prose after the entries is not deleted, even with no following heading", () => {
+    const merged = value(
+      withTasksChecklist(REAL_SHAPE, [
+        { issue: 318, title: "The adapter port" },
+        { issue: 325, title: "The corrections, line-neutral" },
+        { issue: 326, title: "A newly cut task" },
+      ]),
+    );
+    expect(merged).toContain("**Eight tasks.** The Design measured ten build targets.");
+    expect(merged).toContain("It must not be built twice.");
+    expect(merged).toContain("- [ ] #326 A newly cut task");
+    // The new entry joins the run; it does not land after the prose.
+    expect(merged.indexOf("#326")).toBeLessThan(merged.indexOf("**Eight tasks.**"));
+    // And the tick a human made survives a re-run that did not mention it.
+    expect(merged).toContain("- [x] #318 The adapter port");
+  });
+
+  test("it is idempotent on that shape, which is where a rewrite would show", () => {
+    const items = [{ issue: 318 }, { issue: 325 }];
+    const once = value(withTasksChecklist(REAL_SHAPE, items));
+    expect(value(withTasksChecklist(once, items))).toBe(once);
+  });
+
+  test("entries split by prose are refused, not silently halved", () => {
+    const split = [
+      "## Tasks",
+      "",
+      "- [ ] #905",
+      "",
+      "### A note that should not be here",
+      "",
+      "- [ ] #906",
+      "",
+    ].join("\n");
+    const result = withTasksChecklist(split, [{ issue: 905 }, { issue: 906 }]);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toContain("splits its ## Tasks entries with prose");
+    // The line number is named so the refusal is actionable, not just a no.
+    expect(result.reason).toContain("line 7");
+  });
+});
