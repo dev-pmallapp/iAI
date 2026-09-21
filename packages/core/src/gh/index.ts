@@ -36,6 +36,7 @@ export {
   subIssueLink,
   tasksChecklist,
   withParentLine,
+  withTasksChecklist,
 } from "./sub-issues";
 export type {
   ChecklistItem,
