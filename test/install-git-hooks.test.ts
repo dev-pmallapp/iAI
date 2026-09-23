@@ -1,20 +1,17 @@
 import { afterAll, describe, expect, test } from "bun:test";
+import { createTempDirs } from "../packages/harness/src/tempdir";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { commentCharWarning, hookScript, installCommitMsgHook } from "../scripts/install-git-hooks";
 
-const tempDirs: string[] = [];
+const temps = createTempDirs();
 
 function makeTempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "iai-hooks-"));
-  tempDirs.push(dir);
-  return dir;
+  return temps.create("iai-hooks-");
 }
 
-afterAll(() => {
-  for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
-});
+afterAll(() => temps.cleanup());
 
 describe("hookScript", () => {
   test("execs bun against the commit-msg script with the message path", () => {

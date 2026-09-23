@@ -58,6 +58,8 @@ iAI. Only hooks, agents and commands need per-host generation.
 | iai-core | library | packages/core/package.json | packages/core/src |
 | iai-adapter-opencode | library | packages/adapter-opencode/package.json | packages/adapter-opencode/src |
 | iai-adapter-claude | library | packages/adapter-claude/package.json | packages/adapter-claude/src |
+| iai-exec | library | packages/exec/package.json | packages/exec/src |
+| iai-harness | library | packages/harness/package.json | packages/harness/src |
 | iai-installer | binary | packages/installer/package.json | packages/installer/src |
 | iai-domain-dev | library | packages/domain-dev/package.json | packages/domain-dev/src |
 | iai-domain-trade | library | packages/domain-trade/package.json | packages/domain-trade/src |

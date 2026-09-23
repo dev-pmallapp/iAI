@@ -6,6 +6,14 @@ import { checkCommitPrefix } from "../src/guards/commit-prefix";
 
 const repoRoot = join(import.meta.dir, "../../..");
 
+// NOT deduplicated into packages/harness, and the reason is architectural
+// rather than an oversight: `no-host-import` (scripts/lint.ts, scope `core`)
+// forbids packages/core importing outside its own package, and it fires on
+// this file the moment the import is added. #319 deduplicated the four
+// helpers under the repo-root test/ directory, which is not a package and is
+// therefore out of that rule's scope. THIS FIFTH COPY IS DUPLICATION BY
+// BOUNDARY, NOT BY NEGLECT -- deleting the boundary to remove the copy would
+// be the worse trade.
 const tempDirs: string[] = [];
 
 function makeTempDir(): string {
