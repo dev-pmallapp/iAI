@@ -24,7 +24,10 @@ import { KNOWN_DOMAIN_IDS } from "../packages/core/src/index";
 import {
   COMMIT_PREFIX_RE,
   EXCLUSIVE_LABEL_PREFIXES,
+  HARD_FAILURE_ACTION_PREFIX,
+  HARD_FAILURE_SUBJECT_KINDS,
   SENTINEL_NAMESPACE_PREFIX,
+  renderHardFailure,
 } from "../packages/core/src/index";
 
 const repoRoot = join(import.meta.dir, "..");
@@ -54,7 +57,41 @@ function writeSkillFile(root: string, skillName: string, content: string): strin
 // something about #295 it never meant to. Real skill bodies elsewhere in
 // this file carry both headings for real; this exists only to patch older,
 // narrower fixtures.
-const REQUIRED_SECTIONS_SUFFIX = "\n\n## Phase 0: Context Discovery\n\nx\n\n## Error Handling\n\nx\n";
+// A conformant hard-failure block, RENDERED BY THE PRODUCTION RENDERER rather
+// than hand-written here.
+//
+// This is not convenience: it is the cheapest possible proof that the spec's
+// two consumers agree. `renderHardFailure` produces the block and
+// `hard-failure-block` validates it, both reading the same constants out of
+// packages/core/src/guards/hard-failure.ts. If either drifts, every fixture
+// below that carries this suffix fails at once — which is the failure mode a
+// hand-written fixture would have hidden, because a hand-written fixture
+// agrees with the rule and says nothing about the renderer.
+//
+// The rule runs over the RAW body, so this must stay inside a fence exactly as
+// the real bodies keep it.
+const CONFORMANT_HARD_FAILURE_BLOCK = renderHardFailure({
+  phase: 0,
+  skill: "x",
+  subject: { kind: "Story", value: 1 },
+  expected: "a thing",
+  found: "none",
+  remedy: "Fix and re-run.",
+});
+
+const REQUIRED_SECTIONS_SUFFIX =
+  "\n\n## Phase 0: Context Discovery\n\nx\n\n## Error Handling\n\nx\n\n```\n" +
+  CONFORMANT_HARD_FAILURE_BLOCK +
+  "\n```\n";
+
+// For the ad-hoc single-perturbation fixtures, which build their body inline
+// rather than from VALID_SKILL_BODY. Each asserts a rule fires ALONE, so each
+// needs a conformant block for the same reason VALID_SKILL_BODY does: without
+// it the assertion reports two rules and the perturbation stops being the only
+// variable under test.
+function withHardFailureBlock(lines: readonly string[]): string {
+  return [...lines, "", "```", CONFORMANT_HARD_FAILURE_BLOCK, "```", ""].join("\n");
+}
 
 afterAll(() => {
   for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
@@ -988,6 +1025,15 @@ const VALID_SKILL_BODY = [
   "Handle a missing resource, an existing resource, rate limiting, and a",
   "partial write.",
   "",
+  // Required of every skill body as of #316's `hard-failure-block` rule.
+  // Rendered, not hand-written — see CONFORMANT_HARD_FAILURE_BLOCK. The
+  // "fires ALONE" assertions below depend on this being conformant: if it
+  // were not, they would each report two rules and the perturbation under
+  // test would stop being the only variable.
+  "```",
+  CONFORMANT_HARD_FAILURE_BLOCK,
+  "```",
+  "",
 ].join("\n");
 
 describe("phase-0-section and error-handling-section (CLAIM-41.10)", () => {
@@ -1022,25 +1068,25 @@ describe("phase-0-section and error-handling-section (CLAIM-41.10)", () => {
   // beside the mutated Phase 0 form, so each test also proves the sibling
   // rule does not co-fire on the malformed heading.
   test("a Phase 0 heading only inside a fenced code block does not satisfy the rule", () => {
-    const body = ["```", "## Phase 0", "```", "", "## Error Handling", "content"].join("\n");
+    const body = withHardFailureBlock(["```", "## Phase 0", "```", "", "## Error Handling", "content"]);
     const v = lintBodyRules("skills/x/SKILL.md", body);
     expect(v.map((x) => x.rule)).toEqual(["phase-0-section"]);
   });
 
   test("### Phase 0 (H3) does not satisfy the rule — H2 only", () => {
-    const body = ["### Phase 0", "", "## Error Handling", "content"].join("\n");
+    const body = withHardFailureBlock(["### Phase 0", "", "## Error Handling", "content"]);
     const v = lintBodyRules("skills/x/SKILL.md", body);
     expect(v.map((x) => x.rule)).toEqual(["phase-0-section"]);
   });
 
   test("## phase 0 (lowercase) does not satisfy the rule — case-sensitive", () => {
-    const body = ["## phase 0", "", "## Error Handling", "content"].join("\n");
+    const body = withHardFailureBlock(["## phase 0", "", "## Error Handling", "content"]);
     const v = lintBodyRules("skills/x/SKILL.md", body);
     expect(v.map((x) => x.rule)).toEqual(["phase-0-section"]);
   });
 
   test("## Phase 01 does not satisfy the rule — the negative lookahead excludes a longer number", () => {
-    const body = ["## Phase 01", "", "## Error Handling", "content"].join("\n");
+    const body = withHardFailureBlock(["## Phase 01", "", "## Error Handling", "content"]);
     const v = lintBodyRules("skills/x/SKILL.md", body);
     expect(v.map((x) => x.rule)).toEqual(["phase-0-section"]);
   });
@@ -1055,7 +1101,7 @@ describe("phase-0-section and error-handling-section (CLAIM-41.10)", () => {
   // recorded at test/skill-lint.test.ts's own domain-routing-form block and
   // in docs/evidence/46-*.md.
   test("## Error Handlingz does not satisfy the rule — the word boundary excludes a longer word", () => {
-    const body = ["## Phase 0", "", "## Error Handlingz", "content"].join("\n");
+    const body = withHardFailureBlock(["## Phase 0", "", "## Error Handlingz", "content"]);
     const v = lintBodyRules("skills/x/SKILL.md", body);
     expect(v.map((x) => x.rule)).toEqual(["error-handling-section"]);
   });
