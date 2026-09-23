@@ -1545,3 +1545,246 @@ describe("case 12: absence of the domain: label produces the hard-failure block,
     }
   });
 });
+
+// --- #316: the two-directions property, for every subject kind -----------
+//
+// `renderHardFailure` (packages/core/src/guards/hard-failure.ts) and this
+// file's `hard-failure-block` rule read the same HARD_FAILURE_SUBJECT_KINDS
+// constant. CONFORMANT_HARD_FAILURE_BLOCK above already proves this for
+// "Story"; this closes "Milestone" and "Goal" too, so the agreement is
+// checked for every kind the vocabulary declares rather than just the one
+// most fixtures happen to use.
+//
+// This lives here, not in packages/core/test/hard-failure.test.ts, because
+// importing `scripts/skill-lint` from inside packages/core/test/ trips the
+// repository's own `no-host-import` lint rule (scope: core): the specifier
+// resolves outside packages/core, which is exactly what that rule polices
+// (see packages/core/test/binding-conformance.test.ts's note on the same
+// discovery for a different import). This file already imports
+// `scripts/skill-lint` from outside any package's scope, so the same
+// assertion here costs nothing extra.
+describe("hard-failure-block and renderHardFailure agree, for every HARD_FAILURE_SUBJECT_KINDS member (#316)", () => {
+  // Asserted first so the loop below cannot pass by iterating zero times if
+  // HARD_FAILURE_SUBJECT_KINDS were ever silently emptied.
+  test("HARD_FAILURE_SUBJECT_KINDS is non-empty", () => {
+    expect(HARD_FAILURE_SUBJECT_KINDS.length).toBeGreaterThan(0);
+  });
+
+  for (const kind of HARD_FAILURE_SUBJECT_KINDS) {
+    test(`a rendered ${kind} block satisfies hard-failure-block with 0 violations`, () => {
+      const block = renderHardFailure({
+        phase: 0,
+        skill: "x",
+        subject: { kind, value: kind === "Story" ? 902 : "id-1" },
+        expected: "a thing",
+        found: "none",
+        remedy: "Fix and re-run.",
+      });
+
+      const body = [
+        "## Phase 0",
+        "",
+        "x",
+        "",
+        "## Error Handling",
+        "",
+        "x",
+        "",
+        "```",
+        block,
+        "```",
+        "",
+      ].join("\n");
+
+      // Filtered to hard-failure-block alone, so this test is about the ONE
+      // rule under test and cannot be confused by phase-0-section or
+      // error-handling-section firing for an unrelated reason.
+      const violations = lintBodyRules("skills/x/SKILL.md", body).filter(
+        (v) => v.rule === "hard-failure-block",
+      );
+      expect(violations).toEqual([]);
+    });
+  }
+});
+
+// ===========================================================================
+// #316 — hard-failure-block NEGATIVE FIXTURES
+//
+// THE POSTURE (#253 / #261 / #272): a rule that has never been observed to
+// fire is not a rule, it is a comment. Every fixture below is malformed in
+// exactly ONE way and is asserted to produce exactly ONE violation.
+//
+// AND EACH CARRIES A SECOND ASSERTION THAT IS THE REAL POINT. #316's issue
+// body claimed "no lint rule requires it". That was false — case 6 above has
+// required the block since S2.2, using HARD_FAILURE_BLOCK_RE (:1357). What was
+// true is that the rule was too LOOSE: its tail is `(?:- .+\n?)+`, which
+// accepts any bullet lines in any order, checking neither field order, nor the
+// subject key, nor the Action line at all.
+//
+// So every fixture here asserts BOTH:
+//   (i)  the OLD regex ACCEPTS it   — proving the old rule was insufficient
+//   (ii) the NEW rule REJECTS it    — proving the replacement closed the gap
+//
+// One fixture, two facts. Without (i) these would only show that some rule
+// fires on some garbage; with it, each one names a defect that would have
+// shipped green. This is the same argument #323's case 16 needed when four
+// green runs turned out to be one ignored flag away from vacuous.
+describe("hard-failure-block negative fixtures: the old regex accepted these, the new rule does not (#316)", () => {
+  function bodyWith(block: string): string {
+    return ["## Phase 0", "", "x", "", "## Error Handling", "", "x", "", "```", block, "```", ""].join(
+      "\n",
+    );
+  }
+
+  function hardFailureViolations(block: string) {
+    return lintBodyRules("skills/x/SKILL.md", bodyWith(block)).filter(
+      (v) => v.rule === "hard-failure-block",
+    );
+  }
+
+  // VACUITY GUARD, FIRST. If the conformant block did not pass, every
+  // "fires" assertion below could be firing for an unrelated reason and this
+  // whole suite would prove nothing about the perturbation it names.
+  test("the conformant block produces ZERO violations, so the fixtures below isolate one defect each", () => {
+    expect(hardFailureViolations(CONFORMANT_HARD_FAILURE_BLOCK)).toEqual([]);
+    // And the old regex accepts it too — so (i) below is a statement about
+    // the malformation, not about the regex rejecting everything.
+    expect(CONFORMANT_HARD_FAILURE_BLOCK).toMatch(HARD_FAILURE_BLOCK_RE);
+  });
+
+  // THE ACTION LINE. This is the highest-value fixture in the file: the
+  // invariant prefix is what every one of the five copies in the tree
+  // preserves, and the old regex never looked at the Action line at all.
+  test("an Action line missing the invariant prefix: OLD regex accepts, NEW rule rejects", () => {
+    const block = [
+      "HARD FAILURE in Phase 0 (x):",
+      "- Story: #1",
+      "- Expected: a thing",
+      "- Found: none",
+      "- Action: Fix and re-run.",
+    ].join("\n");
+
+    // (i) the defect the old rule could not see
+    expect(block, "the old regex must accept this, or the fixture proves nothing").toMatch(
+      HARD_FAILURE_BLOCK_RE,
+    );
+
+    // (ii) the gap, closed
+    const v = hardFailureViolations(block);
+    expect(v).toHaveLength(1);
+    expect(v[0].message).toContain(HARD_FAILURE_ACTION_PREFIX);
+  });
+
+  test("a subject key outside the vocabulary: OLD regex accepts, NEW rule rejects and names the vocabulary", () => {
+    const block = [
+      "HARD FAILURE in Phase 0 (x):",
+      "- Epic: #1",
+      "- Expected: a thing",
+      "- Found: none",
+      HARD_FAILURE_ACTION_PREFIX + "Fix and re-run.",
+    ].join("\n");
+
+    expect(block).toMatch(HARD_FAILURE_BLOCK_RE);
+
+    const v = hardFailureViolations(block);
+    expect(v).toHaveLength(1);
+    expect(v[0].message).toContain("Epic");
+    // The message lists the permitted keys by reading the exported constant,
+    // so a vocabulary change cannot leave the diagnostic stale.
+    for (const kind of HARD_FAILURE_SUBJECT_KINDS) {
+      expect(v[0].message).toContain(kind);
+    }
+  });
+
+  // FIELD ORDER. Transposition is the defect a presence-only rule can never
+  // see: both lines are present, both match `- .+`, and the block reads as
+  // an answer to a question nobody asked.
+  test("Expected and Found transposed: OLD regex accepts, NEW rule rejects", () => {
+    const block = [
+      "HARD FAILURE in Phase 0 (x):",
+      "- Story: #1",
+      "- Found: none",
+      "- Expected: a thing",
+      HARD_FAILURE_ACTION_PREFIX + "Fix and re-run.",
+    ].join("\n");
+
+    expect(block).toMatch(HARD_FAILURE_BLOCK_RE);
+
+    // Two violations, because BOTH ordered slots are wrong — the Expected
+    // slot holds Found and vice versa. Asserted as a count so a rule that
+    // noticed only the first would fail here.
+    const v = hardFailureViolations(block);
+    expect(v).toHaveLength(2);
+  });
+
+  test("a blank Expected value: OLD regex accepts, NEW rule rejects", () => {
+    const block = [
+      "HARD FAILURE in Phase 0 (x):",
+      "- Story: #1",
+      "- Expected:  ",
+      "- Found: none",
+      HARD_FAILURE_ACTION_PREFIX + "Fix and re-run.",
+    ].join("\n");
+
+    expect(block).toMatch(HARD_FAILURE_BLOCK_RE);
+    expect(hardFailureViolations(block)).toHaveLength(1);
+  });
+
+  // ABSENCE. The one case the old regex DID catch — asserted anyway, because
+  // a replacement that closed the loose half while dropping the strict half
+  // would be a regression no other test here would notice.
+  test("no block at all is still rejected — the replacement did not drop what the old rule did catch", () => {
+    const body = ["## Phase 0", "", "x", "", "## Error Handling", "", "x", ""].join("\n");
+    expect(body).not.toMatch(HARD_FAILURE_BLOCK_RE);
+
+    const v = lintBodyRules("skills/x/SKILL.md", body).filter((x) => x.rule === "hard-failure-block");
+    expect(v).toHaveLength(1);
+  });
+
+  test("a truncated block is rejected and says so", () => {
+    const block = ["HARD FAILURE in Phase 0 (x):", "- Story: #1"].join("\n");
+    const v = lintBodyRules("skills/x/SKILL.md", ["```", block, "```"].join("\n")).filter(
+      (x) => x.rule === "hard-failure-block",
+    );
+    expect(v).toHaveLength(1);
+    expect(v[0].message).toContain("truncated");
+  });
+
+  // EVERY block is validated, not merely the first. A body that carries a
+  // conformant block and then a malformed one must still be reported: a rule
+  // that stopped at the first match would let the second ship, which is the
+  // shape that lets a bad example sit in a body being copied from.
+  test("a SECOND malformed block is reported even when the first is conformant", () => {
+    const bad = [
+      "HARD FAILURE in Phase 1 (y):",
+      "- Story: #2",
+      "- Expected: a thing",
+      "- Found: none",
+      "- Action: Fix and re-run.",
+    ].join("\n");
+
+    const body = [
+      "## Phase 0",
+      "",
+      "x",
+      "",
+      "## Error Handling",
+      "",
+      "x",
+      "",
+      "```",
+      CONFORMANT_HARD_FAILURE_BLOCK,
+      "```",
+      "",
+      "```",
+      bad,
+      "```",
+      "",
+    ].join("\n");
+
+    const v = lintBodyRules("skills/x/SKILL.md", body).filter((x) => x.rule === "hard-failure-block");
+    expect(v).toHaveLength(1);
+    // And it points at the SECOND block's Action line, not the first's.
+    expect(v[0].line).toBeGreaterThan(body.split("\n").indexOf("```") + 1);
+  });
+});

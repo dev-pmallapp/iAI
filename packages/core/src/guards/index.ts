@@ -52,3 +52,5 @@ export type {
   HardFailureSubject,
   HardFailureSubjectKind,
 } from "./hard-failure";
+export { checkEvidenceMandate } from "./evidence-mandate";
+export type { EvidenceMandateInput, EvidenceResolution } from "./evidence-mandate";

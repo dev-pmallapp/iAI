@@ -275,11 +275,30 @@ parsed by the conductor to halt.
 
 ```
 HARD FAILURE in Phase {N} ({skill}):
-- Story: #{story}
+- {Subject}: {identifier}
 - Expected: {what should exist}
 - Found: {what was actually found}
-- Action: Pipeline cannot continue. Fix and re-run.
+- Action: Pipeline cannot continue. {remedy}
 ```
+
+`{Subject}` is an open slot, not a fixed key. It is one of **`Milestone`**,
+**`Story`** or **`Goal`** — broadest to narrowest — and only `Story` carries
+the `#` sigil, because only a Story is a forge issue. The vocabulary is
+exported as `HARD_FAILURE_SUBJECT_KINDS` from `packages/core`, rendered by
+`renderHardFailure`, and enforced on every skill body by `skill-lint`'s
+`hard-failure-block` rule.
+
+> **This slot was specified as a fixed `- Story: #{story}` until #316.** That
+> was unsatisfiable for two shipped skills: `goal-create` runs *before any
+> Story exists*, so it had nothing to name there and emitted `- Goal: <id>`;
+> `story-create` emitted `- Milestone: <milestone>` for the same reason one
+> rung up. Both passed review because the rule meant to police the block
+> matched `(?:- .+\n?)+` and never looked at the key. Restated per gate ruling
+> **G-a on #47**.
+
+`{remedy}` is the trailing imperative only. The rest of the `Action:` line is
+invariant: every copy in the tree preserves `Pipeline cannot continue. ` and
+varies only what follows it.
 
 Worked example:
 
