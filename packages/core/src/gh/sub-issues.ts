@@ -225,6 +225,145 @@ export function tasksChecklist(items: readonly ChecklistItem[]): GhResult<string
   return ghOk(lines.join("\n"));
 }
 
+// Matches a rendered checklist entry so an existing tick can be read back.
+// Capital X is accepted because GitHub renders it, so a human who typed one
+// has ticked the box whatever this module would have written.
+const CHECKLIST_ENTRY_RE = /^- \[([ xX])\] #(\d+)\b/;
+
+// A `## Tasks` section ends at the next H1/H2, never at an H3 — an H3 is a
+// subsection of the checklist, not a sibling of it.
+const SECTION_BOUNDARY_RE = /^#{1,2} /;
+
+function findTasksHeadings(lines: readonly string[]): readonly number[] {
+  const found: number[] = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    if (lines[i] === TASKS_HEADING) found.push(i);
+  }
+  return found;
+}
+
+// Build target 1 of docs/design/stories/47.md, anchored to CLAIM-47.7.
+//
+// Idempotent, and body-preserving. Modelled on `withParentLine` above: it
+// inserts into an existing body rather than replacing it, and it REFUSES the
+// ambiguous case rather than guessing at it.
+//
+// THE DEFECT THIS EXISTS TO FIX: `planSubIssueAttach` passed `tasksChecklist`'s
+// output as the whole `--body` of a `gh issue edit` on the parent, which
+// replaces the Story's entire body with the checklist. The shipped test
+// asserted the first four argv elements and that the last contained the
+// heading — both true of a body that had destroyed everything else.
+export function withTasksChecklist(
+  body: unknown,
+  items: readonly ChecklistItem[],
+): GhResult<string> {
+  if (typeof body !== "string") return ghFail("story body must be a string");
+  if (!Array.isArray(items)) return ghFail("tasks checklist requires an array of items");
+
+  const lines = body.split("\n");
+  const headings = findTasksHeadings(lines);
+  // Two checklists means two answers to "what are this Story's tasks". Picking
+  // one silently would make the merge lossy in the exact way this function
+  // exists to prevent, so it is refused and the count is named.
+  if (headings.length > 1) {
+    return ghFail(
+      `story body carries ${headings.length} ${TASKS_HEADING} sections, refusing to guess ` +
+        "which one is the checklist",
+    );
+  }
+
+  const at = headings[0];
+  if (at === undefined) {
+    const rendered = tasksChecklist(items);
+    if (!rendered.ok) return rendered;
+    // Trailing blank lines are dropped and one separator is written back, so
+    // appending to "prose\n" and to "prose" converge on the same shape and the
+    // second run is a no-op.
+    const head = [...lines];
+    while (head.length > 0 && head[head.length - 1] === "") head.pop();
+    if (head.length === 0) return ghOk([...rendered.value.split("\n"), ""].join("\n"));
+    return ghOk([...head, "", ...rendered.value.split("\n"), ""].join("\n"));
+  }
+
+  let end = lines.length;
+  for (let i = at + 1; i < lines.length; i += 1) {
+    if (SECTION_BOUNDARY_RE.test(lines[i] ?? "")) {
+      end = i;
+      break;
+    }
+  }
+
+  // ONLY THE ENTRIES ARE REWRITTEN, NEVER THE WHOLE SECTION.
+  //
+  // Every real Story body puts load-bearing prose INSIDE `## Tasks`, after the
+  // entries: #47 carries the dependency ordering and the "must not be built
+  // twice" ruling there, #293 carries its sequencing rulings there and the
+  // section runs to the end of the body. Replacing the section wholesale would
+  // delete all of it — the defect this function exists to remove, one level
+  // down. So the rewrite covers the leading run of entry lines and nothing else.
+  let cursor = at + 1;
+  while (cursor < end && lines[cursor] === "") cursor += 1;
+  const entriesAt = cursor;
+  while (cursor < end && CHECKLIST_ENTRY_RE.test(lines[cursor] ?? "")) cursor += 1;
+  const entriesEnd = cursor;
+
+  // AND THE STRUCTURE IS ASSERTED, NOT ASSUMED. Taking "the first contiguous
+  // run" and trusting it is how a parser reads the right rows by accident and
+  // then cannot report a violation of the shape it depends on — measured on
+  // #323's audit parser. Entries split by prose have no single answer to
+  // "which of these is the checklist", so they are refused and named.
+  for (let i = entriesEnd; i < end; i += 1) {
+    if (CHECKLIST_ENTRY_RE.test(lines[i] ?? "")) {
+      return ghFail(
+        `story body splits its ${TASKS_HEADING} entries with prose at line ${i + 1}, ` +
+          "refusing to guess which run is the checklist",
+      );
+    }
+  }
+
+  // A tick is body content, and the caller does not always know about it: the
+  // parent checklist is ticked by hand as tasks merge, and re-running
+  // task-create would otherwise silently untick every box. An item that states
+  // `checked` wins; an item that is silent inherits what the body says.
+  const ticked = new Set<number>();
+  for (let i = entriesAt; i < entriesEnd; i += 1) {
+    const match = CHECKLIST_ENTRY_RE.exec(lines[i] ?? "");
+    if (match && match[1] !== " ") ticked.add(Number(match[2]));
+  }
+  // Rebuilt field by field through `safeOwnValue`, never spread: a spread over
+  // a caller-supplied object runs its getters, and this module's hostile-corpus
+  // test requires 0 throws. `tasksChecklist` re-validates every field below, so
+  // an invalid one is still refused by name rather than smuggled through here.
+  const merged: ChecklistItem[] = [];
+  for (const item of items) {
+    const issue = safeOwnValue(item, "issue");
+    const title = safeOwnValue(item, "title");
+    const checked = safeOwnValue(item, "checked");
+    const inherit = checked === undefined && isPositiveInteger(issue) && ticked.has(issue);
+    merged.push({
+      issue: issue as number,
+      ...(title === undefined ? {} : { title: title as string }),
+      ...(checked === undefined ? {} : { checked: checked as boolean }),
+      ...(inherit ? { checked: true } : {}),
+    });
+  }
+
+  const rendered = tasksChecklist(merged);
+  if (!rendered.ok) return rendered;
+
+  // Everything from the end of the entry run onward is carried verbatim: the
+  // section's own trailing blank lines, whatever prose follows the entries, and
+  // the rest of the body. `rendered` supplies the heading and the blank beneath
+  // it, so the lines between the heading and the entries are not re-emitted.
+  return ghOk(
+    [
+      ...lines.slice(0, at),
+      ...rendered.value.split("\n"),
+      ...lines.slice(entriesEnd),
+    ].join("\n"),
+  );
+}
+
 export interface SubIssueAttachInput {
   readonly capability: SubIssueCapability;
   readonly parent: number;
@@ -236,6 +375,12 @@ export interface SubIssueAttachInput {
   readonly child?: number;
   // Every sibling, in checklist order, including the child being attached.
   readonly siblings?: readonly ChecklistItem[];
+  // The parent Story's CURRENT body, read before this plan is built. Required
+  // on both paths, and deliberately not optional: a default of "" would make
+  // the destructive behaviour the fallback for a caller who simply forgot, and
+  // that is the defect build target 1 exists to remove. A genuinely empty
+  // Story body is stated as "".
+  readonly parentBody?: string;
 }
 
 export interface SubIssueAttachPlan {
@@ -244,6 +389,42 @@ export interface SubIssueAttachPlan {
   // NOT a command: the child may not exist yet, so this is handed to
   // issueCreate rather than executed.
   readonly childBody?: string;
+}
+
+// The one place the parent checklist edit is built, so the two capability
+// paths cannot drift into disagreeing about what "adds a checklist" means.
+// The fallback keeps its own sibling pre-check above, because its reason names
+// the half of CLAIM-21.2 that is missing rather than the checklist alone.
+function planChecklistEdit(
+  repo: GhRepo,
+  parent: number,
+  input: SubIssueAttachInput,
+): GhResult<Argv> {
+  const siblings = safeOwnValue(input, "siblings");
+  if (!Array.isArray(siblings) || siblings.length === 0) {
+    return ghFail(
+      "the parent checklist requires the sibling list, in checklist order; " +
+        "it is written on both capability paths, not only the fallback",
+    );
+  }
+  const parentBody = safeOwnValue(input, "parentBody");
+  if (typeof parentBody !== "string") {
+    return ghFail(
+      "the parent Story's current body must be supplied so the checklist is merged into it " +
+        'rather than replacing it; pass "" only for a Story whose body really is empty',
+    );
+  }
+  const merged = withTasksChecklist(parentBody, siblings);
+  if (!merged.ok) return ghFail(merged.reason);
+  return ghOk([
+    "gh",
+    "issue",
+    "edit",
+    String(parent),
+    ...repoFlag(repo),
+    "--body",
+    merged.value,
+  ]);
 }
 
 // CLAIM-21.2. One entry point, two paths, chosen by a reported capability and
@@ -265,13 +446,20 @@ export function planSubIssueAttach(
     return ghFail(`invalid parent issue number: ${String(parent)}`);
   }
 
+  // Build target 2. The checklist is emitted on BOTH paths. Before this it was
+  // emitted only on the fallback, so CLAIM-47.1's clause "adds a `## Tasks`
+  // checklist to the Story" was unreachable on the primary path — the sub-issue
+  // API links the graph, but nothing renders the checklist a human reads, and
+  // `status` reads the checklist in fallback mode either way.
   if (capability === "present") {
     const link = subIssueLink(
       safeOwnValue(input, "parentNodeId"),
       safeOwnValue(input, "childNodeId"),
     );
     if (!link.ok) return ghFail(link.reason);
-    return ghOk({ commands: [link.value] });
+    const checklistEdit = planChecklistEdit(repo, parent, input);
+    if (!checklistEdit.ok) return ghFail(checklistEdit.reason);
+    return ghOk({ commands: [link.value, checklistEdit.value] });
   }
 
   // Fallback. Both halves are required: a body link with no parent checklist
@@ -290,18 +478,8 @@ export function planSubIssueAttach(
         "a Parent: line alone leaves the parent unable to enumerate its children",
     );
   }
-  const checklist = tasksChecklist(siblings);
-  if (!checklist.ok) return ghFail(checklist.reason);
+  const edit = planChecklistEdit(repo, parent, input);
+  if (!edit.ok) return ghFail(edit.reason);
 
-  const edit: Argv = [
-    "gh",
-    "issue",
-    "edit",
-    String(parent),
-    ...repoFlag(repo),
-    "--body",
-    checklist.value,
-  ];
-
-  return ghOk({ commands: [edit], childBody: body.value });
+  return ghOk({ commands: [edit.value], childBody: body.value });
 }
