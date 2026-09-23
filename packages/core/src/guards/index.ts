@@ -38,3 +38,19 @@ export { deidentifyPrivatePayload } from "./redact";
 export { checkSpend } from "./spend";
 export { checkRiskMandate } from "./risk-mandate";
 export type { Rung } from "./risk-mandate";
+export {
+  HARD_FAILURE_ACTION_PREFIX,
+  HARD_FAILURE_FIELD_ORDER,
+  HARD_FAILURE_HEADLINE_PREFIX,
+  HARD_FAILURE_ISSUE_SIGIL,
+  HARD_FAILURE_SUBJECT_KINDS,
+  HardFailureInputError,
+  renderHardFailure,
+} from "./hard-failure";
+export type {
+  HardFailureInput,
+  HardFailureSubject,
+  HardFailureSubjectKind,
+} from "./hard-failure";
+export { checkEvidenceMandate } from "./evidence-mandate";
+export type { EvidenceMandateInput, EvidenceResolution } from "./evidence-mandate";
