@@ -33,6 +33,11 @@ Thumbs.db
 .idea/
 .vscode/
 
+# The anti-vacuity runner's report, regenerated on every `bun run
+# skill-harness`. The durable record is the evidence artifact under
+# docs/evidence/, not this scratch file, so it is never committed.
+.harness/
+
 # opencode session state. `.opencode/opencode.json` is checked in as project
 # config; the runtime scratch files beside it are not.
 .opencode/todo.json
