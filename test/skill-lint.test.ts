@@ -1675,6 +1675,48 @@ describe("hard-failure-block negative fixtures: the old regex accepted these, th
     expect(v[0].message).toContain(HARD_FAILURE_ACTION_PREFIX);
   });
 
+  // THE FIXTURE ABOVE IS NOT SUFFICIENT ON ITS OWN, AND MUTATION M5 IS WHY.
+  //
+  // M5 replaced the rule's `startsWith(HARD_FAILURE_ACTION_PREFIX)` with
+  // `startsWith("- Action:")` -- deleting the entire invariant check -- and
+  // the suite stayed GREEN. The fixture above still failed the mutant, but
+  // for the WRONG REASON: "- Action: Fix and re-run." is SHORTER than the
+  // 36-character prefix, so the surviving `.slice(PREFIX.length)` ran off the
+  // end and yielded "", which the blank-remainder branch rejected anyway.
+  // The fixture was being caught by a length accident, not by the prefix
+  // check it was written to pin.
+  //
+  // This fixture discriminates the prefix's CONTENT: the Action line is long
+  // enough that the slice yields a non-blank remainder either way, so the
+  // ONLY thing that can reject it is a real comparison against the invariant.
+  // Under the mutant it is accepted; under the real rule it is not.
+  //
+  // Same class as the case-only assertion recorded in docs/evidence/33-*.md
+  // and re-hit in #315: two assertions that differ only in a way the code
+  // never reads are one assertion.
+  test("an Action line the right LENGTH but the wrong CONTENT is rejected -- the prefix is compared, not counted", () => {
+    const block = [
+      "HARD FAILURE in Phase 0 (x):",
+      "- Story: #1",
+      "- Expected: a thing",
+      "- Found: none",
+      // "CONTINUE" miscased: same shape, same length, not the invariant.
+      "- Action: Pipeline cannot CONTINUE. Fix and re-run.",
+    ].join("\n");
+
+    expect(block).toMatch(HARD_FAILURE_BLOCK_RE);
+
+    // The remainder after slicing by the prefix length is non-blank here, so
+    // the blank-remainder branch CANNOT be what rejects this one.
+    const actionLine = block.split("\n")[4];
+    expect(actionLine.length).toBeGreaterThan(HARD_FAILURE_ACTION_PREFIX.length);
+    expect(actionLine.slice(HARD_FAILURE_ACTION_PREFIX.length).trim()).not.toBe("");
+
+    const v = hardFailureViolations(block);
+    expect(v).toHaveLength(1);
+    expect(v[0].message).toContain(HARD_FAILURE_ACTION_PREFIX);
+  });
+
   test("a subject key outside the vocabulary: OLD regex accepts, NEW rule rejects and names the vocabulary", () => {
     const block = [
       "HARD FAILURE in Phase 0 (x):",
