@@ -54,3 +54,10 @@ export type {
 } from "./hard-failure";
 export { checkEvidenceMandate } from "./evidence-mandate";
 export type { EvidenceMandateInput, EvidenceResolution } from "./evidence-mandate";
+export {
+  BUILD_TARGETS_COLUMN,
+  BUILD_TARGETS_HEADING,
+  BuildTargetsParseError,
+  parseBuildTargets,
+} from "./build-targets";
+export type { BuildTargetRow } from "./build-targets";
