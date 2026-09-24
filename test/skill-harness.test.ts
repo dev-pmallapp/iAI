@@ -208,7 +208,7 @@ describe("skill-harness CLI without --inject: the default path is unchanged", ()
     expect(spawned.exitCode).toBe(0);
     const artifact = JSON.parse(readFileSync(outPath, "utf8")) as HarnessArtifact;
     expect(artifact.verdict).toBe("pass");
-    expect(artifact.denominators.rosterLength).toBe(6);
+    expect(artifact.denominators.rosterLength).toBe(7);
   }, 120_000);
 });
 

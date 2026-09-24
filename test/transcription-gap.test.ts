@@ -163,11 +163,11 @@ function swapFirstTwoReEntryRows(text: string): {
 describe("case 16 (P0, NEVER-293.5): mutating a SKILL.md leaves the seam rung green", () => {
   const bodies = readSkillBodies(realSkillsDir);
 
-  // DENOMINATOR NON-ZERO FIRST, and exactly 4 -- so "4 of 4 bodies" is
+  // DENOMINATOR NON-ZERO FIRST, and exactly 5 -- so "5 of 5 bodies" is
   // visible in the output rather than a silently short loop.
-  test("0. the real skills directory carries exactly 4 skill bodies", () => {
+  test("0. the real skills directory carries exactly 5 skill bodies", () => {
     expect(bodies.length).toBeGreaterThan(0);
-    expect(bodies.length).toBe(4);
+    expect(bodies.length).toBe(5);
   });
 
   // THE CONTROL. Four green runs against mutated copies prove nothing unless
@@ -212,7 +212,7 @@ describe("case 16 (P0, NEVER-293.5): mutating a SKILL.md leaves the seam rung gr
       const skillNames = readdirSync(realSkillsDir).filter((name) =>
         statSync(join(realSkillsDir, name)).isDirectory(),
       );
-      expect(skillNames.length).toBe(4);
+      expect(skillNames.length).toBe(5);
 
       const mutatedSkillsDir = temps.create(`iai-transcription-gap-${body.name}-`);
       for (const name of skillNames) {

@@ -1276,32 +1276,38 @@ describe("NEVER-41.7 and the #295 section rules over the real skill corpus", () 
 
 // The ONE assertion in this block that still needs editing, and the ONLY one:
 // docs/test-plans/41-plan.md case 6 requires "4 of 4, with the count asserted
-// first" for CLAIM-41.5. Today the corpus is 1 of 4. Stating the
-// incompleteness explicitly — rather than omitting it — means the gap is
-// asserted, not hidden, and there is exactly one place to update: this
-// constant and the `toBeLessThan` below become the `toBe`-4 assertion case 6
-// actually requires, the moment the last of #42/#43/#45 lands. Do not
-// hardcode `4` anywhere else in this file for this purpose.
-const CASE_6_REQUIRED_SKILL_COUNT = 4; // docs/test-plans/41-plan.md:119, "4 of 4"
+// first" for CLAIM-41.5 -- but that "4 of 4" was S2.2's own corpus, the four
+// Tier-1 verbs #42/#43/#44/#45 shipped. S2.3 (#48) lands a fifth body,
+// `skills/task-create`, in the same directory this block reads, and case 6's
+// own wording is "the real skill corpus", not "S2.2's four" -- so what this
+// constant backs is that EVERY body currently on disk complies, not merely
+// S2.2's original four. It now tracks the disk total, and there is exactly
+// one place to update it: this constant, the moment a skill is added to or
+// removed from the corpus. Do not hardcode a skill count anywhere else in
+// this file for this purpose.
+const CASE_6_REQUIRED_SKILL_COUNT = 5; // docs/test-plans/41-plan.md:119 said "4 of 4" for S2.2's own four; #48/S2.3's task-create is the fifth, so this now tracks the disk total, not the plan's literal 4
 
-describe("case 6's 4-of-4 threshold (docs/test-plans/41-plan.md:119)", () => {
-  // FLIPPED BY #45, the last of the four verbs, which is the single edit this
-  // assertion was written to require. It read `toBeLessThan(4)` from #44 until
-  // now, so the shortfall was stated on every run rather than assumed away.
+describe("case 6's 5-of-5 threshold, tracking the disk total as S2.3 adds skills (docs/test-plans/41-plan.md:119)", () => {
+  // FLIPPED BY #45, the last of S2.2's four verbs, which is the single edit
+  // this assertion was written to require. It read `toBeLessThan(4)` from
+  // #44 until then, so the shortfall was stated on every run rather than
+  // assumed away.
   //
-  // NEVER-41.7 said "proved over the real four-skill corpus, not a fixture".
-  // This is the line that makes the denominator in that sentence real: the
-  // loops above assert zero violations over whatever exists, and this asserts
-  // that what exists is the four the case names. Without it those loops stay
-  // green over a corpus that quietly shrank.
+  // NEVER-41.7 said "proved over the real four-skill corpus, not a fixture" --
+  // of S2.2. This is the line that makes the denominator in that sentence
+  // real: the loops above assert zero violations over whatever exists, and
+  // this asserts that what exists is exactly the corpus on disk -- S2.2's
+  // four plus, as of #48, S2.3's task-create. Without it those loops stay
+  // green over a corpus that quietly shrank or silently grew unclassified.
   //
   // It is deliberately NOT a run-time equality. Every other assertion added by
   // #44 and #296 reads both sides from disk and needs no editing; this one
-  // hardcodes the number the PLAN specifies, because "4" here is a claim about
-  // what S2.2 committed to build, not a fact about the filesystem. A disk-read
-  // denominator on both sides would pass a corpus of three verbs and a deleted
-  // one, which is exactly the drift case 6 exists to catch.
-  test("the real skill corpus is 4 of 4 — case 6's denominator is met", () => {
+  // hardcodes the number a plan or a later story committed to build, because
+  // that number is a claim about what was SHIPPED, not a fact the filesystem
+  // can assert of itself. A disk-read denominator on both sides would pass a
+  // corpus of four verbs and a deleted one, which is exactly the drift case 6
+  // exists to catch.
+  test("the real skill corpus is 5 of 5 — case 6's denominator is met, S2.2's four plus S2.3's task-create", () => {
     const files = realSkillFiles();
     expect(files.length).toBe(CASE_6_REQUIRED_SKILL_COUNT);
   });
@@ -1374,11 +1380,18 @@ describe("case 6: each real skill reads the domain: label before resolving the b
   // asserted to partition the real corpus EXACTLY. A new verb that is in
   // neither list breaks the total, and a verb that changes category must be
   // moved deliberately. Neither failure can be silent.
-  const DOMAIN_RESOLVING_SKILLS: readonly string[] = ["story-create", "story-design", "story-test-plan"];
+  //
+  // `task-create` (#48, S2.3) joins DOMAIN_RESOLVING_SKILLS: its Phase 0
+  // reads the parent Story's `domain:` label and copies that label onto
+  // every sub-issue it opens (skills/task-create/SKILL.md:25-28, :72-73), so
+  // it resolves a domain binding the same way story-create/-design/-test-plan
+  // do, and is not merely hard-failing on its own input the way goal-create
+  // does.
+  const DOMAIN_RESOLVING_SKILLS: readonly string[] = ["story-create", "story-design", "story-test-plan", "task-create"];
   const OWN_INPUT_ONLY_SKILLS: readonly string[] = ["goal-create"];
 
   test("the two populations are named, counted, and partition the real corpus exactly", () => {
-    expect(DOMAIN_RESOLVING_SKILLS).toHaveLength(3);
+    expect(DOMAIN_RESOLVING_SKILLS).toHaveLength(4);
     expect(OWN_INPUT_ONLY_SKILLS).toHaveLength(1);
 
     const onDisk = new Set(realSkillFiles().map((f) => basename(dirname(f.relPath))));

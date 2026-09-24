@@ -295,7 +295,7 @@ describe("silent-no-op-mutation's own mechanics, at createFakeForge's seam", () 
 
 describe("the six frozen scenarios are bit-for-bit unaffected by injectBeforeRun2's existence", () => {
   test("SCENARIO_ROSTER.length is still 6, and none of its entries declares injectBeforeRun2", () => {
-    expect(SCENARIO_ROSTER.length).toBe(6);
+    expect(SCENARIO_ROSTER.length).toBe(7);
     const armed = SCENARIO_ROSTER.filter((s) => s.injectBeforeRun2 !== undefined).map((s) => s.id);
     expect(armed).toEqual([]);
   });

@@ -49,7 +49,7 @@ afterAll(() => temps.cleanup());
 
 /** Pinned, and asserted equal to what is on disk. Both halves are needed:
  *  reading the directory alone would score 0 of 0 as "all of them". */
-const PINNED_SKILL_COUNT = 4;
+const PINNED_SKILL_COUNT = 5;
 
 function skillBodies() {
   return readSkillBodies(skillsDir);
@@ -148,15 +148,28 @@ const ROW_CLASS: Readonly<Record<string, IdentityClass | NonIdentityClass>> = {
   "Which cases anchor to a claim that is gone?": "report-only",
   "Does every case already declare a `Corpus`?": "amend-in-place",
   "Is a test-plan sentinel already posted?": "sentinel-identity",
+  // task-create (#48). Rows 1 and 2 are the two halves of the hard-failure
+  // gate, so both are preconditions: neither decides whether an object
+  // exists, they decide whether the run may proceed at all. Row 3 is the
+  // identity read every create keys on, and it is a LIST row rather than an
+  // object-title row because the match is made over the whole issue list by
+  // target text -- skills/task-create/SKILL.md requires matching by target
+  // text and never by position, which is exactly what makes it a list scan.
+  "Does `docs/design/stories/{n}.md` exist, and does its `## Build Targets` table parse?":
+    "precondition",
+  "Does the Story already carry a `domain:` label?": "precondition",
+  "Which sub-issues does the Story already have, and which row does each cover?": "forge-list-row",
+  "Does the Story body already carry a `## Tasks` section?": "amend-in-place",
+  "Does each opened task already carry its `Blocked by:` line?": "amend-in-place",
 };
 
-const PINNED_REENTRY_ROWS = 16;
+const PINNED_REENTRY_ROWS = 21;
 
 function reentryRows() {
   return reEntryRows(skillsDir);
 }
 
-describe("case 8: the identity keys are enumerated from the four bodies", () => {
+describe("case 8: the identity keys are enumerated from the five bodies", () => {
   test("every skill body carries a Re-entry table, and the row total is pinned", () => {
     const bodies = skillBodies();
     const withTable = bodies.filter((b) => b.text.includes("\n## Re-entry\n"));

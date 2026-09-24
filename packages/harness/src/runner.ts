@@ -54,10 +54,22 @@ import type { TempDirs } from "./tempdir";
 /** Cites case 3 of docs/test-plans/293-plan.md: the skill denominator is
  *  asserted THREE ways -- greater than zero, equal to the count of SKILL.md
  *  files read from disk at run time, and equal to `PINNED_SKILL_COUNT`, a
- *  literal pinned here so a fourth skill added without a plan update turns
+ *  literal pinned here so a sixth skill added without a plan update turns
  *  the run red rather than silently widening the corpus this harness scores
- *  against. */
-export const PINNED_SKILL_COUNT = 4;
+ *  against.
+ *
+ *  BUMPING THIS: when a skill is added, this literal moves together with
+ *  four other sites that pin the same count by hand rather than reading it
+ *  off disk. Move all five in the same change, or the sites disagree:
+ *  - packages/harness/test/fake-forge.test.ts (its own `PINNED_SKILL_COUNT`)
+ *  - test/transcription-gap.test.ts (the "N skill bodies" denominator test
+ *    and the per-skill-name count in its mutation loop)
+ *  - test/skill-lint.test.ts (`CASE_6_REQUIRED_SKILL_COUNT`, and
+ *    `DOMAIN_RESOLVING_SKILLS`/`OWN_INPUT_ONLY_SKILLS` if the new skill
+ *    resolves a domain binding)
+ *  - docs/audits/293-transcription-audit.md (the summary table's row count
+ *    and total) */
+export const PINNED_SKILL_COUNT = 5;
 
 // ===========================================================================
 // Scenario surface -- what a later step's roster implements against

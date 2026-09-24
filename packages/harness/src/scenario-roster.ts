@@ -69,6 +69,7 @@ import { runGoalCreate } from "./transcription-goal-create";
 import { runStoryCreate } from "./transcription-story-create";
 import { runStoryDesign } from "./transcription-story-design";
 import { runStoryTestPlan } from "./transcription-story-test-plan";
+import { runTaskCreate } from "./transcription-task-create";
 
 /** A CLOSED SET: the six scenario ids below, and nothing else. Typing each
  *  scenario constant against `Scenario & { readonly id: ScenarioId }` turns a
@@ -80,7 +81,8 @@ export type ScenarioId =
   | "story-design/design-and-sentinel"
   | "story-test-plan/plan-and-sentinel"
   | "story-design/sentinel-only"
-  | "story-test-plan/file-only";
+  | "story-test-plan/file-only"
+  | "task-create/two-unopened-targets";
 
 type IdentifiedScenario = Scenario & { readonly id: ScenarioId };
 
@@ -367,7 +369,75 @@ const SCENARIO_6: IdentifiedScenario = {
 // The roster
 // ===========================================================================
 
-/** Six scenarios, one `run()` apiece delegating to the matching `runXxx`
+// ===========================================================================
+// 7. task-create/two-unopened-targets
+// ===========================================================================
+//
+// A Story with a Design whose `## Build Targets` table has two rows and no
+// task issues yet, so run 1 opens both and run 2 must open neither.
+//
+// The second target declares the first as its blocker, so the `Blocked by:`
+// line is really rendered rather than skipped -- without a dependency in the
+// fixture, Re-entry row 5 would read and then do nothing, and a row that can
+// only be observed doing nothing is not exercised.
+//
+// The Story carries its `domain:` label in the SEED, not in the transcription,
+// because the transcription is required to read it off the forge; a scenario
+// that passed it in would be answering row 2's question on the skill's behalf.
+
+const TARGETS_7 = ["the parser", "the emitter"] as const;
+
+const SCENARIO_7: IdentifiedScenario = {
+  id: "task-create/two-unopened-targets",
+  skill: "task-create",
+  corpus:
+    "synthetic — a two-row Build Targets table authored for #48's roster entry; no real Story or binding exists behind it",
+  files: [
+    {
+      path: "docs/design/stories/7.md",
+      contents: [
+        "# Story 7 Design",
+        "",
+        "<!-- scenario 7: two-unopened-targets marker -->",
+        "",
+        "## Build Targets",
+        "",
+        "| # | Target | Work |",
+        "|---|---|---|",
+        `| 1 | ${TARGETS_7[0]} | read the table |`,
+        `| 2 | ${TARGETS_7[1]} | render the block |`,
+        "",
+      ].join("\n"),
+    },
+  ],
+  async seed(forge: FakeForge): Promise<void> {
+    await forge.run([
+      "gh",
+      "issue",
+      "create",
+      ...REPO_FLAG,
+      "--title",
+      "Story: two-unopened-targets",
+      "--body",
+      "seed body for scenario 7",
+      "--label",
+      "type:story",
+      "--label",
+      "domain:dev",
+    ]);
+  },
+  async run(ctx): Promise<void> {
+    await runTaskCreate(ctx, {
+      story: 1,
+      designPath: "docs/design/stories/7.md",
+      domainLabel: "domain:dev",
+      targets: TARGETS_7,
+      dependsOn: { [TARGETS_7[1]]: [TARGETS_7[0]] },
+    });
+  },
+};
+
+/** Seven scenarios, one `run()` apiece delegating to the matching `runXxx`
  *  transcription, FROZEN. There is no parameter that shrinks or reorders
  *  this array at runtime -- see this module's own header. */
 export const SCENARIO_ROSTER: readonly Scenario[] = Object.freeze([
@@ -377,4 +447,5 @@ export const SCENARIO_ROSTER: readonly Scenario[] = Object.freeze([
   SCENARIO_4,
   SCENARIO_5,
   SCENARIO_6,
+  SCENARIO_7,
 ]);

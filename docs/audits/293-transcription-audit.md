@@ -73,10 +73,17 @@ closing section.
 | story-test-plan | 3 | Which cases anchor to a claim that is gone? | `packages/harness/src/transcription-story-test-plan.ts:78` | 3rd of 5 | **none — reports only** | faithful | Read **before** the write at `:95`, deliberately. On a first run the plan file does not exist and `git show HEAD:<plan>` exits non-zero — that is expected, and it is still a **recorded read**, never a reason to skip the call. Skipping it would be the *"decided to do nothing"* versus *"did nothing"* collapse that `CLAIM-293.3` exists to separate. The cell says *"do not silently delete a case"*; the step reports into `danglingCases` and deletes nothing. |
 | story-test-plan | 4 | Does every case already declare a `Corpus`? | `packages/harness/src/transcription-story-test-plan.ts:90` | 4th of 5 | **none — observational** | faithful | Reads the same pre-write state as row 3 and does so **under its own row number**, rather than reusing row 3's result. That is what makes the read count honest: the runner's threshold is `countReads(report.calls)` (`packages/harness/src/argv-kind.ts`), computed from calls actually issued, never from a declared row. The cell's *"add the column"* half has no separate mutation because the plan's shape is always written whole, once, by row 1. |
 | story-test-plan | 5 | Is a test-plan sentinel already posted? | `packages/harness/src/transcription-story-test-plan.ts:109` | 5th of 5 | `gh issue comment` at `:114`, or `PATCH …/issues/comments/{id}` at `:126` | faithful | The cell asks for both halves in its own text — *"edit that comment, never append a second"* — and both are implemented. Contrast `story-design`'s row 2, whose cell asks the same and is implemented the same way; the two are consistent with each other and each with its own body. |
+| task-create | 1 | Does `docs/design/stories/{n}.md` exist, and does its `## Build Targets` table parse? | `packages/harness/src/transcription-task-create.ts:69` | **1st of 5** | none — the hard-failure `throw` at `:71` | **UNAUDITED** | Executed first, and it is the table's first row, so no reordering argument is needed. A Story whose Design has no readable table has no units of work and must mutate **nothing**; running any create before this read would make the hard-failure block unreachable after issues had already been opened. |
+| task-create | 2 | Does the Story already carry a `domain:` label? | `packages/harness/src/transcription-task-create.ts:88` | 2nd of 5 | none — the hard-failure `throw` at `:92` | **UNAUDITED** | Read off the forge rather than taken from the scenario's parameters, because the label is the thing every task **inherits**, and a transcription that accepted it as input would be answering this row's question on the skill's behalf. Uses `gh issue list` rather than `gh issue view` because this fake's `view` response carries no `labels` field — a `view` call would fail closed on every run, which is indistinguishable from the label genuinely being absent. |
+| task-create | 3 | Which sub-issues does the Story already have, and which row does each cover? | `packages/harness/src/transcription-task-create.ts:101` | 3rd of 5 | `gh issue create` at `:107` | **UNAUDITED** | The identity read every create keys on. Matched by the row's **target text**, never by position: `skills/task-create/SKILL.md`'s Re-entry section requires this explicitly, because a row inserted mid-table shifts every position after it and a position-matched re-run would open duplicates for work that already exists. The list is re-read rather than reusing row 2's response, since they are separate decisions in the table. |
+| task-create | 4 | Does the Story body already carry a `## Tasks` section? | `packages/harness/src/transcription-task-create.ts:131` | 4th of 5 | `gh issue edit --body` at `:134` | **UNAUDITED** | The existing body is read and carried through **verbatim** ahead of the new section, never substituted. This is the defect #315 fixed one task earlier — a whole-body write deletes the load-bearing prose real Story bodies carry inside `## Tasks` — so the read is what makes the merge possible rather than merely preceding it. |
+| task-create | 5 | Does each opened task already carry its `Blocked by:` line? | `packages/harness/src/transcription-task-create.ts:148` | 5th of 5 | `gh issue edit --body` at `:177` | **UNAUDITED** | Walked in **target order**, not in creation order, so the line is emitted in checklist order as `CLAIM-47.2` requires. A task already carrying the line is left exactly as it is, per the cell's *"leave the existing line alone"* — it may have been edited by hand. The line's form comes from `packages/core/src/gh/blocked-by.ts` and is not restated. |
 
 ## Denominator
 
-**16 rows audited; 16 `## Re-entry` rows on disk; 0 divergent.**
+**16 rows audited; 21 `## Re-entry` rows on disk; 0 divergent among the
+audited rows. `task-create`'s 5 rows are on disk and counted in the total, but
+are UNAUDITED — see the note below the table.**
 
 | Skill | `## Re-entry` rows | Rows audited |
 |---|---|---|
@@ -84,10 +91,20 @@ closing section.
 | story-create | 4 | 4 |
 | story-design | 4 | 4 |
 | story-test-plan | 5 | 5 |
-| **Total** | **16** | **16** |
+| task-create | 5 | 0 — UNAUDITED |
+| **Total** | **21** | **16** |
 
-Neither direction has an orphan: no `## Re-entry` row lacks a step, and no
-transcription step is attributable to no row.
+> `task-create` (#48, S2.3) is new since this audit was written. Its
+> transcription would be written by the same task that wrote its skill body,
+> so a faithfulness verdict produced from that transcription would be
+> self-attestation, not an independent audit — the exact posture this
+> document exists to avoid for the other four. The audit of S2.3's new
+> skill(s) is deferred and tracked by **#344**.
+
+Neither direction has an orphan among the audited rows: no audited
+`## Re-entry` row lacks a step, and no audited transcription step is
+attributable to no row. `task-create`'s rows are excluded from that check
+until #344 audits them.
 
 > **THIS TABLE IS DELIBERATELY NOT UNDER `## The audit`, AND MUST NOT BE MOVED
 > BACK.** `test/transcription-gap.test.ts` parses the audit table by section,
