@@ -152,9 +152,10 @@ export function parseBuildTargets(body: string): readonly BuildTargetRow[] {
     rows.push({ position: rows.length + 1, target, cells });
   }
 
-  if (rows.length === 0) {
-    throw new BuildTargetsParseError(`"${BUILD_TARGETS_HEADING}"'s table has a header but no rows`);
-  }
-
+  // NOTE: there is deliberately no `rows.length === 0` guard here. Mutation
+  // M5 of #48 deleted one and nothing went red, because it was UNREACHABLE:
+  // the `table.length < 3` check above already rejects a header-and-separator
+  // with nothing after it, and every remaining line becomes a row or throws.
+  // A guard no fixture can reach is a comment that reads like a check.
   return rows;
 }

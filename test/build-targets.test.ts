@@ -214,3 +214,58 @@ describe("case 1 negative: a malformed Build Targets table is refused, not coped
     expect(rows[0].target).toBe("only row");
   });
 });
+
+// ===========================================================================
+// THE H2 STOP, PINNED SEPARATELY — mutation M3 of #48 is why this exists.
+//
+// M3 deleted the "stop at the next `## ` heading" bound and the whole suite
+// stayed green, because in every fixture above the LEADING-CONTIGUOUS-RUN
+// scan happens to stop at the same place: a blank line and a heading both
+// break the run.
+//
+// The two bounds only diverge in one shape, and it is the dangerous one: a
+// `## Build Targets` section that carries NO table, followed by a later
+// section that does. With the H2 stop the parser refuses, correctly. Without
+// it, the section runs to the end of the document, the scan finds the FIRST
+// table it meets — which belongs to another section entirely — and returns it
+// as the build targets. A confident, wrong, entirely plausible answer.
+//
+// Same class as #323's M5: a bound that is never the binding one is
+// indistinguishable from no bound at all.
+// ===========================================================================
+describe("case 1: the section bound is the next H2, not merely the next blank line (#48 M3)", () => {
+  const EMPTY_SECTION_THEN_A_LATER_TABLE = [
+    "# Story 1 Design",
+    "",
+    BUILD_TARGETS_HEADING,
+    "",
+    "This Story's targets are still being drafted.",
+    "",
+    "## Test Strategy",
+    "",
+    `| # | ${BUILD_TARGETS_COLUMN} |`,
+    "|---|---|",
+    "| 1 | a case, not a build target |",
+    "",
+  ].join("\n");
+
+  test("a Build Targets section with no table is refused, even when a later section has one", () => {
+    // The later table is real and parseable — that is the whole hazard.
+    expect(EMPTY_SECTION_THEN_A_LATER_TABLE).toContain(`| # | ${BUILD_TARGETS_COLUMN} |`);
+
+    expect(() => parseBuildTargets(EMPTY_SECTION_THEN_A_LATER_TABLE)).toThrow(BuildTargetsParseError);
+  });
+
+  test("and the refusal names the empty section rather than the borrowed table", () => {
+    let message = "";
+    try {
+      parseBuildTargets(EMPTY_SECTION_THEN_A_LATER_TABLE);
+    } catch (err) {
+      message = (err as Error).message;
+    }
+    expect(message).toContain("carries no table");
+    // Never the other section's content: if this ever appears, the bound has
+    // been lost and the parser is reading someone else's table.
+    expect(message).not.toContain("a case, not a build target");
+  });
+});
