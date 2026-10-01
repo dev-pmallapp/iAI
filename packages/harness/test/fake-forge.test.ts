@@ -24,7 +24,13 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { classifyRateLimit, shouldRetryResponse } from "iai-core";
+import {
+  classifyRateLimit,
+  shouldRetryResponse,
+  SUB_ISSUE_FEATURE_HEADER,
+  subIssueCapabilityProbe,
+  subIssueLink,
+} from "iai-core";
 import { createRealPort, createRecordingPort, REFUSED_EXIT_CODE } from "iai-exec";
 // `readSkillBodies` and `reEntryRows` were promoted to
 // packages/harness/src/re-entry.ts for #322, so there is exactly one parser.
@@ -150,20 +156,26 @@ const ROW_CLASS: Readonly<Record<string, IdentityClass | NonIdentityClass>> = {
   "Is a test-plan sentinel already posted?": "sentinel-identity",
   // task-create (#48). Rows 1 and 2 are the two halves of the hard-failure
   // gate, so both are preconditions: neither decides whether an object
-  // exists, they decide whether the run may proceed at all. Row 3 is the
-  // identity read every create keys on, and it is a LIST row rather than an
-  // object-title row because the match is made over the whole issue list by
-  // target text -- skills/task-create/SKILL.md requires matching by target
-  // text and never by position, which is exactly what makes it a list scan.
+  // exists, they decide whether the run may proceed at all. Row 3 (the
+  // sub-issue capability probe) is also a precondition in this sense: it
+  // decides which of two MUTATION SHAPES a create takes, never whether an
+  // object exists, and nothing it reads is itself an identity key. Row 4 is
+  // the identity read every create keys on, and it is a LIST row rather than
+  // an object-title row because the match is made over the whole issue list
+  // by target text -- skills/task-create/SKILL.md requires matching by
+  // target text and never by position, which is exactly what makes it a list
+  // scan.
   "Does `docs/design/stories/{n}.md` exist, and does its `## Build Targets` table parse?":
     "precondition",
   "Does the Story already carry a `domain:` label?": "precondition",
+  "Is the sub-issue API available on this instance (`subIssueCapabilityProbe`, `packages/core/src/gh/sub-issues.ts`)?":
+    "precondition",
   "Which sub-issues does the Story already have, and which row does each cover?": "forge-list-row",
   "Does the Story body already carry a `## Tasks` section?": "amend-in-place",
   "Does each opened task already carry its `Blocked by:` line?": "amend-in-place",
 };
 
-const PINNED_REENTRY_ROWS = 21;
+const PINNED_REENTRY_ROWS = 22;
 
 function reentryRows() {
   return reEntryRows(skillsDir);
@@ -777,5 +789,112 @@ describe("isMutatingGhArgv is the one classifier, and it is not vacuous", () => 
     // Neither direction alone is a check.
     expect(MUTATIONS.filter((a) => !isMutatingGhArgv(a)).map((a) => a.join(" "))).toEqual([]);
     expect(READS.filter((a) => isMutatingGhArgv(a)).map((a) => a.join(" "))).toEqual([]);
+  });
+});
+
+// ===========================================================================
+// THE GRAPHQL MUTATION CLASSIFIER — mutation M7 (#48). `gh api graphql`
+// carries no `--method`: gh always POSTs it under the hood, so the HTTP-verb
+// branch above cannot tell a query from a mutation, and whether the request
+// mutates is decided by the query text itself (fake-forge.ts:241-249). The
+// comment at fake-forge.ts:230-234 forbids a SECOND classifier -- "#321 ...
+// must REUSE this rather than build a second classifier" -- so this pins the
+// one classifier that exists directly, rather than adding another.
+// ===========================================================================
+describe("isMutatingGhArgv classifies `gh api graphql` by its query document (#48 M7)", () => {
+  test("a graphql argv whose query document is a mutation classifies as a mutation", () => {
+    const argv = [
+      "gh",
+      "api",
+      "graphql",
+      "-H",
+      SUB_ISSUE_FEATURE_HEADER,
+      "-f",
+      "query=mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,subIssueId:$c}){issue{number}}}",
+      "-F",
+      "p=NODE_1",
+      "-F",
+      "c=NODE_2",
+    ];
+    expect(isMutatingGhArgv(argv)).toBe(true);
+  });
+
+  test("a graphql argv whose query document is a query classifies as a read", () => {
+    const argv = [
+      "gh",
+      "api",
+      "graphql",
+      "-H",
+      SUB_ISSUE_FEATURE_HEADER,
+      "-f",
+      "query=query($owner:String!,$name:String!,$number:Int!)" +
+        "{repository(owner:$owner,name:$name){issue(number:$number){subIssues(first:1){totalCount}}}}",
+      "-F",
+      "owner=OWNER",
+      "-F",
+      "name=REPO",
+      "-F",
+      "number=1",
+    ];
+    expect(isMutatingGhArgv(argv)).toBe(false);
+  });
+
+  // THE REAL ARGVS, NOT HAND-ROLLED ONES. `subIssueCapabilityProbe` and
+  // `subIssueLink` (packages/core/src/gh/sub-issues.ts:63, :94) are the only
+  // two producers of a `gh api graphql` argv anywhere in this repository, so
+  // the classifier is pinned against their actual output too, not only a
+  // fixture shaped like it.
+  test("the real probe and link argv classify correctly", () => {
+    const probe = subIssueCapabilityProbe({ owner: "OWNER", name: "REPO" }, 1);
+    const link = subIssueLink("NODE_1", "NODE_2");
+    if (!probe.ok || !link.ok) throw new Error("fixture construction failed");
+    expect(isMutatingGhArgv(probe.value)).toBe(false);
+    expect(isMutatingGhArgv(link.value)).toBe(true);
+  });
+});
+
+// ===========================================================================
+// THE FEATURE-HEADER HAZARD, PINNED BOTH DIRECTIONS — mutation M6 (#48).
+// `packages/core/src/gh/sub-issues.ts:15-27` calls a missed or mis-headered
+// probe "the most dangerous failure this module can have": it does not
+// error, it silently and permanently selects the degraded (`Parent: #N`)
+// path on a fully-capable instance. `createFakeForge`'s graphql branch
+// (fake-forge.ts:537-551) models that hazard by honouring the header rather
+// than the fake's own `subIssueCapability` setting alone; this test pins
+// both directions of that model directly, against the SAME fake instance.
+// ===========================================================================
+describe("the probe's capability answer requires the feature header, on the same fake instance (#48 M6)", () => {
+  function subIssuesField(stdout: string): unknown {
+    return (JSON.parse(stdout) as { data: { repository: { issue: { subIssues: unknown } } } }).data
+      .repository.issue.subIssues;
+  }
+
+  test("probe WITH the header, against a fake configured present, answers present", async () => {
+    const forge = createFakeForge({ subIssueCapability: "present" });
+    const probe = subIssueCapabilityProbe({ owner: "OWNER", name: "REPO" }, 1);
+    if (!probe.ok) throw new Error("fixture construction failed");
+    expect(probe.value).toContain(SUB_ISSUE_FEATURE_HEADER);
+
+    const result = await forge.run(probe.value);
+    expect(result.exitCode).toBe(0);
+    expect(subIssuesField(result.stdout)).not.toBeNull();
+  });
+
+  // THE ASSERTION M6 DEFEATS. The IDENTICAL probe, with only the `-H` flag
+  // and its value removed, sent against the SAME present-configured fake,
+  // must answer absent -- proving the branch reads the header off the argv
+  // and not merely the fake's own configured capability.
+  test("the identical probe WITHOUT the header, on the same present fake, answers absent", async () => {
+    const forge = createFakeForge({ subIssueCapability: "present" });
+    const probe = subIssueCapabilityProbe({ owner: "OWNER", name: "REPO" }, 1);
+    if (!probe.ok) throw new Error("fixture construction failed");
+    const headerIndex = probe.value.indexOf("-H");
+    expect(headerIndex).not.toBe(-1);
+    const headerless = [...probe.value.slice(0, headerIndex), ...probe.value.slice(headerIndex + 2)];
+    expect(headerless).not.toContain(SUB_ISSUE_FEATURE_HEADER);
+
+    const result = await forge.run(headerless);
+    expect(result.exitCode).toBe(0);
+    expect(subIssuesField(result.stdout)).toBeNull();
   });
 });

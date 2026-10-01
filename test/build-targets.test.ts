@@ -109,6 +109,11 @@ describe("case 1 (CLAIM-47.1): the Build Targets table parses on every real Desi
   });
 
   test("positions are 1-based, dense, and in document order", () => {
+    // DENOMINATOR FIRST, like every other loop over the real corpus in this
+    // file. Without it an empty `docs/design/stories/` makes this test pass by
+    // iterating nothing -- the vacuous-truth failure case 1 names when it says
+    // the denominator is "asserted non-zero first".
+    expect(designFiles().length).toBeGreaterThan(0);
     for (const file of designFiles()) {
       const rows = parseBuildTargets(readFileSync(join(DESIGNS_DIR, file), "utf8"));
       expect(rows.map((r) => r.position)).toEqual(rows.map((_, i) => i + 1));

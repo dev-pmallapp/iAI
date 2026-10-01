@@ -41,7 +41,7 @@
 
 import type { ExecResult, Port, RecordedCall, RecordingPort } from "iai-exec";
 import { classifyArgv, countReads } from "./argv-kind";
-import { createFakeForge, type FailureMode, type FakeForge } from "./fake-forge";
+import { createFakeForge, type FailureMode, type FakeForge, type FakeForgeOptions } from "./fake-forge";
 import { createFixtureRepo, type FixtureFile } from "./fixture-repo";
 import { createMutationRecorder, mutationEvidence, type MutationReport } from "./mutation-recorder";
 import { countReEntryRows, readSkillNames } from "./re-entry";
@@ -107,6 +107,11 @@ export interface Scenario {
    *  never through the recorder, so seeding is never itself scored as a
    *  mutation the subject made. */
   seed?(forge: FakeForge): Promise<void>;
+  /** Forwarded straight to `createFakeForge`'s `FakeForgeOptions.
+   *  subIssueCapability` (fake-forge.ts). Absent means the fake's own
+   *  default -- `"absent"`, the fallback-body path -- so every scenario that
+   *  predates this field is bit-for-bit unaffected by its existence. */
+  readonly subIssueCapability?: FakeForgeOptions["subIssueCapability"];
   run(ctx: ScenarioContext): Promise<void>;
   /** Case 9 of docs/test-plans/293-plan.md. Arm one of the fake forge's five
    *  lies (`fake-forge.ts`'s `FailureMode`) AFTER run 1 completes and BEFORE
@@ -688,7 +693,11 @@ export async function runHarness(options: RunHarnessOptions): Promise<HarnessVer
 
     const root = options.temps.create(`iai-322-${sanitiseForTempPrefix(scenario.id)}`);
     const raw = options.makePort();
-    const forge = createFakeForge({ delegate: raw, milestones: scenario.milestones });
+    const forge = createFakeForge({
+      delegate: raw,
+      milestones: scenario.milestones,
+      subIssueCapability: scenario.subIssueCapability,
+    });
     const recorder = createMutationRecorder({ port: forge });
     // The recorder's `port` field is typed narrowly as `Port` (one method),
     // but the object it actually hands out is the SAME `RecordingPort`

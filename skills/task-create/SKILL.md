@@ -42,6 +42,21 @@ Read, in this order:
    `references/sizing-criteria.md`. The binding contributes the *noun* and the
    *bound*; it does not contribute the list. It is a single specification
    object, not a sequence, and iterating it is an error.
+6. **Whether the sub-issue API is available on this GitHub instance.** Probed
+   once, via `subIssueCapabilityProbe` (`packages/core/src/gh/sub-issues.ts`),
+   which reports exactly `"present"` or `"absent"` — never assumed, and never
+   carried over from a previous run or a previous Story. **The feature header
+   is why this is a read and not a constant:** that constructor attaches the
+   sub-issue feature header `sub-issues.ts` owns (do not restate its value
+   here), and a probe sent without it answers `"absent"` even on an instance
+   where the sub-issue API is genuinely present. That false negative is
+   silent and permanent — it is the fallback becoming the only path this
+   skill ever takes, on a fully capable instance, with nothing in the output
+   to say so. `sub-issues.ts`'s own header calls a missed or mis-headered
+   probe "the most dangerous failure this module can have". This step
+   decides nothing by itself; the reported capability is handed to the
+   construction in `packages/core/src/gh/sub-issues.ts`, which owns the
+   choice between the two parenting paths below.
 
 ### Hard failure — no Design table to cut tasks from
 
@@ -67,8 +82,12 @@ from a complete one.
 **One task sub-issue per table row**, in table order, each one:
 
 - anchored to at least one claim that already exists in that Story's Design.
-  A task anchored to no claim is work nobody can verify; a task anchored to an
-  invented identifier fails `claim-lint`.
+  A task anchored to no claim is work nobody can verify. This is
+  **model-judged, not tool-checked**: nothing in the linter chain reads an
+  issue body. `claim-lint`'s `anchor-dangling` rule
+  (`packages/core/src/guards/claim-lint.ts:404-435`) only catches a dangling
+  anchor in `docs/test-plans/*.md`'s `anchors_to` cells — the test plan, not
+  the task.
 - labelled `type:task` and **the parent's own `domain:` label**, read in
   Phase 0 and copied, never chosen here.
 - carrying its dependencies as **exactly one** `Blocked by:` line, comma-joined,
@@ -105,6 +124,7 @@ not.** Every mutating step below is preceded by the read that decides which:
 |---|---|
 | Does `docs/design/stories/{n}.md` exist, and does its `## Build Targets` table parse? | enumerate the rows, or stop and emit the hard-failure block |
 | Does the Story already carry a `domain:` label? | copy it onto each task, or stop and emit the hard-failure block |
+| Is the sub-issue API available on this instance (`subIssueCapabilityProbe`, `packages/core/src/gh/sub-issues.ts`)? | parent each new task with the real sub-issue link, or write a `Parent: #N` body line instead — and never trust the answer from a probe sent without the feature header |
 | Which sub-issues does the Story already have, and which row does each cover? | open only the rows with no issue, or leave the existing ones alone |
 | Does the Story body already carry a `## Tasks` section? | merge into it, or add one — never replace the body |
 | Does each opened task already carry its `Blocked by:` line? | write it once, or leave the existing line alone |
