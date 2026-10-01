@@ -29,6 +29,7 @@
 // guarantee the token never appears is to never write a code path that can
 // produce it.
 import { repoFlag, type GhRepo } from "./repo";
+import { renderBlockedByLine } from "./blocked-by";
 import {
   ghFail,
   ghOk,
@@ -336,7 +337,14 @@ export function renderPrBody(input: PrBodyInput): GhResult<string> {
     // Exactly one line, comma-joined. This is the directive Decision 8 says
     // must NOT be split per-line: docs/design/04-domain-dev.md:449 shows
     // "Blocked by: #931, #932" as the correct, comma-separated form.
-    lines.push(`Blocked by: ${numbers.map((n) => `#${n}`).join(", ")}`);
+    //
+    // The FORM moved to gh/blocked-by.ts in #48, when CLAIM-47.2 put the same
+    // directive on task issue bodies. This file no longer owns the shape, only
+    // the decision to emit it and the validation above. The tests in
+    // packages/core/test/gh-pr.test.ts pin the rendered line verbatim and were
+    // not touched by that move: they are the regression guard that it is
+    // behaviour-preserving.
+    lines.push(renderBlockedByLine(numbers));
   }
 
   if (body !== undefined) {
