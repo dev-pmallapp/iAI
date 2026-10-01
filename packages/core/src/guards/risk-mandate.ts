@@ -1,4 +1,5 @@
 import { decide, type Decision } from "../decision";
+import { renderHardFailure } from "./hard-failure";
 
 // The auto-past-paper-rung refusal ONLY, per Decision 9 of
 // docs/design/stories/15.md and docs/milestones/M1.md:107. Mandate
@@ -45,14 +46,22 @@ function normaliseRung(rung: unknown): string {
 // after "#" in "Story: #902"); `rung` is the Story's current rung, which may
 // be any string the caller passed in, including one this module does not
 // recognise.
+//
+// This WAS a private hand-rolled copy of the block — the fifth in the tree,
+// and the only one in TypeScript. Build target 7 of docs/design/stories/47.md
+// replaced it with the shared renderer. `packages/core/test/risk-mandate.test.ts`
+// pins the output string verbatim, line for line, and was NOT touched by that
+// change: it is the regression guard proving the swap is behaviour-preserving.
+// If it ever goes red here, the renderer is wrong, not the test.
 function hardFailure(story: string | number, rung: string): string {
-  return (
-    "HARD FAILURE in Phase 6 (task-do):\n" +
-    `- Story: #${story}\n` +
-    "- Expected: rung:research or rung:paper for an /iai:auto run\n" +
-    `- Found: rung:${rung}\n` +
-    "- Action: Pipeline cannot continue. Fix and re-run."
-  );
+  return renderHardFailure({
+    phase: 6,
+    skill: "task-do",
+    subject: { kind: "Story", value: story },
+    expected: "rung:research or rung:paper for an /iai:auto run",
+    found: `rung:${rung}`,
+    remedy: "Fix and re-run.",
+  });
 }
 
 // Evaluates whether an `/iai:auto` run is permitted to proceed against a

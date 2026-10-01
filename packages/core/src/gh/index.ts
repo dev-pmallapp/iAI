@@ -12,6 +12,10 @@ export { ghFail, ghOk, isPositiveInteger, safeOwnString, safeOwnValue } from "./
 export type { Argv, GhPlan, GhResponse, GhResult } from "./types";
 
 export { coerceRepo, formatRepo, makeRepo, parseRepo, repoApiPath, repoFlag } from "./repo";
+
+// The `Blocked by:` directive's form, shared by PR bodies and task issue
+// bodies since #48 (CLAIM-47.2). Decision 8 of docs/design/stories/21.md.
+export { BLOCKED_BY_PREFIX, BLOCKED_BY_SEPARATOR, renderBlockedByLine } from "./blocked-by";
 export type { GhRepo } from "./repo";
 
 export { issueClose, issueCreate, issueEditBody, issueList, issueView } from "./issues";
@@ -36,6 +40,7 @@ export {
   subIssueLink,
   tasksChecklist,
   withParentLine,
+  withTasksChecklist,
 } from "./sub-issues";
 export type {
   ChecklistItem,

@@ -4,6 +4,8 @@ import {
   BLOB_SHA_PATTERN,
   COMMIT_PREFIX_RE,
   EXCLUSIVE_LABEL_PREFIXES,
+  HARD_FAILURE_ACTION_PREFIX,
+  HARD_FAILURE_SUBJECT_KINDS,
   KNOWN_DOMAIN_IDS,
   SENTINEL_NAMESPACE_PREFIX,
   SUB_ISSUE_FEATURE_HEADER,
@@ -58,7 +60,9 @@ export type SkillRuleId =
   | "domain-routing-form"
   // --- S2.2 / #295. ------------------------------------------------------
   | "phase-0-section"
-  | "error-handling-section";
+  | "error-handling-section"
+  // --- S2.3 / #316. ------------------------------------------------------
+  | "hard-failure-block";
 
 export type Severity = "error" | "warning";
 
@@ -796,6 +800,119 @@ export function lintBodyRules(
           `write) is author-judged and unenforced (CONTRIBUTING.md:311-318)`,
       });
     }
+
+    // --- hard-failure-block (docs/design/02-roles.md:276-282, gate ruling
+    // G-a on #47) — SKILLS ONLY, RAW body ---------------------------------
+    //
+    // The block being validated lives INSIDE a fenced code block in every
+    // shipped skill (it is the model's OUTPUT contract, emitted verbatim at
+    // refusal time — see packages/core/src/guards/hard-failure.ts:15-22).
+    // `stripFencedCode` would blank out exactly the lines this rule exists
+    // to check, so this rule runs over `body`, never `stripped`.
+    const headlineRe = /^HARD FAILURE in Phase (\d+) \(([^)]+)\):$/gm;
+    const bodyLines = body.split("\n");
+    let headlineMatch: RegExpExecArray | null = headlineRe.exec(body);
+    if (headlineMatch === null) {
+      violations.push({
+        file: filePath,
+        line: 1,
+        rule: "hard-failure-block",
+        severity: "error",
+        message:
+          `hard-failure-block: this skill body carries no "HARD FAILURE in Phase N ` +
+          `(skill):" headline. Every Ring 0 agent that finds reality disagreeing ` +
+          `with the pipeline's premise stops and emits the house hard-failure block ` +
+          `(docs/design/02-roles.md:276-282); this body has none for the conductor ` +
+          `to parse`,
+      });
+    }
+    while (headlineMatch !== null) {
+      const headlineLine = lineOf(body, headlineMatch.index);
+      const fields = bodyLines.slice(headlineLine, headlineLine + 4);
+      if (fields.length < 4) {
+        violations.push({
+          file: filePath,
+          line: headlineLine,
+          rule: "hard-failure-block",
+          severity: "error",
+          message:
+            `hard-failure-block: the block opened by "${headlineMatch[0]}" is truncated ` +
+            `— only ${String(fields.length)} of the required 4 lines (subject, Expected, ` +
+            `Found, Action) follow the headline. The full shape is fixed at ` +
+            `docs/design/02-roles.md:276-282`,
+        });
+        headlineMatch = headlineRe.exec(body);
+        continue;
+      }
+
+      const [subjectLine, expectedLine, foundLine, actionLine] = fields;
+      const subjectLineNo = headlineLine + 1;
+
+      const subjectMatch = /^- ([A-Za-z]+): (.+)$/.exec(subjectLine);
+      const subjectKey = subjectMatch?.[1];
+      if (
+        subjectKey === undefined ||
+        !(HARD_FAILURE_SUBJECT_KINDS as readonly string[]).includes(subjectKey)
+      ) {
+        violations.push({
+          file: filePath,
+          line: subjectLineNo,
+          rule: "hard-failure-block",
+          severity: "error",
+          message:
+            `hard-failure-block: the subject line following "${headlineMatch[0]}" names ` +
+            `${subjectKey === undefined ? "no recognised key" : `"${subjectKey}"`}, but the ` +
+            `only permitted keys are ${HARD_FAILURE_SUBJECT_KINDS.join(", ")} (gate ruling ` +
+            `G-a on #47, docs/design/02-roles.md:276-282)`,
+        });
+      }
+
+      const expectedMatch = /^- Expected: (.+)$/.exec(expectedLine);
+      if (expectedMatch === null || expectedMatch[1].trim() === "") {
+        violations.push({
+          file: filePath,
+          line: subjectLineNo + 1,
+          rule: "hard-failure-block",
+          severity: "error",
+          message:
+            `hard-failure-block: the line following the subject line must read ` +
+            `"- Expected: <non-blank>"; found "${expectedLine}". The block's field order ` +
+            `is fixed (docs/design/02-roles.md:276-282)`,
+        });
+      }
+
+      const foundMatch = /^- Found: (.+)$/.exec(foundLine);
+      if (foundMatch === null || foundMatch[1].trim() === "") {
+        violations.push({
+          file: filePath,
+          line: subjectLineNo + 2,
+          rule: "hard-failure-block",
+          severity: "error",
+          message:
+            `hard-failure-block: the line following Expected must read ` +
+            `"- Found: <non-blank>"; found "${foundLine}". The block's field order is ` +
+            `fixed (docs/design/02-roles.md:276-282)`,
+        });
+      }
+
+      const actionRemainder = actionLine.startsWith(HARD_FAILURE_ACTION_PREFIX)
+        ? actionLine.slice(HARD_FAILURE_ACTION_PREFIX.length)
+        : undefined;
+      if (actionRemainder === undefined || actionRemainder.trim() === "") {
+        violations.push({
+          file: filePath,
+          line: subjectLineNo + 3,
+          rule: "hard-failure-block",
+          severity: "error",
+          message:
+            `hard-failure-block: the block's final line must start with the invariant ` +
+            `"${HARD_FAILURE_ACTION_PREFIX}" prefix followed by a non-blank remedy; found ` +
+            `"${actionLine}" (docs/design/02-roles.md:276-282)`,
+        });
+      }
+
+      headlineMatch = headlineRe.exec(body);
+    }
   }
 
   return violations;
@@ -883,6 +1000,7 @@ export const RULE_IDS = [
   "domain-routing-form",
   "phase-0-section",
   "error-handling-section",
+  "hard-failure-block",
 ] as const satisfies readonly SkillRuleId[];
 
 // Compile-time exhaustiveness guard. If a member is added to SkillRuleId
@@ -933,6 +1051,7 @@ function printReport(
     "domain-routing-form": 0,
     "phase-0-section": 0,
     "error-handling-section": 0,
+    "hard-failure-block": 0,
   };
   for (const violation of violations) byRule[violation.rule] += 1;
 

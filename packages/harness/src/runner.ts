@@ -41,7 +41,7 @@
 
 import type { ExecResult, Port, RecordedCall, RecordingPort } from "iai-exec";
 import { classifyArgv, countReads } from "./argv-kind";
-import { createFakeForge, type FailureMode, type FakeForge } from "./fake-forge";
+import { createFakeForge, type FailureMode, type FakeForge, type FakeForgeOptions } from "./fake-forge";
 import { createFixtureRepo, type FixtureFile } from "./fixture-repo";
 import { createMutationRecorder, mutationEvidence, type MutationReport } from "./mutation-recorder";
 import { countReEntryRows, readSkillNames } from "./re-entry";
@@ -54,10 +54,22 @@ import type { TempDirs } from "./tempdir";
 /** Cites case 3 of docs/test-plans/293-plan.md: the skill denominator is
  *  asserted THREE ways -- greater than zero, equal to the count of SKILL.md
  *  files read from disk at run time, and equal to `PINNED_SKILL_COUNT`, a
- *  literal pinned here so a fourth skill added without a plan update turns
+ *  literal pinned here so a sixth skill added without a plan update turns
  *  the run red rather than silently widening the corpus this harness scores
- *  against. */
-export const PINNED_SKILL_COUNT = 4;
+ *  against.
+ *
+ *  BUMPING THIS: when a skill is added, this literal moves together with
+ *  four other sites that pin the same count by hand rather than reading it
+ *  off disk. Move all five in the same change, or the sites disagree:
+ *  - packages/harness/test/fake-forge.test.ts (its own `PINNED_SKILL_COUNT`)
+ *  - test/transcription-gap.test.ts (the "N skill bodies" denominator test
+ *    and the per-skill-name count in its mutation loop)
+ *  - test/skill-lint.test.ts (`CASE_6_REQUIRED_SKILL_COUNT`, and
+ *    `DOMAIN_RESOLVING_SKILLS`/`OWN_INPUT_ONLY_SKILLS` if the new skill
+ *    resolves a domain binding)
+ *  - docs/audits/293-transcription-audit.md (the summary table's row count
+ *    and total) */
+export const PINNED_SKILL_COUNT = 5;
 
 // ===========================================================================
 // Scenario surface -- what a later step's roster implements against
@@ -95,6 +107,11 @@ export interface Scenario {
    *  never through the recorder, so seeding is never itself scored as a
    *  mutation the subject made. */
   seed?(forge: FakeForge): Promise<void>;
+  /** Forwarded straight to `createFakeForge`'s `FakeForgeOptions.
+   *  subIssueCapability` (fake-forge.ts). Absent means the fake's own
+   *  default -- `"absent"`, the fallback-body path -- so every scenario that
+   *  predates this field is bit-for-bit unaffected by its existence. */
+  readonly subIssueCapability?: FakeForgeOptions["subIssueCapability"];
   run(ctx: ScenarioContext): Promise<void>;
   /** Case 9 of docs/test-plans/293-plan.md. Arm one of the fake forge's five
    *  lies (`fake-forge.ts`'s `FailureMode`) AFTER run 1 completes and BEFORE
@@ -676,7 +693,11 @@ export async function runHarness(options: RunHarnessOptions): Promise<HarnessVer
 
     const root = options.temps.create(`iai-322-${sanitiseForTempPrefix(scenario.id)}`);
     const raw = options.makePort();
-    const forge = createFakeForge({ delegate: raw, milestones: scenario.milestones });
+    const forge = createFakeForge({
+      delegate: raw,
+      milestones: scenario.milestones,
+      subIssueCapability: scenario.subIssueCapability,
+    });
     const recorder = createMutationRecorder({ port: forge });
     // The recorder's `port` field is typed narrowly as `Port` (one method),
     // but the object it actually hands out is the SAME `RecordingPort`

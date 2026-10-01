@@ -155,6 +155,7 @@ described above).
 | `domain-routing-form` | No hardcoded routing form (`domain:<id>` or `skills/<id>/`) for a domain the body does not itself own | body, both populations |
 | `phase-0-section` | A `## Phase 0` heading is present | body, skills only |
 | `error-handling-section` | A `## Error Handling` heading is present — **the heading only**; what it should cover is author-judged and unenforced (see [Adding a skill](#adding-a-skill)) | body, skills only |
+| `hard-failure-block` | The house hard-failure block is present and well-formed: a `Phase N (skill)` headline, then a subject line whose key is one of `Milestone`, `Story`, `Goal`, then `Expected`, `Found`, and an `Action` line carrying the invariant `Pipeline cannot continue. ` prefix | body, skills only |
 
 ### claim-lint
 

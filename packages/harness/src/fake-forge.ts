@@ -48,7 +48,7 @@
 // against golden-argv tests. #318 and #319 exercised `git`, never `gh`. That
 // bill is still unpaid and this task cannot pay it.
 
-import type { GhResponse } from "iai-core";
+import { SUB_ISSUE_FEATURE_HEADER, type GhResponse, type SubIssueCapability } from "iai-core";
 import { checkArgv, type ExecResult, type Port } from "iai-exec";
 
 // ---------------------------------------------------------------------------
@@ -207,6 +207,18 @@ export interface FakeForgeOptions {
    *  the fake occupies, so a harness wiring both surfaces passes a real port in
    *  and gets one seam for packages/exec/src/recording.ts to wrap. */
   readonly delegate?: Port;
+  /** Whether THIS fake instance's forge supports the sub-issue API, the fact
+   *  `subIssueCapabilityProbe` (packages/core/src/gh/sub-issues.ts:63) exists
+   *  to discover. Defaults to `"absent"`, which is the fallback-body path
+   *  every scenario exercised before this field existed -- so a scenario
+   *  that never sets it is bit-for-bit unaffected.
+   *
+   *  HONOURED ONLY WHEN THE CALL CARRIES `SUB_ISSUE_FEATURE_HEADER`. A probe
+   *  sent without the header reads `"absent"` regardless of this setting --
+   *  reproducing, as a tested fact rather than a comment, the exact false
+   *  negative sub-issues.ts:15-27 names as "the most dangerous failure this
+   *  module can have". */
+  readonly subIssueCapability?: SubIssueCapability;
 }
 
 // ---------------------------------------------------------------------------
@@ -225,7 +237,21 @@ export function isMutatingGhArgv(argv: readonly string[]): boolean {
   const verb = argv[1];
   if (verb === "api") {
     const method = flagValue(argv, "--method");
-    return method === "POST" || method === "PATCH" || method === "PUT" || method === "DELETE";
+    if (method === "POST" || method === "PATCH" || method === "PUT" || method === "DELETE") return true;
+    // `gh api graphql` carries no `--method` -- gh always POSTs it under the
+    // hood, so the HTTP verb above cannot tell a query from a mutation.
+    // Whether the REQUEST mutates is decided by the query text itself, the
+    // `-f query=...` field every graphql call passes (sub-issues.ts:63-116
+    // builds both the probe and the add-sub-issue mutation that way). A
+    // mutation document starts with the literal keyword `mutation`; a query
+    // document does not. Missing the distinction here is exactly the gap
+    // this task's own spec names: `subIssueLink`'s real sub-issue link would
+    // otherwise classify as a read and vanish from every mutation count.
+    if (argv[2] === "graphql") {
+      const query = fieldValue(argv, "query");
+      return query !== undefined && query.trimStart().startsWith("mutation");
+    }
+    return false;
   }
   if (verb === "issue" || verb === "pr" || verb === "label") {
     const action = argv[2];
@@ -258,15 +284,36 @@ function flagValues(argv: readonly string[], flag: string): string[] {
   return values;
 }
 
-/** A `-f key=value` field, as `gh api` takes them. */
-function fieldValue(argv: readonly string[], key: string): string | undefined {
+/** A `-f key=value` (or, for a typed field, `-F key=value`) field, as `gh
+ *  api` takes them. Both the probe and the add-sub-issue mutation
+ *  (sub-issues.ts:63-116) pass `query` via `-f` and their variables via `-F`,
+ *  so this reads either flag on request rather than becoming a second,
+ *  `-F`-only function. */
+function fieldValue(argv: readonly string[], key: string, flag: "-f" | "-F" = "-f"): string | undefined {
   const prefix = `${key}=`;
   for (const [index, part] of argv.entries()) {
-    if (part !== "-f") continue;
+    if (part !== flag) continue;
     const pair = argv[index + 1];
     if (pair !== undefined && pair.startsWith(prefix)) return pair.slice(prefix.length);
   }
   return undefined;
+}
+
+/** The synthetic GitHub node id this fake mints for an issue number. Opaque
+ *  only in the sense `sub-issues.ts`'s `NODE_ID_RE` requires
+ *  (`^[A-Za-z0-9_=-]+$`) -- deliberately reversible by this fake alone, via
+ *  `issueNumberFromNodeId` below, so a `subIssueLink` mutation can be
+ *  recorded against the real issue numbers it names without a second,
+ *  parallel node-id-to-number map to keep in sync. */
+function nodeIdFor(issue: number): string {
+  return `NODE_${String(issue)}`;
+}
+
+const NODE_ID_PATTERN = /^NODE_(\d+)$/;
+
+function issueNumberFromNodeId(nodeId: string): number | undefined {
+  const match = NODE_ID_PATTERN.exec(nodeId);
+  return match ? Number(match[1]) : undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -278,6 +325,14 @@ export function createFakeForge(options: FakeForgeOptions = {}): FakeForge {
   const issues: FakeIssue[] = [];
   const comments: FakeComment[] = [];
   const responses: FakeGhResponse[] = [];
+  // Every real `addSubIssue` link this instance has accepted, by issue
+  // number (decoded from the node ids -- see `issueNumberFromNodeId` above).
+  // Tracked so the probe's `totalCount` reflects what has actually been
+  // linked rather than a constant, which would make the probe a stub wearing
+  // a GraphQL shape instead of a genuine model of it.
+  const subIssueLinks: { readonly parent: number; readonly child: number }[] = [];
+
+  const subIssueCapability: SubIssueCapability = options.subIssueCapability ?? "absent";
 
   let nextMilestone = 1;
   let nextIssue = 1;
@@ -452,6 +507,69 @@ export function createFakeForge(options: FakeForgeOptions = {}): FakeForge {
       const existing = comments[index] as FakeComment;
       comments[index] = { ...existing, body: fieldValue(argv, "body") ?? existing.body };
       return ok(argv, JSON.stringify({ id }));
+    }
+
+    // Node id lookup: GET repos/{owner}/{name}/issues/{n} --jq .node_id.
+    // `issueNodeId` (sub-issues.ts:84) is the only caller this fake needs to
+    // answer, and only the fixed `--jq ".node_id"` shape it builds -- there
+    // is no general jq interpreter here, only this one literal filter.
+    const nodeIdLookup = /\/issues\/(\d+)$/.exec(path);
+    if (method === undefined && nodeIdLookup && argv.includes("--jq")) {
+      const lie = lieOnRead(argv);
+      if (lie) return lie;
+      const number = Number(nodeIdLookup[1]);
+      const issue = issues.find((i) => i.number === number);
+      if (issue === undefined) return unmodelled(argv);
+      // `--jq '.node_id'` prints the extracted scalar raw, not JSON-quoted --
+      // this is the one place in the fake that reproduces that, rather than
+      // the `ok(argv, JSON.stringify(...))` shape every other read uses.
+      return ok(argv, nodeIdFor(issue.number));
+    }
+
+    // The sub-issue capability probe and the add-sub-issue mutation both go
+    // through `gh api graphql`, distinguished from each other only by the
+    // query text itself (sub-issues.ts:46-48 and :43-44) -- there is no REST
+    // path to match on, which is why this branch sits apart from the
+    // path-based ones above.
+    if (path === "graphql") {
+      const query = fieldValue(argv, "query");
+      if (query === undefined) return unmodelled(argv);
+      const hasFeatureHeader = flagValue(argv, "-H") === SUB_ISSUE_FEATURE_HEADER;
+
+      if (query.trimStart().startsWith("query")) {
+        // THE PROBE. Honours the header the way the real API does: without
+        // it the answer is "absent" no matter what this instance actually
+        // supports (sub-issues.ts:15-27's "false negative"); with it, the
+        // answer is this fake instance's configured, genuine capability.
+        const lie = lieOnRead(argv);
+        if (lie) return lie;
+        const number = Number(fieldValue(argv, "number", "-F"));
+        const enabled = hasFeatureHeader && subIssueCapability === "present";
+        const subIssues = enabled
+          ? { totalCount: subIssueLinks.filter((l) => l.parent === number).length }
+          : null;
+        return ok(argv, JSON.stringify({ data: { repository: { issue: { subIssues } } } }));
+      }
+
+      if (query.trimStart().startsWith("mutation")) {
+        // THE LINK. Only reachable with the header present and this
+        // instance's capability "present" -- `subIssueLink` is never issued
+        // by a caller who read the probe honestly and got "absent", so an
+        // attempt here without both is itself a transcription bug, named
+        // rather than silently answered.
+        if (!hasFeatureHeader || subIssueCapability !== "present") return unmodelled(argv);
+        const lie = lieOnMutation(argv);
+        if (lie) return lie;
+        const parentNodeId = fieldValue(argv, "p", "-F");
+        const childNodeId = fieldValue(argv, "c", "-F");
+        const parent = parentNodeId === undefined ? undefined : issueNumberFromNodeId(parentNodeId);
+        const child = childNodeId === undefined ? undefined : issueNumberFromNodeId(childNodeId);
+        if (parent === undefined || child === undefined) return unmodelled(argv);
+        subIssueLinks.push({ parent, child });
+        return ok(argv, JSON.stringify({ data: { addSubIssue: { issue: { number: child } } } }));
+      }
+
+      return unmodelled(argv);
     }
 
     return unmodelled(argv);

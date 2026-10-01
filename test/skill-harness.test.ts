@@ -192,7 +192,7 @@ describe("skill-harness CLI over --inject (the five-scenario INJECTION_ROSTER)",
     expect(artifact.exitCode).toBe(1);
   }, 120_000);
 
-  test("the roster length under --inject is 5, distinct from the default roster's 6", async () => {
+  test("the roster length under --inject is 5, distinct from the default roster's 9", async () => {
     const outPath = join(temps.create("iai-skill-harness-inject-out-"), "report.json");
     await spawnHarness(["--inject", "--out", outPath]);
     const artifact = JSON.parse(readFileSync(outPath, "utf8")) as HarnessArtifact;
@@ -202,13 +202,13 @@ describe("skill-harness CLI over --inject (the five-scenario INJECTION_ROSTER)",
 });
 
 describe("skill-harness CLI without --inject: the default path is unchanged", () => {
-  test("still exits 0 over the real roster, and SCENARIO_ROSTER.length is still 6", async () => {
+  test("still exits 0 over the real roster, and SCENARIO_ROSTER.length is still 9", async () => {
     const outPath = join(temps.create("iai-skill-harness-default-out-"), "report.json");
     const spawned = await spawnHarness(["--out", outPath]);
     expect(spawned.exitCode).toBe(0);
     const artifact = JSON.parse(readFileSync(outPath, "utf8")) as HarnessArtifact;
     expect(artifact.verdict).toBe("pass");
-    expect(artifact.denominators.rosterLength).toBe(6);
+    expect(artifact.denominators.rosterLength).toBe(9);
   }, 120_000);
 });
 
